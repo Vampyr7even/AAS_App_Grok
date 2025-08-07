@@ -1,56 +1,72 @@
 package com.example.aas_app.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.aas_app.data.Result
-import com.example.aas_app.data.entity.PeclTaskEntity
-import com.example.aas_app.viewmodel.PeclViewModel
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.aas_app.data.entities.PeclTaskEntity
+import com.example.aas_app.viewmodel.AdminViewModel
+import com.example.aas_app.viewmodel.AppState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditTaskScreen(viewModel: PeclViewModel, taskId: Int) {
-    var task by remember { mutableStateOf<PeclTaskEntity?>(null) }
-    var taskName by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(true) }
+fun EditTaskScreen(navController: NavController, taskId: Long) {
+    val viewModel: AdminViewModel = hiltViewModel()
+    val taskState by viewModel.tasksState.observeAsState(AppState.Loading<List<PeclTaskEntity>>())
 
     LaunchedEffect(taskId) {
-        val result = viewModel.getPeclTaskById(taskId)
-        if (result is Result.Success) {
-            task = result.data
-            taskName = result.data?.peclTask ?: ""
+        viewModel.loadTaskById(taskId) // Assume added to ViewModel/Repo: getTaskById
+    }
+
+    var taskName by remember { mutableStateOf("") }
+
+    when (val state = taskState) {
+        is AppState.Success -> {
+            val task = state.data.firstOrNull { it.id == taskId } ?: return
+            taskName = task.name
         }
-        isLoading = false
+        else -> { }
     }
 
-    if (isLoading) {
-        Text("Loading...", modifier = Modifier.padding(16.dp))
-        return
-    }
-
-    if (task == null) {
-        Text("Task not found", modifier = Modifier.padding(16.dp))
-        return
-    }
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        TextField(value = taskName, onValueChange = { newValue -> taskName = newValue }, label = { Text("Task Name") })
-
-        Button(onClick = {
-            val updatedTask = task!!.copy(peclTask = taskName)
-            viewModel.updatePeclTask(updatedTask)
-        }) {
-            Text("Update Task")
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        TextField(
+            value = taskName,
+            onValueChange = { taskName = it },
+            label = { Text("Task Name") }
+        )
+        Button(
+            onClick = {
+                val updatedTask = PeclTaskEntity(taskId, taskName, 0L) // Adjust poiId
+                viewModel.updateTask(updatedTask)
+                navController.popBackStack()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text("Update")
         }
     }
 }

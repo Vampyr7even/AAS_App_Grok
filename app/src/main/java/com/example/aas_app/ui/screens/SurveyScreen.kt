@@ -1,11 +1,13 @@
 package com.example.aas_app.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -13,92 +15,136 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.aas_app.data.entity.ResponseEntity
-import com.example.aas_app.viewmodel.DemographicsViewModel
-import java.util.Date
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.aas_app.data.entities.PeclEvaluationResultEntity
+import com.example.aas_app.data.entities.PeclPoiEntity
+import com.example.aas_app.data.entities.PeclQuestionEntity
+import com.example.aas_app.data.entities.UserEntity
+import com.example.aas_app.viewmodel.AdminViewModel
+import com.example.aas_app.viewmodel.AppState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SurveyScreen(viewModel: DemographicsViewModel) {
-    val templates by viewModel.demoTemplates.collectAsState(initial = emptyList())
-    var selectedTemplate by remember { mutableStateOf("") }
-    val selectedQuestions by viewModel.selectedQuestions.collectAsState(initial = emptyList())
-    val users by viewModel.users.collectAsState(initial = emptyList())
-    val responses = remember { mutableStateMapOf<Int, String>() }
-    var selectedUser by remember { mutableStateOf("") }
-    var expandedTemplate by remember { mutableStateOf(false) }
-    var expandedUser by remember { mutableStateOf(false) }
+fun SurveyScreen(navController: NavController) {
+    val viewModel: AdminViewModel = hiltViewModel()
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
+    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading<List<UserEntity>>())
 
-    // Load for default project, adjust as needed
-    viewModel.loadUsersByAssignedProject("AASB")
+    LaunchedEffect(Unit) {
+        viewModel.loadPoisForProgram(0L) // Adjust program ID
+        viewModel.loadStudentsForProgram(0L)
+    }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // Template dropdown
-        ExposedDropdownMenuBox(expanded = expandedTemplate, onExpandedChange = { expandedTemplate = !expandedTemplate }) {
-            TextField(readOnly = true, value = selectedTemplate, onValueChange = {}, label = { Text("Template") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTemplate) })
-            ExposedDropdownMenu(expanded = expandedTemplate, onDismissRequest = { expandedTemplate = false }) {
-                templates.forEach { template ->
-                    DropdownMenuItem(text = { Text(template.templateName) }, onClick = {
-                        selectedTemplate = template.templateName
-                        viewModel.loadQuestionsByIds(template.selectedItems.split(",").map { it.toInt() })
-                        expandedTemplate = false
-                    })
-                }
-            }
-        }
+    var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
+    var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }
+    var expandedPoi by remember { mutableStateOf(false) }
+    var expandedStudent by remember { mutableStateOf(false) }
 
-        // User dropdown
-        ExposedDropdownMenuBox(expanded = expandedUser, onExpandedChange = { expandedUser = !expandedUser }) {
-            TextField(readOnly = true, value = selectedUser, onValueChange = {}, label = { Text("User") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedUser) })
-            ExposedDropdownMenu(expanded = expandedUser, onDismissRequest = { expandedUser = false }) {
-                users.forEach { user ->
-                    DropdownMenuItem(text = { Text(user.fullName) }, onClick = { selectedUser = user.fullName; expandedUser = false })
-                }
-            }
-        }
-
-        LazyColumn {
-            items(selectedQuestions.size) { index ->
-                val question = selectedQuestions[index]
-                Column {
-                    Text(question.field)
-                    when (question.inputType) {
-                        "TextBox" -> {
-                            var text by remember { mutableStateOf(responses[question.id] ?: "") }
-                            TextField(value = text, onValueChange = { text = it; responses[question.id] = it })
-                        }
-                        "ComboBox" -> {
-                            var selected by remember { mutableStateOf(responses[question.id] ?: "") }
-                            var expanded by remember { mutableStateOf(false) }
-                            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-                                TextField(readOnly = true, value = selected, onValueChange = {}, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) })
-                                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                    question.options.split(",").forEach { option ->
-                                        DropdownMenuItem(text = { Text(option) }, onClick = { selected = option; responses[question.id] = option; expanded = false })
-                                    }
-                                }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = expandedPoi,
+            onExpandedChange = { expandedPoi = !expandedPoi }
+        ) {
+            TextField(
+                readOnly = true,
+                value = selectedPoi?.name ?: "",
+                onValueChange = { },
+                label = { Text("Select POI") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPoi) },
+                colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                modifier = Modifier.menuAnchor()
+            )
+            ExposedDropdownMenu(
+                expanded = expandedPoi,
+                onDismissRequest = { expandedPoi = false }
+            ) {
+                when (val state = poisState) {
+                    is AppState.Success -> state.data.forEach { poi ->
+                        DropdownMenuItem(
+                            text = { Text(poi.name) },
+                            onClick = {
+                                selectedPoi = poi
+                                expandedPoi = false
+                                viewModel.loadQuestionsForTask(poi.id) // Adjust to load questions for POI
                             }
-                        }
-                        // Add other types
+                        )
+                    }
+                    else -> { }
+                }
+            }
+        }
+
+        ExposedDropdownMenuBox(
+            expanded = expandedStudent,
+            onExpandedChange = { expandedStudent = !expandedStudent }
+        ) {
+            TextField(
+                readOnly = true,
+                value = selectedStudent?.name ?: "",
+                onValueChange = { },
+                label = { Text("Select Student") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStudent) },
+                colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                modifier = Modifier.menuAnchor()
+            )
+            ExposedDropdownMenu(
+                expanded = expandedStudent,
+                onDismissRequest = { expandedStudent = false }
+            ) {
+                when (val state = studentsState) {
+                    is AppState.Success -> state.data.forEach { student ->
+                        DropdownMenuItem(
+                            text = { Text(student.name) },
+                            onClick = {
+                                selectedStudent = student
+                                expandedStudent = false
+                            }
+                        )
+                    }
+                    else -> { }
+                }
+            }
+        }
+
+        when (val state = questionsState) {
+            is AppState.Loading -> Text("Loading questions...")
+            is AppState.Success -> {
+                LazyColumn {
+                    items(state.data) { question ->
+                        // Render dynamic control based on question.controlType
+                        Text(question.subTask)
+                        // Add input field based on type
                     }
                 }
             }
+            is AppState.Error -> Text("Error: ${state.message}")
         }
 
-        Button(onClick = {
-            responses.forEach { (questionId, response) ->
-                viewModel.insertResponse(ResponseEntity(questionId = questionId, userId = users.find { it.fullName == selectedUser }?.id ?: 0, answer = response, surveyDate = Date().toString()))
-            }
-        }) {
-            Text("Submit")
+        Button(
+            onClick = {
+                // Collect responses and insert
+                val result = PeclEvaluationResultEntity(0L, 0L, 0L, 0L, "program", "poi", "task", "subtask", 0, "comment")
+                viewModel.insertEvaluationResult(result)
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text("Save Responses")
         }
     }
 }

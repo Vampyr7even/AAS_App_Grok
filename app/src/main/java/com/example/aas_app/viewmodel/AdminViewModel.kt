@@ -4,150 +4,225 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.aas_app.data.AppRepository
-import com.example.aas_app.data.Result
-import com.example.aas_app.data.entity.PeclTaskEntity
-import com.example.aas_app.data.entity.ProjectEntity
-import com.example.aas_app.data.entity.UserEntity
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.aas_app.data.entities.PeclEvaluationResultEntity
+import com.example.aas_app.data.entities.PeclPoiEntity
+import com.example.aas_app.data.entities.PeclProgramEntity
+import com.example.aas_app.data.entities.PeclQuestionEntity
+import com.example.aas_app.data.entities.PeclScaleEntity
+import com.example.aas_app.data.entities.PeclTaskEntity
+import com.example.aas_app.data.entities.UserEntity
+import com.example.aas_app.data.repository.AppRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.launch
 
-class AdminViewModel(private val repository: AppRepository) : ViewModel() {
+sealed class AppState<T> {
+    class Loading<T> : AppState<T>()
+    data class Success<T>(val data: T) : AppState<T>()
+    data class Error<T>(val message: String) : AppState<T>()
+}
 
-    private val _projects = MutableStateFlow<List<ProjectEntity>>(emptyList())
-    val projects: StateFlow<List<ProjectEntity>> = _projects
+@HiltViewModel
+class AdminViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
 
-    private val _users = MutableStateFlow<List<UserEntity>>(emptyList())
-    val users: StateFlow<List<UserEntity>> = _users
+    val programsState: LiveData<AppState<List<PeclProgramEntity>>> = MutableLiveData()
+    val poisState: LiveData<AppState<List<PeclPoiEntity>>> = MutableLiveData()
+    val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = MutableLiveData()
+    val questionsState: LiveData<AppState<List<PeclQuestionEntity>>> = MutableLiveData()
+    val scalesState: LiveData<AppState<List<PeclScaleEntity>>> = MutableLiveData()
+    val studentsState: LiveData<AppState<List<UserEntity>>> = MutableLiveData()
 
-    private val _peclTasks = MutableStateFlow<List<PeclTaskEntity>>(emptyList())
-    val peclTasks: StateFlow<List<PeclTaskEntity>> = _peclTasks
-
-    private val _state = MutableLiveData<State<Any>>()
-    val state: LiveData<State<Any>> = _state
-
-    init {
-        loadProjects()
-        loadUsers()
-        loadPeclTasks()
-    }
-
-    fun loadProjects() {
+    fun loadPrograms() {
+        (programsState as MutableLiveData).value = AppState.Loading()
         viewModelScope.launch {
-            _state.postValue(State.Loading)
-            val result = repository.getAllProjects()
-            if (result is Result.Success) {
-                _projects.value = result.data
-                if (_projects.value.isEmpty()) {
-                    _state.postValue(State.Error("No projects found"))
-                } else {
-                    _state.postValue(State.Success(result.data))
-                }
-            } else {
-                _state.postValue(State.Error("Failed to load projects: ${(result as Result.Error).exception.message}"))
+            try {
+                val data = repository.getAllPrograms()
+                (programsState as MutableLiveData).postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                (programsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading programs"))
             }
         }
     }
 
-    fun loadUsers() {
+    fun loadPoisForProgram(programId: Long) {
+        (poisState as MutableLiveData).value = AppState.Loading()
         viewModelScope.launch {
-            val result = repository.getAllUsers()
-            if (result is Result.Success) {
-                _users.value = result.data
-            } else {
-                _state.postValue(State.Error("Failed to load users: ${(result as Result.Error).exception.message}"))
+            try {
+                val data = repository.getPoisForProgram(programId)
+                (poisState as MutableLiveData).postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                (poisState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading POIs"))
             }
         }
     }
 
-    fun loadPeclTasks() {
+    fun loadTasksForPoi(poiId: Long) {
+        (tasksState as MutableLiveData).value = AppState.Loading()
         viewModelScope.launch {
-            val result = repository.getAllPeclTasks()
-            if (result is Result.Success) {
-                _peclTasks.value = result.data
-            } else {
-                _state.postValue(State.Error("Failed to load tasks: ${(result as Result.Error).exception.message}"))
+            try {
+                val data = repository.getTasksForPoi(poiId)
+                (tasksState as MutableLiveData).postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                (tasksState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading tasks"))
             }
         }
     }
 
-    fun insertProject(project: ProjectEntity) {
+    fun loadQuestionsForTask(taskId: Long) {
+        (questionsState as MutableLiveData).value = AppState.Loading()
         viewModelScope.launch {
-            val result = repository.insertProject(project)
-            if (result is Result.Success) {
-                loadProjects()
-            } else {
-                _state.postValue(State.Error("Insert failed: ${(result as Result.Error).exception.message}"))
+            try {
+                val data = repository.getQuestionsForTask(taskId)
+                (questionsState as MutableLiveData).postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading questions"))
             }
         }
     }
 
-    fun updateProject(project: ProjectEntity) {
+    fun loadScales() {
+        (scalesState as MutableLiveData).value = AppState.Loading()
         viewModelScope.launch {
-            val result = repository.updateProject(project)
-            if (result is Result.Success) {
-                loadProjects()
-            } else {
-                _state.postValue(State.Error("Update failed: ${(result as Result.Error).exception.message}"))
+            try {
+                val data = repository.getAllScales()
+                (scalesState as MutableLiveData).postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                (scalesState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading scales"))
             }
         }
     }
 
-    fun deleteProject(project: ProjectEntity) {
+    fun loadQuestionsByIds(ids: List<Long>) {
+        (questionsState as MutableLiveData).value = AppState.Loading()
         viewModelScope.launch {
-            val result = repository.deleteProject(project)
-            if (result is Result.Success) {
-                loadProjects()
-            } else {
-                _state.postValue(State.Error("Delete failed: referenced? ${(result as Result.Error).exception.message}"))
+            try {
+                val data = repository.getQuestionsByIds(ids)
+                (questionsState as MutableLiveData).postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading questions by IDs"))
             }
         }
     }
 
-    fun insertUser(user: UserEntity) {
+    fun loadStudentsForProgram(programId: Long) {
+        (studentsState as MutableLiveData).value = AppState.Loading()
         viewModelScope.launch {
-            val result = repository.insertUser(user)
-            if (result is Result.Success) {
-                loadUsers()
-            } else {
-                _state.postValue(State.Error("Insert failed: ${(result as Result.Error).exception.message}"))
+            try {
+                val data = repository.getStudentsForProgram(programId)
+                (studentsState as MutableLiveData).postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                (studentsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading students for program"))
             }
         }
     }
 
-    fun updateUser(user: UserEntity) {
+    fun insertProgram(program: PeclProgramEntity) {
         viewModelScope.launch {
-            val result = repository.updateUser(user)
-            if (result is Result.Success) {
-                loadUsers()
-            } else {
-                _state.postValue(State.Error("Update failed: ${(result as Result.Error).exception.message}"))
+            try {
+                repository.insertProgram(program)
+                loadPrograms()
+            } catch (e: Exception) {
+                (programsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error inserting program"))
             }
         }
     }
 
-    fun deleteUser(user: UserEntity) {
+    fun updateProgram(program: PeclProgramEntity) {
         viewModelScope.launch {
-            val result = repository.deleteUser(user)
-            if (result is Result.Success) {
-                loadUsers()
-            } else {
-                _state.postValue(State.Error("Delete failed: ${(result as Result.Error).exception.message}"))
+            try {
+                repository.updateProgram(program)
+                loadPrograms()
+            } catch (e: Exception) {
+                (programsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error updating program"))
             }
         }
     }
 
-    fun deletePeclTask(task: PeclTaskEntity) {
+    fun deleteProgram(program: PeclProgramEntity) {
         viewModelScope.launch {
-            val result = repository.deletePeclTask(task)
-            if (result is Result.Success) {
-                loadPeclTasks()
-            } else {
-                _state.postValue(State.Error("Delete failed: ${(result as Result.Error).exception.message}"))
+            try {
+                repository.deleteProgram(program)
+                loadPrograms()
+            } catch (e: Exception) {
+                (programsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Cannot delete program - referenced elsewhere"))
             }
         }
     }
 
-    // Add similar for other entities like scales, etc.
+    fun insertPoi(poi: PeclPoiEntity) {
+        viewModelScope.launch {
+            try {
+                repository.insertPoi(poi)
+                loadPoisForProgram(poi.programId)
+            } catch (e: Exception) {
+                (poisState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error inserting POI"))
+            }
+        }
+    }
+
+    fun updatePoi(poi: PeclPoiEntity) {
+        viewModelScope.launch {
+            try {
+                repository.updatePoi(poi)
+                loadPoisForProgram(poi.programId)
+            } catch (e: Exception) {
+                (poisState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error updating POI"))
+            }
+        }
+    }
+
+    fun deletePoi(poi: PeclPoiEntity) {
+        viewModelScope.launch {
+            try {
+                repository.deletePoi(poi)
+                loadPoisForProgram(poi.programId)
+            } catch (e: Exception) {
+                (poisState as MutableLiveData).postValue(AppState.Error(e.message ?: "Cannot delete POI - tasks assigned"))
+            }
+        }
+    }
+
+    fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
+        viewModelScope.launch {
+            try {
+                repository.insertQuestionWithAssignment(question, taskId)
+                loadQuestionsForTask(taskId)
+            } catch (e: Exception) {
+                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error inserting question"))
+            }
+        }
+    }
+
+    fun updateQuestion(question: PeclQuestionEntity) {
+        viewModelScope.launch {
+            try {
+                repository.updateQuestion(question)
+                // Reload appropriate list
+            } catch (e: Exception) {
+                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error updating question"))
+            }
+        }
+    }
+
+    fun deleteQuestion(question: PeclQuestionEntity) {
+        viewModelScope.launch {
+            try {
+                repository.deleteQuestion(question)
+                // Reload appropriate list
+            } catch (e: Exception) {
+                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Cannot delete question - referenced elsewhere"))
+            }
+        }
+    }
+
+    fun insertEvaluationResult(result: PeclEvaluationResultEntity) {
+        viewModelScope.launch {
+            try {
+                repository.insertEvaluationResult(result)
+                // Reload if needed
+            } catch (e: Exception) {
+                // Handle error in UI via state if applicable
+            }
+        }
+    }
 }

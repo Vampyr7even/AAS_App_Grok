@@ -1,65 +1,93 @@
 package com.example.aas_app.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.aas_app.data.Result
-import com.example.aas_app.data.entity.PeclQuestionEntity
-import com.example.aas_app.viewmodel.PeclViewModel
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.aas_app.data.entities.PeclQuestionEntity
+import com.example.aas_app.viewmodel.AdminViewModel
+import com.example.aas_app.viewmodel.AppState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditQuestionScreen(viewModel: PeclViewModel, questionId: Int) {
-    var question by remember { mutableStateOf<PeclQuestionEntity?>(null) }
+fun EditQuestionScreen(navController: NavController, questionId: Long) {
+    val viewModel: AdminViewModel = hiltViewModel()
+    val questionState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
+
+    LaunchedEffect(questionId) {
+        viewModel.loadQuestionById(questionId) // Assume added to ViewModel/Repo: getQuestionById
+    }
+
     var subTask by remember { mutableStateOf("") }
     var controlType by remember { mutableStateOf("") }
     var scale by remember { mutableStateOf("") }
     var criticalTask by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(questionId) {
-        val result = viewModel.getPeclQuestionById(questionId)
-        if (result is Result.Success) {
-            question = result.data
-            subTask = result.data?.subTask ?: ""
-            controlType = result.data?.controlType ?: ""
-            scale = result.data?.scale ?: ""
-            criticalTask = result.data?.criticalTask ?: ""
+    when (val state = questionState) {
+        is AppState.Success -> {
+            val question = state.data.firstOrNull { it.id == questionId } ?: return
+            subTask = question.subTask
+            controlType = question.controlType
+            scale = question.scale
+            criticalTask = question.criticalTask
         }
-        isLoading = false
+        else -> { }
     }
 
-    if (isLoading) {
-        Text("Loading...", modifier = Modifier.padding(16.dp))
-        return
-    }
-
-    if (question == null) {
-        Text("Question not found", modifier = Modifier.padding(16.dp))
-        return
-    }
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        TextField(value = subTask, onValueChange = { newValue -> subTask = newValue }, label = { Text("Sub Task") })
-        TextField(value = controlType, onValueChange = { newValue -> controlType = newValue }, label = { Text("Control Type") })
-        TextField(value = scale, onValueChange = { newValue -> scale = newValue }, label = { Text("Scale") })
-        TextField(value = criticalTask, onValueChange = { newValue -> criticalTask = newValue }, label = { Text("Critical Task") })
-
-        Button(onClick = {
-            val updatedQuestion = question!!.copy(subTask = subTask, controlType = controlType, scale = scale, criticalTask = criticalTask)
-            viewModel.updatePeclQuestion(updatedQuestion)
-        }) {
-            Text("Update Question")
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        TextField(
+            value = subTask,
+            onValueChange = { subTask = it },
+            label = { Text("Sub Task") }
+        )
+        TextField(
+            value = controlType,
+            onValueChange = { controlType = it },
+            label = { Text("Control Type") }
+        )
+        TextField(
+            value = scale,
+            onValueChange = { scale = it },
+            label = { Text("Scale") }
+        )
+        TextField(
+            value = criticalTask,
+            onValueChange = { criticalTask = it },
+            label = { Text("Critical Task") }
+        )
+        Button(
+            onClick = {
+                val updatedQuestion = PeclQuestionEntity(questionId, subTask, controlType, scale, criticalTask)
+                viewModel.updateQuestion(updatedQuestion)
+                navController.popBackStack()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text("Update")
         }
     }
 }

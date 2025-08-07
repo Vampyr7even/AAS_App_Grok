@@ -1,71 +1,44 @@
 package com.example.aas_app.data
 
 import android.content.Context
-import androidx.room.Database
-import androidx.room.Room
-import androidx.room.RoomDatabase
+import androidx.room.*
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.aas_app.data.dao.DemoTemplatesDao
-import com.example.aas_app.data.dao.InstructorStudentAssignmentDao
-import com.example.aas_app.data.dao.PeclEvaluationResultDao
-import com.example.aas_app.data.dao.PeclPoiDao
-import com.example.aas_app.data.dao.PeclProgramDao
-import com.example.aas_app.data.dao.PeclQuestionDao
-import com.example.aas_app.data.dao.PeclTaskDao
-import com.example.aas_app.data.dao.ProjectDao
-import com.example.aas_app.data.dao.QuestionAssignmentDao
-import com.example.aas_app.data.dao.QuestionRepositoryDao
-import com.example.aas_app.data.dao.ResponseDao
-import com.example.aas_app.data.dao.ScaleDao
-import com.example.aas_app.data.dao.UserDao
-import com.example.aas_app.data.entity.DemoTemplatesEntity
-import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
-import com.example.aas_app.data.entity.PeclEvaluationResultEntity
-import com.example.aas_app.data.entity.PeclPoiEntity
-import com.example.aas_app.data.entity.PeclProgramEntity
-import com.example.aas_app.data.entity.PeclQuestionEntity
-import com.example.aas_app.data.entity.PeclTaskEntity
-import com.example.aas_app.data.entity.ProjectEntity
-import com.example.aas_app.data.entity.QuestionAssignmentEntity
-import com.example.aas_app.data.entity.QuestionRepositoryEntity
-import com.example.aas_app.data.entity.ResponseEntity
-import com.example.aas_app.data.entity.ScaleEntity
-import com.example.aas_app.data.entity.UserEntity
 
 @Database(
     entities = [
         UserEntity::class,
-        QuestionRepositoryEntity::class,
-        DemoTemplatesEntity::class,
-        ResponseEntity::class,
-        ProjectEntity::class,
-        PeclQuestionEntity::class,
         PeclProgramEntity::class,
         PeclPoiEntity::class,
-        ScaleEntity::class,
         PeclTaskEntity::class,
-        PeclEvaluationResultEntity::class,
+        PeclQuestionEntity::class,
         QuestionAssignmentEntity::class,
-        InstructorStudentAssignmentEntity::class
+        InstructorStudentAssignmentEntity::class,
+        PeclEvaluationResultEntity::class,
+        PeclScaleEntity::class
     ],
     version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
+
     abstract fun userDao(): UserDao
-    abstract fun questionRepositoryDao(): QuestionRepositoryDao
-    abstract fun demoTemplatesDao(): DemoTemplatesDao
-    abstract fun responseDao(): ResponseDao
-    abstract fun projectDao(): ProjectDao
-    abstract fun peclQuestionDao(): PeclQuestionDao
-    abstract fun peclProgramDao(): PeclProgramDao
-    abstract fun peclPoiDao(): PeclPoiDao
-    abstract fun scaleDao(): ScaleDao
-    abstract fun peclTaskDao(): PeclTaskDao
-    abstract fun peclEvaluationResultDao(): PeclEvaluationResultDao
-    abstract fun questionAssignmentDao(): QuestionAssignmentDao
+
+    abstract fun programDao(): ProgramDao
+
+    abstract fun poiDao(): PoiDao
+
+    abstract fun taskDao(): TaskDao
+
+    abstract fun questionDao(): QuestionDao
+
+    abstract fun assignmentDao(): AssignmentDao
+
     abstract fun instructorStudentAssignmentDao(): InstructorStudentAssignmentDao
+
+    abstract fun evaluationDao(): EvaluationDao
+
+    abstract fun scaleDao(): ScaleDao
 
     companion object {
         @Volatile
@@ -76,176 +49,362 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "app_database"
-                ).addMigrations(
-                    MIGRATION_11_12
-                ).fallbackToDestructiveMigration().build()
+                    "aas_database"
+                )
+                    .addMigrations(MIGRATION_11_12)
+                    .build()
                 INSTANCE = instance
                 instance
             }
         }
 
-        val MIGRATION_11_12 = object : Migration(11, 12) {
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Step 1: Add 'role' to users (default null for existing)
-                db.execSQL("ALTER TABLE users ADD COLUMN role TEXT")
+                // Create new tables with snake_case columns
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pecl_programs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL)"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_pecl_programs_name` ON `pecl_programs` (`name`)")
 
-                // Step 2: Add FK fields to existing tables
-                // For pecl_poi: Add program_id FK
-                db.execSQL("ALTER TABLE pecl_poi ADD COLUMN program_id INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pecl_pois` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `program_id` INTEGER NOT NULL, FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_pecl_pois_name` ON `pecl_pois` (`name`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_pois_program_id` ON `pecl_pois` (`program_id`)")
 
-                // For pecl_tasks: Add poi_id FK
-                db.execSQL("ALTER TABLE pecl_tasks ADD COLUMN poi_id INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pecl_tasks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `poi_id` INTEGER NOT NULL, FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_pecl_tasks_name` ON `pecl_tasks` (`name`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_tasks_poi_id` ON `pecl_tasks` (`poi_id`)")
 
-                // Step 3: Migrate data from old pecl_questions (parse commas, insert into new hierarchy)
-                // First, extract and insert unique programs from pecl_questions.program (comma-sep)
-                val cursorPrograms = db.query("SELECT DISTINCT program FROM pecl_questions")
-                while (cursorPrograms.moveToNext()) {
-                    val programsStr = cursorPrograms.getString(0) ?: continue
-                    val uniquePrograms = programsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-                    for (programName in uniquePrograms) {
-                        db.execSQL("INSERT OR IGNORE INTO pecl_programs (peclProgram) VALUES (?)", arrayOf(programName))
-                    }
-                }
-                cursorPrograms.close()
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pecl_questions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sub_task` TEXT NOT NULL, `control_type` TEXT NOT NULL, `scale` TEXT NOT NULL, `critical_task` TEXT NOT NULL)"
+                )
 
-                // Similarly for POIs (from pecl_questions.poi), linking to programs
-                val cursorPois = db.query("SELECT program, poi FROM pecl_questions")
-                while (cursorPois.moveToNext()) {
-                    val programsStr = cursorPois.getString(0) ?: continue
-                    val poisStr = cursorPois.getString(1) ?: continue
-                    val programNames = programsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-                    val poiNames = poisStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-
-                    for (poiName in poiNames) {
-                        for (programName in programNames) {  // Link to all programs for shared POIs
-                            val programCursor = db.query("SELECT id FROM pecl_programs WHERE peclProgram = ?", arrayOf(programName))
-                            if (programCursor.moveToFirst()) {
-                                val programId = programCursor.getInt(0)
-                                db.execSQL("INSERT OR IGNORE INTO pecl_poi (peclPoi, program_id) VALUES (?, ?)", arrayOf(poiName, programId))
-                            }
-                            programCursor.close()
-                        }
-                    }
-                }
-                cursorPois.close()
-
-                // For tasks: Extract unique from pecl_questions.task, link to POIs
-                val cursorTasks = db.query("SELECT poi, task FROM pecl_questions")
-                while (cursorTasks.moveToNext()) {
-                    val poisStr = cursorTasks.getString(0) ?: continue
-                    val taskName = cursorTasks.getString(1) ?: continue
-                    val poiNames = poisStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-
-                    for (poiName in poiNames) {
-                        val poiCursor = db.query("SELECT id FROM pecl_poi WHERE peclPoi = ?", arrayOf(poiName))
-                        if (poiCursor.moveToFirst()) {
-                            val poiId = poiCursor.getInt(0)
-                            db.execSQL("INSERT OR IGNORE INTO pecl_tasks (peclTask, poi_id) VALUES (?, ?)", arrayOf(taskName, poiId))
-                        }
-                        poiCursor.close()
-                    }
-                }
-                cursorTasks.close()
-
-                // Populate question_assignments: For each old question, find task_id(s) from parsed task
-                val cursorAssignments = db.query("SELECT id, task FROM pecl_questions")
-                while (cursorAssignments.moveToNext()) {
-                    val questionId = cursorAssignments.getInt(0)
-                    val taskName = cursorAssignments.getString(1) ?: continue
-
-                    val taskCursor = db.query("SELECT id FROM pecl_tasks WHERE peclTask = ?", arrayOf(taskName))
-                    while (taskCursor.moveToNext()) {
-                        val taskId = taskCursor.getInt(0)
-                        db.execSQL("INSERT INTO question_assignments (question_id, task_id) VALUES (?, ?)", arrayOf(questionId, taskId))
-                    }
-                    taskCursor.close()
-                }
-                cursorAssignments.close()
-
-                // Step 4: Create new junction tables with FKs and indices
-                db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS `question_assignments` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `question_id` INTEGER NOT NULL,
-                        `task_id` INTEGER NOT NULL,
-                        FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON DELETE RESTRICT,
-                        FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON DELETE RESTRICT
-                    )
-                """.trimIndent())
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `question_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `question_id` INTEGER NOT NULL, `task_id` INTEGER NOT NULL, FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )"
+                )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_question_assignments_question_id_task_id` ON `question_assignments` (`question_id`, `task_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_question_assignments_task_id` ON `question_assignments` (`task_id`)")
 
-                db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS `instructor_student_assignments` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `instructor_id` INTEGER NOT NULL,
-                        `student_id` INTEGER NOT NULL,
-                        `program_id` INTEGER,
-                        FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
-                        FOREIGN KEY(`student_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
-                        FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON DELETE SET NULL
-                    )
-                """.trimIndent())
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id_student_id` ON `instructor_student_assignments` (`instructor_id`, `student_id`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_program_id` ON `instructor_student_assignments` (`program_id`)")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `instructor_student_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `student_id` INTEGER NOT NULL, `program_id` INTEGER, FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`student_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `instructor_student_assignments` (`instructor_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `instructor_student_assignments` (`student_id`)")
 
-                // Step 5: Migrate questions: Insert core fields into pecl_questions, drop old program/poi/task
-                db.execSQL("""
-                    CREATE TABLE new_pecl_questions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        subTask TEXT NOT NULL,
-                        controlType TEXT NOT NULL,
-                        scale TEXT NOT NULL,
-                        criticalTask TEXT NOT NULL
-                    )
-                """.trimIndent())
-                db.execSQL("""
-                    INSERT INTO new_pecl_questions (id, subTask, controlType, scale, criticalTask)
-                    SELECT id, subTask, controlType, scale, criticalTask FROM pecl_questions
-                """.trimIndent())
-                db.execSQL("DROP TABLE pecl_questions")
-                db.execSQL("ALTER TABLE new_pecl_questions RENAME TO pecl_questions")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pecl_evaluation_results` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `student_id` INTEGER NOT NULL, `instructor_id` INTEGER NOT NULL, `question_id` INTEGER NOT NULL, `score` REAL NOT NULL, `comment` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, FOREIGN KEY(`student_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_evaluation_results_student_id` ON `pecl_evaluation_results` (`student_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_evaluation_results_question_id` ON `pecl_evaluation_results` (`question_id`)")
 
-                // Step 6: Add FKs to pecl_evaluation_results (for student, instructor, question)
-                db.execSQL("ALTER TABLE pecl_evaluation_results ADD COLUMN student_id INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE pecl_evaluation_results ADD COLUMN instructor_id INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE pecl_evaluation_results ADD COLUMN question_id INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pecl_scales` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `scale_name` TEXT NOT NULL, `options` TEXT NOT NULL)"
+                )
 
-                // Step 7: Migrate evaluation results data to new table with FKs
-                db.execSQL("""
-                    CREATE TABLE new_pecl_evaluation_results (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        evaluatorId INTEGER NOT NULL,
-                        evaluateeName TEXT,
-                        program TEXT NOT NULL,
-                        poi TEXT NOT NULL,
-                        task TEXT NOT NULL,
-                        subTask TEXT NOT NULL,
-                        score TEXT NOT NULL,
-                        comment TEXT,
-                        timestamp TEXT NOT NULL,
-                        student_id INTEGER NOT NULL,
-                        instructor_id INTEGER NOT NULL,
-                        question_id INTEGER NOT NULL,
-                        FOREIGN KEY(student_id) REFERENCES users(id) ON DELETE RESTRICT,
-                        FOREIGN KEY(instructor_id) REFERENCES users(id) ON DELETE RESTRICT,
-                        FOREIGN KEY(question_id) REFERENCES pecl_questions(id) ON DELETE RESTRICT
-                    )
-                """.trimIndent())
-                // Migrate existing data (program/poi/task/subTask to new, set defaults for new fields)
-                db.execSQL("""
-                    INSERT INTO new_pecl_evaluation_results (id, evaluatorId, evaluateeName, program, poi, task, subTask, score, comment, timestamp, student_id, instructor_id, question_id)
-                    SELECT id, evaluatorId, evaluateeName, program, poi, task, subTask, score, comment, timestamp, 0, 0, 0 FROM pecl_evaluation_results
-                """.trimIndent())
-                db.execSQL("DROP TABLE pecl_evaluation_results")
-                db.execSQL("ALTER TABLE new_pecl_evaluation_results RENAME TO pecl_evaluation_results")
+                // Add role to users if not exists
+                try {
+                    db.execSQL("ALTER TABLE users ADD COLUMN `role` TEXT DEFAULT ''")
+                } catch (e: Exception) {
+                    // Column already exists
+                }
 
-                // Additional: Add UNIQUE on names for programs, POIs, tasks to prevent dupes
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pecl_programs_peclProgram ON pecl_programs (peclProgram)")
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pecl_poi_peclPoi ON pecl_poi (peclPoi)")
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pecl_tasks_peclTask ON pecl_tasks (peclTask)")
+                // Migrate data if needed (from old pecl_questions to new structure)
+                // For dev, assume prepop handles it
             }
         }
     }
 }
+
+@Dao
+interface UserDao {
+    @Query("SELECT * FROM users")
+    suspend fun getAllUsers(): List<UserEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUser(user: UserEntity)
+
+    @Update
+    suspend fun updateUser(user: UserEntity)
+
+    @Delete
+    suspend fun deleteUser(user: UserEntity)
+
+    @Query("SELECT * FROM users WHERE role = :role")
+    suspend fun getUsersByRole(role: String): List<UserEntity>
+}
+
+@Dao
+interface ProgramDao {
+    @Query("SELECT * FROM pecl_programs")
+    suspend fun getAllPrograms(): List<PeclProgramEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProgram(program: PeclProgramEntity): Long
+
+    @Update
+    suspend fun updateProgram(program: PeclProgramEntity)
+
+    @Delete
+    suspend fun deleteProgram(program: PeclProgramEntity)
+
+    @Query("SELECT * FROM pecl_programs WHERE id = :id")
+    suspend fun getProgramById(id: Long): PeclProgramEntity?
+
+    @Query("SELECT * FROM pecl_programs WHERE name = :name")
+    suspend fun getProgramByName(name: String): PeclProgramEntity?
+}
+
+@Dao
+interface PoiDao {
+    @Query("SELECT * FROM pecl_pois WHERE program_id = :programId")
+    suspend fun getPoisForProgram(programId: Long): List<PeclPoiEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPoi(poi: PeclPoiEntity): Long
+
+    @Update
+    suspend fun updatePoi(poi: PeclPoiEntity)
+
+    @Delete
+    suspend fun deletePoi(poi: PeclPoiEntity)
+
+    @Query("SELECT * FROM pecl_pois WHERE id = :id")
+    suspend fun getPoiById(id: Long): PeclPoiEntity?
+
+    @Query("SELECT * FROM pecl_pois WHERE name = :name")
+    suspend fun getPoiByName(name: String): PeclPoiEntity?
+}
+
+@Dao
+interface TaskDao {
+    @Query("SELECT * FROM pecl_tasks WHERE poi_id = :poiId")
+    suspend fun getTasksForPoi(poiId: Long): List<PeclTaskEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTask(task: PeclTaskEntity): Long
+
+    @Update
+    suspend fun updateTask(task: PeclTaskEntity)
+
+    @Delete
+    suspend fun deleteTask(task: PeclTaskEntity)
+
+    @Query("SELECT * FROM pecl_tasks WHERE id = :id")
+    suspend fun getTaskById(id: Long): PeclTaskEntity?
+
+    @Query("SELECT * FROM pecl_tasks WHERE name = :name")
+    suspend fun getTaskByName(name: String): PeclTaskEntity?
+}
+
+@Dao
+interface QuestionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertQuestion(question: PeclQuestionEntity): Long
+
+    @Query("SELECT q.* FROM pecl_questions q INNER JOIN question_assignments a ON q.id = a.question_id WHERE a.task_id = :taskId")
+    suspend fun getQuestionsForTask(taskId: Long): List<PeclQuestionEntity>
+
+    @Update
+    suspend fun updateQuestion(question: PeclQuestionEntity)
+
+    @Delete
+    suspend fun deleteQuestion(question: PeclQuestionEntity)
+
+    @Query("SELECT * FROM pecl_questions WHERE id = :id")
+    suspend fun getQuestionById(id: Long): PeclQuestionEntity?
+}
+
+@Dao
+interface AssignmentDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAssignment(assignment: QuestionAssignmentEntity)
+}
+
+@Dao
+interface InstructorStudentAssignmentDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity): Long
+
+    @Query("SELECT u.* FROM users u INNER JOIN instructor_student_assignments a ON u.id = a.student_id WHERE a.instructor_id = :instructorId")
+    suspend fun getStudentsForInstructor(instructorId: Long): List<UserEntity>
+}
+
+@Dao
+interface EvaluationDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEvaluation(evaluation: PeclEvaluationResultEntity): Long
+
+    @Query("SELECT * FROM pecl_evaluation_results WHERE student_id = :studentId AND question_id IN (SELECT q.id FROM pecl_questions q INNER JOIN question_assignments a ON q.id = a.question_id INNER JOIN pecl_tasks t ON a.task_id = t.id INNER JOIN pecl_pois p ON t.poi_id = p.id WHERE p.id = :poiId)")
+    suspend fun getEvaluationsForStudent(studentId: Long, poiId: Long): List<PeclEvaluationResultEntity>
+
+    @Query("SELECT AVG(score) FROM pecl_evaluation_results WHERE student_id = :studentId AND question_id IN (SELECT q.id FROM pecl_questions q INNER JOIN question_assignments a ON q.id = a.question_id INNER JOIN pecl_tasks t ON a.task_id = t.id INNER JOIN pecl_pois p ON t.poi_id = p.id WHERE p.id = :poiId)")
+    suspend fun getAverageScoreForStudent(studentId: Long, poiId: Long): Float?
+}
+
+@Dao
+interface ScaleDao {
+    @Query("SELECT * FROM pecl_scales")
+    suspend fun getAllScales(): List<PeclScaleEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertScale(scale: PeclScaleEntity)
+
+    @Update
+    suspend fun updateScale(scale: PeclScaleEntity)
+
+    @Delete
+    suspend fun deleteScale(scale: PeclScaleEntity)
+}
+
+@Entity(tableName = "users")
+data class UserEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "name") val name: String,
+    @ColumnInfo(name = "role") val role: String = ""
+)
+
+@Entity(tableName = "pecl_programs")
+data class PeclProgramEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "name") val name: String
+)
+
+@Entity(
+    tableName = "pecl_pois",
+    foreignKeys = [ForeignKey(
+        entity = PeclProgramEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["program_id"],
+        onDelete = ForeignKey.RESTRICT
+    )],
+    indices = [Index(value = ["program_id"])]
+)
+data class PeclPoiEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "name") val name: String,
+    @ColumnInfo(name = "program_id") val programId: Long
+)
+
+@Entity(
+    tableName = "pecl_tasks",
+    foreignKeys = [ForeignKey(
+        entity = PeclPoiEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["poi_id"],
+        onDelete = ForeignKey.RESTRICT
+    )],
+    indices = [Index(value = ["poi_id"])]
+)
+data class PeclTaskEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "name") val name: String,
+    @ColumnInfo(name = "poi_id") val poiId: Long
+)
+
+@Entity(tableName = "pecl_questions")
+data class PeclQuestionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "sub_task") val subTask: String,
+    @ColumnInfo(name = "control_type") val controlType: String,
+    val scale: String,
+    @ColumnInfo(name = "critical_task") val criticalTask: String
+)
+
+@Entity(
+    tableName = "question_assignments",
+    foreignKeys = [
+        ForeignKey(
+            entity = PeclQuestionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["question_id"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = PeclTaskEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["task_id"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ],
+    indices = [Index(value = ["question_id"]), Index(value = ["task_id"])]
+)
+data class QuestionAssignmentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "question_id") val questionId: Long,
+    @ColumnInfo(name = "task_id") val taskId: Long
+)
+
+@Entity(
+    tableName = "instructor_student_assignments",
+    foreignKeys = [
+        ForeignKey(
+            entity = UserEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["instructor_id"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = UserEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["student_id"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = PeclProgramEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["program_id"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ],
+    indices = [Index(value = ["instructor_id"]), Index(value = ["student_id"]), Index(value = ["program_id"])]
+)
+data class InstructorStudentAssignmentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "instructor_id") val instructorId: Long,
+    @ColumnInfo(name = "student_id") val studentId: Long,
+    @ColumnInfo(name = "program_id") val programId: Long? = null
+)
+
+@Entity(
+    tableName = "pecl_evaluation_results",
+    foreignKeys = [
+        ForeignKey(
+            entity = UserEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["student_id"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = UserEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["instructor_id"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = PeclQuestionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["question_id"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ],
+    indices = [Index(value = ["student_id"]), Index(value = ["instructor_id"]), Index(value = ["question_id"])]
+)
+data class PeclEvaluationResultEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "student_id") val studentId: Long,
+    @ColumnInfo(name = "instructor_id") val instructorId: Long,
+    @ColumnInfo(name = "question_id") val questionId: Long,
+    val score: Float,
+    val comment: String,
+    val timestamp: Long
+)
+
+@Entity(tableName = "pecl_scales")
+data class PeclScaleEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "scale_name") val scaleName: String,
+    val options: String // comma-sep
+)

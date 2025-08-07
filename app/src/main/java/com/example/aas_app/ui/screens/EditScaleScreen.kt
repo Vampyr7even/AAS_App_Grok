@@ -1,107 +1,79 @@
 package com.example.aas_app.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.aas_app.data.Result
-import com.example.aas_app.data.entity.ScaleEntity
-import com.example.aas_app.viewmodel.PeclViewModel
+import com.example.aas_app.data.entities.PeclScaleEntity
+import com.example.aas_app.viewmodel.AdminViewModel
+import com.example.aas_app.viewmodel.AppState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditScaleScreen(navController: NavController, viewModel: PeclViewModel, scaleId: Int) {
-    val context = LocalContext.current
-    var scale by remember { mutableStateOf<ScaleEntity?>(null) }
-    var scaleName by remember { mutableStateOf("") }
-    var scaleData by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(true) }
+fun EditScaleScreen(navController: NavController, scaleId: Long) {
+    val viewModel: AdminViewModel = hiltViewModel()
+    val scaleState by viewModel.scalesState.observeAsState(AppState.Loading<List<PeclScaleEntity>>())
 
     LaunchedEffect(scaleId) {
-        val result = viewModel.getScaleById(scaleId)
-        if (result is Result.Success) {
-            scale = result.data
-            scaleName = result.data?.scaleName ?: ""
-            scaleData = result.data?.scaleData ?: ""
+        viewModel.loadScales()
+    }
+
+    var scaleName by remember { mutableStateOf("") }
+    var options by remember { mutableStateOf("") }
+
+    when (val state = scaleState) {
+        is AppState.Success -> {
+            val scale = state.data.firstOrNull { it.id == scaleId } ?: return
+            scaleName = scale.scale
+            options = scale.options
         }
-        isLoading = false
-    }
-
-    if (isLoading) {
-        Text("Loading...", modifier = Modifier.padding(16.dp))
-        return
-    }
-
-    if (scale == null) {
-        Text("Scale not found", modifier = Modifier.padding(16.dp))
-        return
+        else -> { }
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Edit Scale",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
         TextField(
             value = scaleName,
             onValueChange = { scaleName = it },
-            label = { Text("Scale Name") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Scale Name") }
         )
         TextField(
-            value = scaleData,
-            onValueChange = { scaleData = it },
-            label = { Text("Scale Data") },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            value = options,
+            onValueChange = { options = it },
+            label = { Text("Options") }
         )
         Button(
             onClick = {
-                if (scaleName.isBlank() || scaleData.isBlank()) {
-                    Toast.makeText(context, "All fields are required", Toast.LENGTH_SHORT).show()
-                    return@Button
-                }
-                val updatedScale = scale!!.copy(
-                    scaleName = scaleName.trim(),
-                    scaleData = scaleData.trim()
-                )
-                viewModel.updateScale(updatedScale)
-                Toast.makeText(context, "Scale updated", Toast.LENGTH_SHORT).show()
+                val updatedScale = PeclScaleEntity(scaleId, scaleName, options)
+                viewModel.updateScale(updatedScale) // Assume added to ViewModel/Repo
                 navController.popBackStack()
             },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFE57373),
-                contentColor = Color.Black
-            ),
-            shape = RoundedCornerShape(4.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+            shape = RoundedCornerShape(4.dp)
         ) {
-            Text("Save")
+            Text("Update")
         }
     }
 }
