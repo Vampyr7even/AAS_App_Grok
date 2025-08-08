@@ -1,332 +1,366 @@
 package com.example.aas_app.data
 
-import android.content.Context
 import android.util.Log
-import androidx.room.Transaction
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.room.withTransaction
+import com.example.aas_app.data.entity.PeclPoiEntity
+import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entity.PeclQuestionAssignmentEntity
+import com.example.aas_app.data.entity.PeclScaleEntity
+import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.UserEntity
+import com.example.aas_app.data.entity.PeclEvaluationResultEntity
+import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
+import dagger.hilt.android.scopes.ViewModelScoped
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
 sealed class AppResult<out T> {
     data class Success<out T>(val data: T) : AppResult<T>()
-    data class Error(val message: String) : AppResult<Nothing>()
+    data class Error(val message: String, val exception: Throwable? = null) : AppResult<Nothing>()
 }
 
-class AppRepository(context: Context) {
-    private val database: AppDatabase = AppDatabase.getDatabase(context)
+class AppRepository @Inject constructor(private val db: AppDatabase) {
 
-    private val userDao = database.userDao()
-    private val programDao = database.programDao()
-    private val poiDao = database.poiDao()
-    private val taskDao = database.taskDao()
-    private val questionDao = database.questionDao()
-    private val assignmentDao = database.assignmentDao()
-    private val instructorStudentAssignmentDao = database.instructorStudentAssignmentDao()
-    private val evaluationDao = database.evaluationDao()
-    private val scaleDao = database.scaleDao()
+    private val userDao = db.userDao()
+    private val programDao = db.programDao()
+    private val poiDao = db.poiDao()
+    private val taskDao = db.taskDao()
+    private val questionDao = db.questionDao()
+    private val questionAssignmentDao = db.questionAssignmentDao()
+    private val scaleDao = db.scaleDao()
+    private val evaluationResultDao = db.evaluationResultDao()
+    private val instructorStudentAssignmentDao = db.instructorStudentAssignmentDao()
 
-    // User methods
-    suspend fun getAllUsers(): AppResult<List<UserEntity>> = safeCall {
-        userDao.getAllUsers()
-    }
-
-    suspend fun insertUser(user: UserEntity): AppResult<Unit> = safeCall {
-        userDao.insertUser(user)
-    }
-
-    suspend fun updateUser(user: UserEntity): AppResult<Unit> = safeCall {
-        userDao.updateUser(user)
-    }
-
-    suspend fun deleteUser(user: UserEntity): AppResult<Unit> = safeDelete {
-        userDao.deleteUser(user)
-    }
-
-    suspend fun getUsersByRole(role: String): AppResult<List<UserEntity>> = safeCall {
-        userDao.getUsersByRole(role)
-    }
-
-    // Program methods
-    suspend fun getAllPrograms(): AppResult<List<PeclProgramEntity>> = safeCall {
-        programDao.getAllPrograms()
-    }
-
-    suspend fun insertProgram(program: PeclProgramEntity): AppResult<Long> = safeCall {
-        programDao.insertProgram(program)
-    }
-
-    suspend fun updateProgram(program: PeclProgramEntity): AppResult<Unit> = safeCall {
-        programDao.updateProgram(program)
-    }
-
-    suspend fun deleteProgram(program: PeclProgramEntity): AppResult<Unit> = safeDelete {
-        programDao.deleteProgram(program)
-    }
-
-    suspend fun getProgramById(id: Long): PeclProgramEntity? {
-        return programDao.getProgramById(id)
-    }
-
-    suspend fun getProgramByName(name: String): PeclProgramEntity? {
-        return programDao.getProgramByName(name)
-    }
-
-    // POI methods
-    suspend fun getPoisForProgram(programId: Long): AppResult<List<PeclPoiEntity>> = safeCall {
-        poiDao.getPoisForProgram(programId)
-    }
-
-    suspend fun insertPoi(poi: PeclPoiEntity): AppResult<Long> = safeCallWithValidation(
-        validation = {
-            if (getProgramById(poi.programId) == null) "Parent program not found" else null
-        }
-    ) {
-        poiDao.insertPoi(poi)
-    }
-
-    suspend fun updatePoi(poi: PeclPoiEntity): AppResult<Unit> = safeCall {
-        poiDao.updatePoi(poi)
-    }
-
-    suspend fun deletePoi(poi: PeclPoiEntity): AppResult<Unit> = safeDelete {
-        poiDao.deletePoi(poi)
-    }
-
-    suspend fun getPoiById(id: Long): PeclPoiEntity? {
-        return poiDao.getPoiById(id)
-    }
-
-    suspend fun getPoiByName(name: String): PeclPoiEntity? {
-        return poiDao.getPoiByName(name)
-    }
-
-    // Task methods
-    suspend fun getTasksForPoi(poiId: Long): AppResult<List<PeclTaskEntity>> = safeCall {
-        taskDao.getTasksForPoi(poiId)
-    }
-
-    suspend fun insertTask(task: PeclTaskEntity): AppResult<Long> = safeCallWithValidation(
-        validation = {
-            if (getPoiById(task.poiId) == null) "Parent POI not found" else null
-        }
-    ) {
-        taskDao.insertTask(task)
-    }
-
-    suspend fun updateTask(task: PeclTaskEntity): AppResult<Unit> = safeCall {
-        taskDao.updateTask(task)
-    }
-
-    suspend fun deleteTask(task: PeclTaskEntity): AppResult<Unit> = safeDelete {
-        taskDao.deleteTask(task)
-    }
-
-    suspend fun getTaskById(id: Long): PeclTaskEntity? {
-        return taskDao.getTaskById(id)
-    }
-
-    suspend fun getTaskByName(name: String): PeclTaskEntity? {
-        return taskDao.getTaskByName(name)
-    }
-
-    // Question methods
-    suspend fun insertQuestion(question: PeclQuestionEntity): AppResult<Long> = safeCall {
-        questionDao.insertQuestion(question)
-    }
-
-    @Transaction
-    suspend fun insertQuestionWithAssignment(question: PeclQuestionEntity, taskId: Long): AppResult<Long> = safeCallWithValidation(
-        validation = {
-            if (getTaskById(taskId) == null) "Task not found for assignment" else null
-        }
-    ) {
-        val questionId = questionDao.insertQuestion(question)
-        assignmentDao.insertAssignment(QuestionAssignmentEntity(questionId = questionId, taskId = taskId))
-        questionId
-    }
-
-    suspend fun getQuestionsForTask(taskId: Long): AppResult<List<PeclQuestionEntity>> = safeCall {
-        questionDao.getQuestionsForTask(taskId)
-    }
-
-    suspend fun updateQuestion(question: PeclQuestionEntity): AppResult<Unit> = safeCall {
-        questionDao.updateQuestion(question)
-    }
-
-    suspend fun deleteQuestion(question: PeclQuestionEntity): AppResult<Unit> = safeDelete {
-        questionDao.deleteQuestion(question)
-    }
-
-    suspend fun getQuestionById(id: Long): PeclQuestionEntity? {
-        return questionDao.getQuestionById(id)
-    }
-
-    // Assignment methods (instructor-student)
-    @Transaction
-    suspend fun insertInstructorStudentAssignment(assignment: InstructorStudentAssignmentEntity): AppResult<Long> = safeCallWithValidation(
-        validation = {
-            val instructors = getUsersByRole("instructor")
-            val students = getUsersByRole("student")
-            if (instructors is AppResult.Error) "Failed to fetch instructors: ${instructors.message}" else if (students is AppResult.Error) "Failed to fetch students: ${students.message}" else if (!(instructors as AppResult.Success).data.any { it.id == assignment.instructorId }) "Instructor not found" else if (!(students as AppResult.Success).data.any { it.id == assignment.studentId }) "Student not found" else null
-        }
-    ) {
-        instructorStudentAssignmentDao.insertAssignment(assignment)
-    }
-
-    suspend fun getStudentsForInstructor(instructorId: Long): AppResult<List<UserEntity>> = safeCall {
-        instructorStudentAssignmentDao.getStudentsForInstructor(instructorId)
-    }
-
-    // Evaluation methods
-    @Transaction
-    suspend fun insertEvaluation(evaluation: PeclEvaluationResultEntity): AppResult<Long> = safeCallWithValidation(
-        validation = {
-            if (getQuestionById(evaluation.questionId) == null) "Question not found" else null
-        }
-    ) {
-        evaluationDao.insertEvaluation(evaluation)
-    }
-
-    suspend fun getEvaluationsForStudent(studentId: Long, poiId: Long): AppResult<List<PeclEvaluationResultEntity>> = safeCall {
-        evaluationDao.getEvaluationsForStudent(studentId, poiId)
-    }
-
-    // Scale methods
-    suspend fun getAllScales(): AppResult<List<PeclScaleEntity>> = safeCall {
-        scaleDao.getAllScales()
-    }
-
-    suspend fun insertScale(scale: PeclScaleEntity): AppResult<Unit> = safeCall {
-        scaleDao.insertScale(scale)
-    }
-
-    suspend fun updateScale(scale: PeclScaleEntity): AppResult<Unit> = safeCall {
-        scaleDao.updateScale(scale)
-    }
-
-    suspend fun deleteScale(scale: PeclScaleEntity): AppResult<Unit> = safeDelete {
-        scaleDao.deleteScale(scale)
-    }
-
-    // Prepopulation (hierarchical, transactional)
-    @Transaction
-    suspend fun prePopulateAll() {
-        withContext(Dispatchers.IO) {
-            // database.clearAllTables() // Commented for safety; uncomment for dev reset
-
-            val programNameToId = mutableMapOf<String, Long>()
-            val poiNameToId = mutableMapOf<Pair<String, String>, Long>()
-            val taskNameToId = mutableMapOf<Pair<String, String>, Long>()
-
-            // Insert programs
-            listOf("AASB", "RSLC").forEach { name ->
-                getProgramByName(name) ?: run {
-                    val id = programDao.insertProgram(PeclProgramEntity(name = name))
-                    programNameToId[name] = id
-                    Log.d("Prepop", "Inserted program $name with ID $id")
-                }
-            }
-
-            // Insert POIs
-            listOf(
-                Triple("AASB", "Basic", ""),
-                Triple("AASB", "Advanced", ""),
-                Triple("RSLC", "Rappel", "")
-                // Add more as per your overview
-            ).forEach { (programName: String, poiName: String, desc: String) ->
-                val programId = programNameToId[programName] ?: return@withContext
-                val key = Pair(programName, poiName)
-                if (getPoiByName(poiName) == null) {
-                    val id = poiDao.insertPoi(PeclPoiEntity(name = poiName, programId = programId))
-                    poiNameToId[key] = id
-                    Log.d("Prepop", "Inserted POI $poiName for program $programName with ID $id")
-                }
-            }
-
-            // Insert tasks
-            listOf(
-                Quad("AASB", "Basic", "Task1", "Description"),
-                Quad("AASB", "Basic", "Task2", "Description")
-                // Add more tasks per POI
-            ).forEach { (programName: String, poiName: String, taskName: String, desc: String) ->
-                val poiKey = Pair(programName, poiName)
-                val poiId = poiNameToId[poiKey] ?: return@withContext
-                val taskKey = Pair(poiName, taskName)
-                if (getTaskByName(taskName) == null) {
-                    val id = taskDao.insertTask(PeclTaskEntity(name = taskName, poiId = poiId))
-                    taskNameToId[taskKey] = id
-                    Log.d("Prepop", "Inserted task $taskName for POI $poiName with ID $id")
-                }
-            }
-
-            // Insert questions and assignments
-            listOf(
-                Heptuple("AASB", "Basic", "Task1", "SubTask1", "TextBox", "Scale1", "Yes"),
-                // Add more subtasks, e.g., Heptuple("AASB", "Basic", "Task1", "SubTask2", "ComboBox", "Scale2", "No")
-            ).forEach { (programName: String, poiName: String, taskName: String, subTask: String, controlType: String, scale: String, critical: String) ->
-                val taskKey = Pair(poiName, taskName)
-                val taskId = taskNameToId[taskKey] ?: return@withContext
-                val question = PeclQuestionEntity(subTask = subTask, controlType = controlType, scale = scale, criticalTask = critical)
-                val questionId = questionDao.insertQuestion(question)
-                assignmentDao.insertAssignment(QuestionAssignmentEntity(questionId = questionId, taskId = taskId))
-                Log.d("Prepop", "Inserted question $subTask assigned to task $taskName")
-            }
-
-            // Insert example users and scales
-            // e.g., insertUser(UserEntity(name = "Instructor1", role = "instructor"))
-            // insertScale(PeclScaleEntity(scaleName = "Scale1", options = "Option1,Option2"))
-
-            Log.d("Prepop", "Prepopulation completed successfully")
-        }
-    }
-
-    // Helpers
-    private suspend fun <T> safeCall(block: suspend () -> T): AppResult<T> {
+    // User operations
+    suspend fun insertUser(user: UserEntity): AppResult<Long> {
         return try {
-            AppResult.Success(block())
+            AppResult.Success(userDao.insertUser(user))
         } catch (e: Exception) {
-            Log.e("AppRepository", "Error: ${e.message}", e)
-            AppResult.Error(e.message ?: "Unknown error")
+            Log.e("AppRepository", "Error inserting user", e)
+            AppResult.Error("Failed to insert user", e)
         }
     }
 
-    private suspend fun <T> safeCallWithValidation(
-        validation: suspend () -> String?,
-        block: suspend () -> T
-    ): AppResult<T> {
+    suspend fun updateUser(user: UserEntity): AppResult<Unit> {
         return try {
-            val errorMsg = validation()
-            if (errorMsg != null) {
-                return AppResult.Error(errorMsg)
-            }
-            AppResult.Success(block())
+            AppResult.Success(userDao.updateUser(user))
         } catch (e: Exception) {
-            Log.e("AppRepository", "Validation/Error: ${e.message}", e)
-            AppResult.Error(e.message ?: "Validation failed")
+            Log.e("AppRepository", "Error updating user", e)
+            AppResult.Error("Failed to update user", e)
         }
     }
 
-    private suspend fun safeDelete(block: suspend () -> Unit): AppResult<Unit> {
+    suspend fun deleteUser(user: UserEntity): AppResult<Unit> {
         return try {
-            block()
+            AppResult.Success(userDao.deleteUser(user))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting user", e)
+            AppResult.Error("Failed to delete user: ${e.message}", e)
+        }
+    }
+
+    fun getAllUsers(): Flow<List<UserEntity>> = userDao.getAllUsers()
+
+    fun getUserById(id: Long): Flow<UserEntity?> = userDao.getUserById(id)
+
+    // Program operations
+    suspend fun insertProgram(program: PeclProgramEntity): AppResult<Long> {
+        return try {
+            val existing = programDao.getProgramByName(program.name)
+            if (existing != null) {
+                return AppResult.Error("Program with name ${program.name} already exists")
+            }
+            AppResult.Success(programDao.insertProgram(program))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting program", e)
+            AppResult.Error("Failed to insert program", e)
+        }
+    }
+
+    suspend fun updateProgram(program: PeclProgramEntity): AppResult<Unit> {
+        return try {
+            AppResult.Success(programDao.updateProgram(program))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating program", e)
+            AppResult.Error("Failed to update program", e)
+        }
+    }
+
+    suspend fun deleteProgram(program: PeclProgramEntity): AppResult<Unit> {
+        return try {
+            db.withTransaction {
+                // Check for references (guardrail)
+                val pois = poiDao.getPoisForProgramSync(program.id)
+                if (pois.isNotEmpty()) {
+                    throw IllegalStateException("Cannot delete program - POIs are assigned")
+                }
+                programDao.deleteProgram(program)
+            }
             AppResult.Success(Unit)
-        } catch (e: android.database.sqlite.SQLiteConstraintException) {
-            Log.e("AppRepository", "Constraint violation: ${e.message}")
-            AppResult.Error("Delete failed: Item is referenced elsewhere (e.g., has assigned children)")
         } catch (e: Exception) {
-            Log.e("AppRepository", "Delete error: ${e.message}", e)
-            AppResult.Error(e.message ?: "Delete failed")
+            Log.e("AppRepository", "Error deleting program", e)
+            AppResult.Error(e.message ?: "Failed to delete program", e)
         }
     }
 
-    // Example report method
-    suspend fun getAverageScoreForStudent(studentId: Long, poiId: Long): AppResult<Float> = safeCall {
-        evaluationDao.getAverageScoreForStudent(studentId, poiId) ?: 0f
+    fun getAllPrograms(): Flow<List<PeclProgramEntity>> = programDao.getAllPrograms()
+
+    fun getProgramById(id: Long): Flow<PeclProgramEntity?> = programDao.getProgramById(id)
+
+    // POI operations (similar pattern with guardrails)
+    suspend fun insertPoi(poi: PeclPoiEntity): AppResult<Long> {
+        return try {
+            if (programDao.getProgramByIdSync(poi.programId) == null) {
+                return AppResult.Error("Parent program does not exist")
+            }
+            AppResult.Success(poiDao.insertPoi(poi))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting POI", e)
+            AppResult.Error("Failed to insert POI", e)
+        }
+    }
+
+    suspend fun updatePoi(poi: PeclPoiEntity): AppResult<Unit> {
+        return try {
+            AppResult.Success(poiDao.updatePoi(poi))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating POI", e)
+            AppResult.Error("Failed to update POI", e)
+        }
+    }
+
+    suspend fun deletePoi(poi: PeclPoiEntity): AppResult<Unit> {
+        return try {
+            db.withTransaction {
+                val tasks = taskDao.getTasksForPoiSync(poi.id)
+                if (tasks.isNotEmpty()) {
+                    throw IllegalStateException("Cannot delete POI - tasks are assigned")
+                }
+                poiDao.deletePoi(poi)
+            }
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting POI", e)
+            AppResult.Error(e.message ?: "Failed to delete POI", e)
+        }
+    }
+
+    fun getPoisForProgram(programId: Long): Flow<List<PeclPoiEntity>> = poiDao.getPoisForProgram(programId)
+
+    // Task operations (analogous, with guardrails for questions)
+    suspend fun insertTask(task: PeclTaskEntity): AppResult<Long> {
+        return try {
+            if (poiDao.getPoiByIdSync(task.poiId) == null) {
+                return AppResult.Error("Parent POI does not exist")
+            }
+            AppResult.Success(taskDao.insertTask(task))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting task", e)
+            AppResult.Error("Failed to insert task", e)
+        }
+    }
+
+    suspend fun updateTask(task: PeclTaskEntity): AppResult<Unit> {
+        return try {
+            AppResult.Success(taskDao.updateTask(task))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating task", e)
+            AppResult.Error("Failed to update task", e)
+        }
+    }
+
+    suspend fun deleteTask(task: PeclTaskEntity): AppResult<Unit> {
+        return try {
+            db.withTransaction {
+                val assignments = questionAssignmentDao.getAssignmentsForTaskSync(task.id)
+                if (assignments.isNotEmpty()) {
+                    throw IllegalStateException("Cannot delete task - questions are assigned")
+                }
+                taskDao.deleteTask(task)
+            }
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting task", e)
+            AppResult.Error(e.message ?: "Failed to delete task", e)
+        }
+    }
+
+    fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>> = taskDao.getTasksForPoi(poiId)
+
+    // Question operations with assignment
+    @androidx.room.Transaction
+    suspend fun insertQuestionWithAssignment(question: PeclQuestionEntity, taskId: Long): AppResult<Long> {
+        return try {
+            if (taskDao.getTaskByIdSync(taskId) == null) {
+                return AppResult.Error("Parent task does not exist")
+            }
+            val questionId = questionDao.insertQuestion(question)
+            questionAssignmentDao.insertAssignment(PeclQuestionAssignmentEntity(questionId = questionId, taskId = taskId))
+            AppResult.Success(questionId)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting question with assignment", e)
+            AppResult.Error("Failed to insert question", e)
+        }
+    }
+
+    suspend fun updateQuestion(question: PeclQuestionEntity): AppResult<Unit> {
+        return try {
+            AppResult.Success(questionDao.updateQuestion(question))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating question", e)
+            AppResult.Error("Failed to update question", e)
+        }
+    }
+
+    suspend fun deleteQuestion(question: PeclQuestionEntity): AppResult<Unit> {
+        return try {
+            db.withTransaction {
+                val evaluations = evaluationResultDao.getEvaluationsForQuestionSync(question.id)
+                if (evaluations.isNotEmpty()) {
+                    throw IllegalStateException("Cannot delete question - evaluations exist")
+                }
+                questionAssignmentDao.deleteAssignmentsForQuestion(question.id)
+                questionDao.deleteQuestion(question)
+            }
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting question", e)
+            AppResult.Error(e.message ?: "Failed to delete question", e)
+        }
+    }
+
+    fun getQuestionsForTask(taskId: Long): Flow<List<PeclQuestionEntity>> = questionDao.getQuestionsForTask(taskId)
+
+    // Scale operations
+    suspend fun insertScale(scale: PeclScaleEntity): AppResult<Long> {
+        return try {
+            AppResult.Success(scaleDao.insertScale(scale))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting scale", e)
+            AppResult.Error("Failed to insert scale", e)
+        }
+    }
+
+    suspend fun updateScale(scale: PeclScaleEntity): AppResult<Unit> {
+        return try {
+            AppResult.Success(scaleDao.updateScale(scale))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating scale", e)
+            AppResult.Error("Failed to update scale", e)
+        }
+    }
+
+    suspend fun deleteScale(scale: PeclScaleEntity): AppResult<Unit> {
+        return try {
+            AppResult.Success(scaleDao.deleteScale(scale))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting scale", e)
+            AppResult.Error("Failed to delete scale", e)
+        }
+    }
+
+    fun getAllScales(): Flow<List<PeclScaleEntity>> = scaleDao.getAllScales()
+
+    // Evaluation result operations
+    suspend fun insertEvaluationResult(result: PeclEvaluationResultEntity): AppResult<Long> {
+        return try {
+            // Validation: Check if student, instructor, question exist
+            if (userDao.getUserByIdSync(result.studentId) == null ||
+                userDao.getUserByIdSync(result.instructorId) == null ||
+                questionDao.getQuestionByIdSync(result.questionId) == null
+            ) {
+                return AppResult.Error("Invalid student, instructor, or question ID")
+            }
+            AppResult.Success(evaluationResultDao.insertEvaluationResult(result))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting evaluation result", e)
+            AppResult.Error("Failed to insert evaluation result", e)
+        }
+    }
+
+    fun getEvaluationResultsForStudent(studentId: Long): Flow<List<PeclEvaluationResultEntity>> =
+        evaluationResultDao.getEvaluationResultsForStudent(studentId)
+
+    // Instructor-Student assignment operations
+    suspend fun insertInstructorStudentAssignment(assignment: InstructorStudentAssignmentEntity): AppResult<Long> {
+        return try {
+            // Validation: Check roles
+            val instructor = userDao.getUserByIdSync(assignment.instructorId)
+            val student = userDao.getUserByIdSync(assignment.studentId)
+            if (instructor?.role != "instructor" || student?.role != "student") {
+                return AppResult.Error("Invalid roles for assignment")
+            }
+            AppResult.Success(instructorStudentAssignmentDao.insertAssignment(assignment))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting instructor-student assignment", e)
+            AppResult.Error("Failed to insert assignment", e)
+        }
+    }
+
+    fun getStudentsForInstructor(instructorId: Long): Flow<List<UserEntity>> =
+        instructorStudentAssignmentDao.getStudentsForInstructor(instructorId)
+
+    // Prepopulation (hierarchical insert with ID mapping to avoid duplicates)
+    suspend fun prepopulateData() {
+        db.withTransaction {
+            // Programs
+            val programMap = mutableMapOf<String, Long>()
+            listOf(
+                PeclProgramEntity(name = "AASB"),
+                PeclProgramEntity(name = "RSLC")
+            ).forEach { program ->
+                val id = programDao.insertProgram(program)
+                programMap[program.name] = id
+            }
+
+            // POIs
+            val poiMap = mutableMapOf<String, Long>()
+            listOf(
+                PeclPoiEntity(name = "AASB_POI_1", programId = programMap["AASB"]!!),
+                PeclPoiEntity(name = "RSLC_POI_1", programId = programMap["RSLC"]!!)
+            ).forEach { poi ->
+                val id = poiDao.insertPoi(poi)
+                poiMap[poi.name] = id
+            }
+
+            // Tasks
+            val taskMap = mutableMapOf<String, Long>()
+            listOf(
+                PeclTaskEntity(name = "Task1", poiId = poiMap["AASB_POI_1"]!!),
+                PeclTaskEntity(name = "Task2", poiId = poiMap["RSLC_POI_1"]!!)
+            ).forEach { task ->
+                val id = taskDao.insertTask(task)
+                taskMap[task.name] = id
+            }
+
+            // Questions and assignments (parse from legacy examples)
+            // Example: Add your hardcoded questions here, assigning to tasks
+            val question1 = PeclQuestionEntity(
+                subTask = "Subtask1",
+                controlType = "textbox",
+                scale = "1-5",
+                criticalTask = "yes"
+            )
+            val q1Id = questionDao.insertQuestion(question1)
+            questionAssignmentDao.insertAssignment(PeclQuestionAssignmentEntity(questionId = q1Id, taskId = taskMap["Task1"]!!))
+
+            // Scales
+            listOf(
+                PeclScaleEntity(scale = "1-10", description = "Numeric scale")
+            ).forEach { scale ->
+                scaleDao.insertScale(scale)
+            }
+
+            // Users (examples)
+            listOf(
+                UserEntity(name = "Instructor1", role = "instructor"),
+                UserEntity(name = "Student1", role = "student")
+            ).forEach { user ->
+                userDao.insertUser(user)
+            }
+
+            // Add more as per your initial prepop data
+        }
     }
 }
-
-// Tuple helpers
-data class Quad<out A, out B, out C, out D>(val a: A, val b: B, val c: C, val d: D)
-
-data class Heptuple<out A, out B, out C, out D, out E, out F, out G>(
-    val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G
-)

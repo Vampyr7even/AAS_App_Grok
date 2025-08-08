@@ -1,5 +1,3 @@
-// Artifact: settings.gradle.kts (Unchanged for Reference)
-
 pluginManagement {
     repositories {
         google()
