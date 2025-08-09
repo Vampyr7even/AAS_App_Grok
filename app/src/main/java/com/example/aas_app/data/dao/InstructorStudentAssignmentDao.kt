@@ -1,29 +1,18 @@
 package com.example.aas_app.data.dao
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
-import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
+import com.example.aas_app.data.entities.InstructorStudentAssignmentEntity
+import com.example.aas_app.data.entities.UserEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface InstructorStudentAssignmentDao {
-    @Insert
-    suspend fun insert(assignment: InstructorStudentAssignmentEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity): Long
 
-    @Update
-    suspend fun update(assignment: InstructorStudentAssignmentEntity)
-
-    @Delete
-    suspend fun delete(assignment: InstructorStudentAssignmentEntity)
-
-    @Query("SELECT * FROM instructor_student_assignments")
-    suspend fun getAllAssignments(): List<InstructorStudentAssignmentEntity>
-
-    @Query("SELECT * FROM instructor_student_assignments WHERE id = :id")
-    suspend fun getAssignmentById(id: Int): InstructorStudentAssignmentEntity?
-
-    @Query("DELETE FROM instructor_student_assignments")
-    suspend fun deleteAll()
+    @Query("SELECT u.* FROM users u JOIN instructor_student_assignments a ON u.id = a.student_id WHERE a.instructor_id = :instructorId")
+    fun getStudentsForInstructor(instructorId: Long): Flow<List<UserEntity>>
 }

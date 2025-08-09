@@ -3,27 +3,29 @@ package com.example.aas_app.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entities.PeclProgramEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PeclProgramDao {
-    @Insert
-    suspend fun insert(program: PeclProgramEntity): Long
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProgram(program: PeclProgramEntity): Long
 
     @Update
-    suspend fun update(program: PeclProgramEntity)
+    suspend fun updateProgram(program: PeclProgramEntity)
 
     @Delete
-    suspend fun delete(program: PeclProgramEntity)
+    suspend fun deleteProgram(program: PeclProgramEntity)
 
     @Query("SELECT * FROM pecl_programs")
-    suspend fun getAllPrograms(): List<PeclProgramEntity>
+    fun getAllPrograms(): Flow<List<PeclProgramEntity>>
 
     @Query("SELECT * FROM pecl_programs WHERE id = :id")
-    suspend fun getProgramById(id: Int): PeclProgramEntity?
+    suspend fun getProgramById(id: Long): PeclProgramEntity?
 
-    @Query("DELETE FROM pecl_programs")
-    suspend fun deleteAll()
+    @Query("SELECT * FROM pecl_programs WHERE name = :name")
+    suspend fun getProgramByName(name: String): PeclProgramEntity?
 }

@@ -3,27 +3,23 @@ package com.example.aas_app.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entity.ScaleEntity
+import com.example.aas_app.data.entities.PeclScaleEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ScaleDao {
-    @Insert
-    suspend fun insert(scale: ScaleEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertScale(scale: PeclScaleEntity): Long
 
     @Update
-    suspend fun update(scale: ScaleEntity)
+    suspend fun updateScale(scale: PeclScaleEntity)
 
     @Delete
-    suspend fun delete(scale: ScaleEntity)
+    suspend fun deleteScale(scale: PeclScaleEntity)
 
-    @Query("SELECT * FROM scales")
-    suspend fun getAllScales(): List<ScaleEntity>
-
-    @Query("SELECT * FROM scales WHERE id = :id")
-    suspend fun getScaleById(id: Int): ScaleEntity?
-
-    @Query("DELETE FROM scales")
-    suspend fun deleteAll()
+    @Query("SELECT * FROM pecl_scales")
+    fun getAllScales(): Flow<List<PeclScaleEntity>>
 }

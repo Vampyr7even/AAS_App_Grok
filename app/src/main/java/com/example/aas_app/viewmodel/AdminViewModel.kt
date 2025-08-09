@@ -1,9 +1,11 @@
 package com.example.aas_app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.RoomSQLException
 import com.example.aas_app.data.entities.PeclEvaluationResultEntity
 import com.example.aas_app.data.entities.PeclPoiEntity
 import com.example.aas_app.data.entities.PeclProgramEntity
@@ -12,205 +14,284 @@ import com.example.aas_app.data.entities.PeclScaleEntity
 import com.example.aas_app.data.entities.PeclTaskEntity
 import com.example.aas_app.data.entities.UserEntity
 import com.example.aas_app.data.repository.AppRepository
+import com.example.aas_app.util.AppState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.launch
-
-sealed class AppState<T> {
-    class Loading<T> : AppState<T>()
-    data class Success<T>(val data: T) : AppState<T>()
-    data class Error<T>(val message: String) : AppState<T>()
-}
+import javax.inject.Inject
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
 
-    val programsState: LiveData<AppState<List<PeclProgramEntity>>> = MutableLiveData()
-    val poisState: LiveData<AppState<List<PeclPoiEntity>>> = MutableLiveData()
-    val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = MutableLiveData()
-    val questionsState: LiveData<AppState<List<PeclQuestionEntity>>> = MutableLiveData()
-    val scalesState: LiveData<AppState<List<PeclScaleEntity>>> = MutableLiveData()
-    val studentsState: LiveData<AppState<List<UserEntity>>> = MutableLiveData()
+    private val _programsState = MutableLiveData<AppState<List<PeclProgramEntity>>>()
+    val programsState: LiveData<AppState<List<PeclProgramEntity>>> = _programsState
+
+    private val _poisState = MutableLiveData<AppState<List<PeclPoiEntity>>>()
+    val poisState: LiveData<AppState<List<PeclPoiEntity>>> = _poisState
+
+    private val _tasksState = MutableLiveData<AppState<List<PeclTaskEntity>>>()
+    val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = _tasksState
+
+    private val _questionsState = MutableLiveData<AppState<List<PeclQuestionEntity>>>()
+    val questionsState: LiveData<AppState<List<PeclQuestionEntity>>> = _questionsState
+
+    private val _scalesState = MutableLiveData<AppState<List<PeclScaleEntity>>>()
+    val scalesState: LiveData<AppState<List<PeclScaleEntity>>> = _scalesState
+
+    private val _studentsState = MutableLiveData<AppState<List<UserEntity>>>()
+    val studentsState: LiveData<AppState<List<UserEntity>>> = _studentsState
 
     fun loadPrograms() {
-        (programsState as MutableLiveData).value = AppState.Loading()
+        _programsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 val data = repository.getAllPrograms()
-                (programsState as MutableLiveData).postValue(AppState.Success(data))
+                _programsState.postValue(AppState.Success(data))
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error loading programs: ${e.message}", e)
+                _programsState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (programsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading programs"))
+                Log.e("AdminViewModel", "Error loading programs: ${e.message}", e)
+                _programsState.postValue(AppState.Error(e.message ?: "Error loading programs"))
             }
         }
     }
 
     fun loadPoisForProgram(programId: Long) {
-        (poisState as MutableLiveData).value = AppState.Loading()
+        _poisState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 val data = repository.getPoisForProgram(programId)
-                (poisState as MutableLiveData).postValue(AppState.Success(data))
+                _poisState.postValue(AppState.Success(data))
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error loading POIs: ${e.message}", e)
+                _poisState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (poisState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading POIs"))
+                Log.e("AdminViewModel", "Error loading POIs: ${e.message}", e)
+                _poisState.postValue(AppState.Error(e.message ?: "Error loading POIs"))
             }
         }
     }
 
     fun loadTasksForPoi(poiId: Long) {
-        (tasksState as MutableLiveData).value = AppState.Loading()
+        _tasksState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 val data = repository.getTasksForPoi(poiId)
-                (tasksState as MutableLiveData).postValue(AppState.Success(data))
+                _tasksState.postValue(AppState.Success(data))
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error loading tasks: ${e.message}", e)
+                _tasksState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (tasksState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading tasks"))
+                Log.e("AdminViewModel", "Error loading tasks: ${e.message}", e)
+                _tasksState.postValue(AppState.Error(e.message ?: "Error loading tasks"))
             }
         }
     }
 
     fun loadQuestionsForTask(taskId: Long) {
-        (questionsState as MutableLiveData).value = AppState.Loading()
+        _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 val data = repository.getQuestionsForTask(taskId)
-                (questionsState as MutableLiveData).postValue(AppState.Success(data))
+                _questionsState.postValue(AppState.Success(data))
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error loading questions: ${e.message}", e)
+                _questionsState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading questions"))
+                Log.e("AdminViewModel", "Error loading questions: ${e.message}", e)
+                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions"))
             }
         }
     }
 
     fun loadScales() {
-        (scalesState as MutableLiveData).value = AppState.Loading()
+        _scalesState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 val data = repository.getAllScales()
-                (scalesState as MutableLiveData).postValue(AppState.Success(data))
+                _scalesState.postValue(AppState.Success(data))
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error loading scales: ${e.message}", e)
+                _scalesState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (scalesState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading scales"))
+                Log.e("AdminViewModel", "Error loading scales: ${e.message}", e)
+                _scalesState.postValue(AppState.Error(e.message ?: "Error loading scales"))
             }
         }
     }
 
     fun loadQuestionsByIds(ids: List<Long>) {
-        (questionsState as MutableLiveData).value = AppState.Loading()
+        _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 val data = repository.getQuestionsByIds(ids)
-                (questionsState as MutableLiveData).postValue(AppState.Success(data))
+                _questionsState.postValue(AppState.Success(data))
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error loading questions by IDs: ${e.message}", e)
+                _questionsState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading questions by IDs"))
+                Log.e("AdminViewModel", "Error loading questions by IDs: ${e.message}", e)
+                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions by IDs"))
             }
         }
     }
 
     fun loadStudentsForProgram(programId: Long) {
-        (studentsState as MutableLiveData).value = AppState.Loading()
+        _studentsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 val data = repository.getStudentsForProgram(programId)
-                (studentsState as MutableLiveData).postValue(AppState.Success(data))
+                _studentsState.postValue(AppState.Success(data))
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error loading students: ${e.message}", e)
+                _studentsState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (studentsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error loading students for program"))
+                Log.e("AdminViewModel", "Error loading students: ${e.message}", e)
+                _studentsState.postValue(AppState.Error(e.message ?: "Error loading students for program"))
             }
         }
     }
 
     fun insertProgram(program: PeclProgramEntity) {
+        _programsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.insertProgram(program)
                 loadPrograms()
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error inserting program: ${e.message}", e)
+                _programsState.postValue(AppState.Error("Database insertion error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (programsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error inserting program"))
+                Log.e("AdminViewModel", "Error inserting program: ${e.message}", e)
+                _programsState.postValue(AppState.Error(e.message ?: "Error inserting program"))
             }
         }
     }
 
     fun updateProgram(program: PeclProgramEntity) {
+        _programsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.updateProgram(program)
                 loadPrograms()
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error updating program: ${e.message}", e)
+                _programsState.postValue(AppState.Error("Database update error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (programsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error updating program"))
+                Log.e("AdminViewModel", "Error updating program: ${e.message}", e)
+                _programsState.postValue(AppState.Error(e.message ?: "Error updating program"))
             }
         }
     }
 
     fun deleteProgram(program: PeclProgramEntity) {
+        _programsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.deleteProgram(program)
                 loadPrograms()
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error deleting program: ${e.message}", e)
+                _programsState.postValue(AppState.Error("Cannot delete program - referenced elsewhere (e.g., POIs assigned)"))
             } catch (e: Exception) {
-                (programsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Cannot delete program - referenced elsewhere"))
+                Log.e("AdminViewModel", "Error deleting program: ${e.message}", e)
+                _programsState.postValue(AppState.Error(e.message ?: "Error deleting program"))
             }
         }
     }
 
     fun insertPoi(poi: PeclPoiEntity) {
+        _poisState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.insertPoi(poi)
                 loadPoisForProgram(poi.programId)
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error inserting POI: ${e.message}", e)
+                _poisState.postValue(AppState.Error("Database insertion error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (poisState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error inserting POI"))
+                Log.e("AdminViewModel", "Error inserting POI: ${e.message}", e)
+                _poisState.postValue(AppState.Error(e.message ?: "Error inserting POI"))
             }
         }
     }
 
     fun updatePoi(poi: PeclPoiEntity) {
+        _poisState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.updatePoi(poi)
                 loadPoisForProgram(poi.programId)
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error updating POI: ${e.message}", e)
+                _poisState.postValue(AppState.Error("Database update error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (poisState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error updating POI"))
+                Log.e("AdminViewModel", "Error updating POI: ${e.message}", e)
+                _poisState.postValue(AppState.Error(e.message ?: "Error updating POI"))
             }
         }
     }
 
     fun deletePoi(poi: PeclPoiEntity) {
+        _poisState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.deletePoi(poi)
                 loadPoisForProgram(poi.programId)
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error deleting POI: ${e.message}", e)
+                _poisState.postValue(AppState.Error("Cannot delete POI - tasks assigned"))
             } catch (e: Exception) {
-                (poisState as MutableLiveData).postValue(AppState.Error(e.message ?: "Cannot delete POI - tasks assigned"))
+                Log.e("AdminViewModel", "Error deleting POI: ${e.message}", e)
+                _poisState.postValue(AppState.Error(e.message ?: "Error deleting POI"))
             }
         }
     }
 
     fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
+        _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.insertQuestionWithAssignment(question, taskId)
                 loadQuestionsForTask(taskId)
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error inserting question: ${e.message}", e)
+                _questionsState.postValue(AppState.Error("Database insertion error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error inserting question"))
+                Log.e("AdminViewModel", "Error inserting question: ${e.message}", e)
+                _questionsState.postValue(AppState.Error(e.message ?: "Error inserting question"))
             }
         }
     }
 
-    fun updateQuestion(question: PeclQuestionEntity) {
+    fun updateQuestion(question: PeclQuestionEntity, taskId: Long) {
+        _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.updateQuestion(question)
-                // Reload appropriate list
+                loadQuestionsForTask(taskId)
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error updating question: ${e.message}", e)
+                _questionsState.postValue(AppState.Error("Database update error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
-                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Error updating question"))
+                Log.e("AdminViewModel", "Error updating question: ${e.message}", e)
+                _questionsState.postValue(AppState.Error(e.message ?: "Error updating question"))
             }
         }
     }
 
-    fun deleteQuestion(question: PeclQuestionEntity) {
+    fun deleteQuestion(question: PeclQuestionEntity, taskId: Long) {
+        _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 repository.deleteQuestion(question)
-                // Reload appropriate list
+                loadQuestionsForTask(taskId)
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error deleting question: ${e.message}", e)
+                _questionsState.postValue(AppState.Error("Cannot delete question - referenced elsewhere (e.g., evaluations)"))
             } catch (e: Exception) {
-                (questionsState as MutableLiveData).postValue(AppState.Error(e.message ?: "Cannot delete question - referenced elsewhere"))
+                Log.e("AdminViewModel", "Error deleting question: ${e.message}", e)
+                _questionsState.postValue(AppState.Error(e.message ?: "Error deleting question"))
             }
         }
     }
@@ -219,9 +300,13 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         viewModelScope.launch {
             try {
                 repository.insertEvaluationResult(result)
-                // Reload if needed
+                // Optionally post to a dedicated state if added for evaluations
+            } catch (e: RoomSQLException) {
+                Log.e("AdminViewModel", "Database error inserting evaluation result: ${e.message}", e)
+                // Handle via UI feedback
             } catch (e: Exception) {
-                // Handle error in UI via state if applicable
+                Log.e("AdminViewModel", "Error inserting evaluation result: ${e.message}", e)
+                // Handle via UI feedback
             }
         }
     }

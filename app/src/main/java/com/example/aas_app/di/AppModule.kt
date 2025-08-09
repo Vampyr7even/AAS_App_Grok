@@ -1,13 +1,12 @@
 package com.example.aas_app.di
 
-import android.content.Context
+import android.app.Application
 import androidx.room.Room
 import com.example.aas_app.data.AppDatabase
 import com.example.aas_app.data.AppRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -17,20 +16,19 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+    fun provideAppDatabase(app: Application): AppDatabase {
         return Room.databaseBuilder(
-            context,
+            app,
             AppDatabase::class.java,
             "aas_database"
         )
-            .addMigrations(AppDatabase.MIGRATION_11_12)
-            .fallbackToDestructiveMigration() // For development; remove in production to avoid data loss
+            // Add migrations if defined, e.g., .addMigrations(AppDatabase.MIGRATION_11_12)
             .build()
     }
 
     @Provides
     @Singleton
-    fun provideRepository(db: AppDatabase): AppRepository {
+    fun provideAppRepository(db: AppDatabase): AppRepository {
         return AppRepository(db)
     }
 }

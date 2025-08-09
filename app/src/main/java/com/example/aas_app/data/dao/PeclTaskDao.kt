@@ -3,27 +3,29 @@ package com.example.aas_app.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entities.PeclTaskEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PeclTaskDao {
-    @Insert
-    suspend fun insert(task: PeclTaskEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTask(task: PeclTaskEntity): Long
 
     @Update
-    suspend fun update(task: PeclTaskEntity)
+    suspend fun updateTask(task: PeclTaskEntity)
 
     @Delete
-    suspend fun delete(task: PeclTaskEntity)
+    suspend fun deleteTask(task: PeclTaskEntity)
 
-    @Query("SELECT * FROM pecl_tasks")
-    suspend fun getAllTasks(): List<PeclTaskEntity>
+    @Query("SELECT * FROM pecl_tasks WHERE poi_id = :poiId")
+    fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>>
 
     @Query("SELECT * FROM pecl_tasks WHERE id = :id")
-    suspend fun getTaskById(id: Int): PeclTaskEntity?
+    suspend fun getTaskById(id: Long): PeclTaskEntity?
 
-    @Query("DELETE FROM pecl_tasks")
-    suspend fun deleteAll()
+    @Query("SELECT * FROM pecl_tasks WHERE name = :name")
+    suspend fun getTaskByName(name: String): PeclTaskEntity?
 }

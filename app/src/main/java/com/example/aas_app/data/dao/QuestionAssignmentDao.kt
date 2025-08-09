@@ -3,27 +3,18 @@ package com.example.aas_app.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
-import com.example.aas_app.data.entity.QuestionAssignmentEntity
+import com.example.aas_app.data.entities.PeclQuestionAssignmentEntity
 
 @Dao
 interface QuestionAssignmentDao {
-    @Insert
-    suspend fun insert(assignment: QuestionAssignmentEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAssignment(assignment: PeclQuestionAssignmentEntity)
 
-    @Update
-    suspend fun update(assignment: QuestionAssignmentEntity)
+    @Query("DELETE FROM question_assignments WHERE question_id = :questionId")
+    suspend fun deleteAssignmentsForQuestion(questionId: Long)
 
-    @Delete
-    suspend fun delete(assignment: QuestionAssignmentEntity)
-
-    @Query("SELECT * FROM question_assignments")
-    suspend fun getAllAssignments(): List<QuestionAssignmentEntity>
-
-    @Query("SELECT * FROM question_assignments WHERE id = :id")
-    suspend fun getAssignmentById(id: Int): QuestionAssignmentEntity?
-
-    @Query("DELETE FROM question_assignments")
-    suspend fun deleteAll()
+    @Query("SELECT * FROM question_assignments WHERE task_id = :taskId")
+    suspend fun getAssignmentsForTask(taskId: Long): List<PeclQuestionAssignmentEntity>
 }

@@ -3,37 +3,36 @@ package com.example.aas_app.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import androidx.room.RewriteQueriesToDropUnusedColumns
-import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entities.PeclQuestionEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PeclQuestionDao {
-    @Insert
-    suspend fun insert(question: PeclQuestionEntity): Long
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertQuestion(question: PeclQuestionEntity): Long
 
     @Update
-    suspend fun update(question: PeclQuestionEntity)
+    suspend fun updateQuestion(question: PeclQuestionEntity)
 
     @Delete
-    suspend fun delete(question: PeclQuestionEntity)
+    suspend fun deleteQuestion(question: PeclQuestionEntity)
 
     @Query("SELECT * FROM pecl_questions")
-    suspend fun getAllQuestions(): List<PeclQuestionEntity>
+    fun getAllQuestions(): Flow<List<PeclQuestionEntity>>
 
-    @Query("SELECT * FROM pecl_questions WHERE id = :id")
-    suspend fun getQuestionById(id: Int): PeclQuestionEntity?
-
-    // Updated: Proper JOIN query using new FK schema to get questions for a program/POI
-    @RewriteQueriesToDropUnusedColumns
     @Query("""
         SELECT q.* FROM pecl_questions q
-        JOIN question_assignments qa ON q.id = qa.question_id
-        JOIN pecl_tasks t ON qa.task_id = t.id
-        JOIN pecl_poi p ON t.poi_id = p.id
-        JOIN pecl_programs pr ON p.program_id = pr.id
-        WHERE pr.peclProgram = :program AND p.peclPoi = :poi
+        INNER JOIN question_assignments a ON q.id = a.question_id
+        INNER JOIN pecl_tasks t ON a.task_id = t.id
+        INNER JOIN pecl_pois p ON t.poi_id = p.id
+        INNER JOIN pecl_programs pr ON p.program_id = pr.id
+        WHERE pr.name = :program AND p.name = :poi
     """)
-    suspend fun getQuestionsForPoi(program: String, poi: String): List<PeclQuestionEntity>
+    fun getQuestionsForPoi(program: String, poi: String): Flow<List<PeclQuestionEntity>>
+
+    @Query("SELECT * FROM pecl_questions WHERE id = :id")
+    suspend fun getQuestionById(id: Long): PeclQuestionEntity?
 }

@@ -3,27 +3,29 @@ package com.example.aas_app.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entity.PeclPoiEntity
+import com.example.aas_app.data.entities.PeclPoiEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PeclPoiDao {
-    @Insert
-    suspend fun insert(poi: PeclPoiEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPoi(poi: PeclPoiEntity): Long
 
     @Update
-    suspend fun update(poi: PeclPoiEntity)
+    suspend fun updatePoi(poi: PeclPoiEntity)
 
     @Delete
-    suspend fun delete(poi: PeclPoiEntity)
+    suspend fun deletePoi(poi: PeclPoiEntity)
 
-    @Query("SELECT * FROM pecl_poi")
-    suspend fun getAllPois(): List<PeclPoiEntity>
+    @Query("SELECT * FROM pecl_pois WHERE program_id = :programId")
+    fun getPoisForProgram(programId: Long): Flow<List<PeclPoiEntity>>
 
-    @Query("SELECT * FROM pecl_poi WHERE id = :id")
-    suspend fun getPoiById(id: Int): PeclPoiEntity?
+    @Query("SELECT * FROM pecl_pois WHERE id = :id")
+    suspend fun getPoiById(id: Long): PeclPoiEntity?
 
-    @Query("DELETE FROM pecl_poi")
-    suspend fun deleteAll()
+    @Query("SELECT * FROM pecl_pois WHERE name = :name")
+    suspend fun getPoiByName(name: String): PeclPoiEntity?
 }
