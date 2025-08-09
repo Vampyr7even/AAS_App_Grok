@@ -11,15 +11,15 @@ import com.example.aas_app.data.dao.PeclTaskDao
 import com.example.aas_app.data.dao.QuestionAssignmentDao
 import com.example.aas_app.data.dao.ScaleDao
 import com.example.aas_app.data.dao.UserDao
-import com.example.aas_app.data.entities.InstructorStudentAssignmentEntity
-import com.example.aas_app.data.entities.PeclEvaluationResultEntity
-import com.example.aas_app.data.entities.PeclPoiEntity
-import com.example.aas_app.data.entities.PeclProgramEntity
-import com.example.aas_app.data.entities.PeclQuestionEntity
-import com.example.aas_app.data.entities.PeclScaleEntity
-import com.example.aas_app.data.entities.PeclTaskEntity
-import com.example.aas_app.data.entities.QuestionAssignmentEntity
-import com.example.aas_app.data.entities.UserEntity
+import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
+import com.example.aas_app.data.entity.PeclEvaluationResultEntity
+import com.example.aas_app.data.entity.PeclPoiEntity
+import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.QuestionAssignmentEntity
+import com.example.aas_app.data.entity.ScaleEntity
+import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.scopes.ViewModelScoped
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -52,10 +52,10 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
             programs.forEach { name ->
                 var program = peclProgramDao.getProgramByName(name)
                 if (program == null) {
-                    val id = peclProgramDao.insertProgram(PeclProgramEntity(name = name))
+                    val id = peclProgramDao.insertProgram(PeclProgramEntity(peclProgram = name))
                     programMap[name] = id
                 } else {
-                    programMap[name] = program.id
+                    programMap[name] = program.id.toLong()
                 }
             }
 
@@ -67,10 +67,10 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
             ).forEach { (name, programId) ->
                 var poi = peclPoiDao.getPoiByName(name)
                 if (poi == null) {
-                    val id = peclPoiDao.insertPoi(PeclPoiEntity(name = name, programId = programId))
+                    val id = peclPoiDao.insertPoi(PeclPoiEntity(name = name, program_id = programId.toInt()))
                     poiMap[name] = id
                 } else {
-                    poiMap[name] = poi.id
+                    poiMap[name] = poi.id.toLong()
                 }
             }
 
@@ -82,10 +82,10 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
             ).forEach { (name, poiId) ->
                 var task = peclTaskDao.getTaskByName(name)
                 if (task == null) {
-                    val id = peclTaskDao.insertTask(PeclTaskEntity(name = name, poiId = poiId))
+                    val id = peclTaskDao.insertTask(PeclTaskEntity(name = name, poi_id = poiId.toInt()))
                     taskMap[name] = id
                 } else {
-                    taskMap[name] = task.id
+                    taskMap[name] = task.id.toLong()
                 }
             }
 
@@ -95,20 +95,20 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
             )
             questions.forEach { question ->
                 val qId = peclQuestionDao.insertQuestion(question)
-                questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(questionId = qId, taskId = taskMap["Task1"]!!))
+                questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(question_id = qId.toInt(), task_id = taskMap["Task1"]!!.toInt()))
             }
 
             // Scales
             listOf(
-                PeclScaleEntity(scaleName = "1-10", options = "1,2,3,4,5,6,7,8,9,10")
+                ScaleEntity(scaleName = "1-10", scaleData = "1,2,3,4,5,6,7,8,9,10")
             ).forEach { scale ->
                 scaleDao.insertScale(scale)
             }
 
             // Users and assignments
-            val instructorId = userDao.insertUser(UserEntity(name = "Instructor1", role = "instructor"))
-            val studentId = userDao.insertUser(UserEntity(name = "Student1", role = "student"))
-            instructorStudentAssignmentDao.insertAssignment(InstructorStudentAssignmentEntity(instructorId = instructorId, studentId = studentId, programId = programMap["AASB"]))
+            val instructorId = userDao.insertUser(UserEntity(firstName = "Instructor1", lastName = "", grade = "", pin = null, fullName = "Instructor1", assignedProject = null, role = "instructor"))
+            val studentId = userDao.insertUser(UserEntity(firstName = "Student1", lastName = "", grade = "", pin = null, fullName = "Student1", assignedProject = null, role = "student"))
+            instructorStudentAssignmentDao.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId.toInt(), student_id = studentId.toInt(), program_id = programMap["AASB"]!!.toInt()))
         }
     }
 

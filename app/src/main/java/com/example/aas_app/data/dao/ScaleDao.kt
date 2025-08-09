@@ -6,20 +6,20 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entities.PeclScaleEntity
+import com.example.aas_app.data.entity.ScaleEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ScaleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertScale(scale: PeclScaleEntity): Long
+    suspend fun insertScale(scale: ScaleEntity): Long
 
     @Update
-    suspend fun updateScale(scale: PeclScaleEntity)
+    suspend fun updateScale(scale: ScaleEntity)
 
     @Delete
-    suspend fun deleteScale(scale: PeclScaleEntity)
+    suspend fun deleteScale(scale: ScaleEntity)
 
     @Query("SELECT * FROM pecl_scales")
-    fun getAllScales(): Flow<List<PeclScaleEntity>>
+    fun getAllScales(): Flow<List<ScaleEntity>>
 }

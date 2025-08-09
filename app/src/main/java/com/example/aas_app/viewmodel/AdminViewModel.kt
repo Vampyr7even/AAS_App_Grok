@@ -6,14 +6,14 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.RoomSQLException
-import com.example.aas_app.data.entities.PeclEvaluationResultEntity
-import com.example.aas_app.data.entities.PeclPoiEntity
-import com.example.aas_app.data.entities.PeclProgramEntity
-import com.example.aas_app.data.entities.PeclQuestionEntity
-import com.example.aas_app.data.entities.PeclScaleEntity
-import com.example.aas_app.data.entities.PeclTaskEntity
-import com.example.aas_app.data.entities.UserEntity
-import com.example.aas_app.data.repository.AppRepository
+import com.example.aas_app.data.entity.PeclEvaluationResultEntity
+import com.example.aas_app.data.entity.PeclPoiEntity
+import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entity.ScaleEntity
+import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.UserEntity
+import com.example.aas_app.data.AppRepository
 import com.example.aas_app.util.AppState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -34,8 +34,8 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     private val _questionsState = MutableLiveData<AppState<List<PeclQuestionEntity>>>()
     val questionsState: LiveData<AppState<List<PeclQuestionEntity>>> = _questionsState
 
-    private val _scalesState = MutableLiveData<AppState<List<PeclScaleEntity>>>()
-    val scalesState: LiveData<AppState<List<PeclScaleEntity>>> = _scalesState
+    private val _scalesState = MutableLiveData<AppState<List<ScaleEntity>>>()
+    val scalesState: LiveData<AppState<List<ScaleEntity>>> = _scalesState
 
     private val _studentsState = MutableLiveData<AppState<List<UserEntity>>>()
     val studentsState: LiveData<AppState<List<UserEntity>>> = _studentsState
@@ -99,7 +99,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
                 _questionsState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading questions: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions"))
+                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions for task"))
             }
         }
     }

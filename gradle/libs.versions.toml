@@ -1,11 +1,11 @@
 [versions]
 agp = "8.11.0"
-kotlin = "2.0.20"
+kotlin = "2.2.0"
 hilt = "2.57"
-ksp = "2.0.20-1.0.24"
-room = "2.7.2"
+ksp = "2.2.0-2.0.2"
+room = "2.8.0-beta01"
 composeBom = "2025.07.00"
-composeCompiler = "2.0.20"
+composeCompiler = "2.2.0"
 coreKtx = "1.13.1"
 lifecycleRuntimeKtx = "2.8.6"
 activityCompose = "1.9.2"
@@ -41,5 +41,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "composeCompiler" }
 room = { id = "androidx.room", version.ref = "room" }

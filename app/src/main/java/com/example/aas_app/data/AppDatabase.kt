@@ -6,36 +6,48 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.aas_app.data.dao.DemoTemplatesDao
 import com.example.aas_app.data.dao.EvaluationResultDao
 import com.example.aas_app.data.dao.InstructorStudentAssignmentDao
 import com.example.aas_app.data.dao.PeclPoiDao
 import com.example.aas_app.data.dao.PeclProgramDao
 import com.example.aas_app.data.dao.PeclQuestionDao
 import com.example.aas_app.data.dao.PeclTaskDao
+import com.example.aas_app.data.dao.ProjectDao
 import com.example.aas_app.data.dao.QuestionAssignmentDao
+import com.example.aas_app.data.dao.QuestionRepositoryDao
+import com.example.aas_app.data.dao.ResponseDao
 import com.example.aas_app.data.dao.ScaleDao
 import com.example.aas_app.data.dao.UserDao
+import com.example.aas_app.data.entity.DemoTemplatesEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
-import com.example.aas_app.data.entity.PeclScaleEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.ProjectEntity
 import com.example.aas_app.data.entity.QuestionAssignmentEntity
+import com.example.aas_app.data.entity.QuestionRepositoryEntity
+import com.example.aas_app.data.entity.ResponseEntity
+import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.UserEntity
 
 @Database(
     entities = [
-        com.example.aas_app.data.entity.UserEntity::class,
-        com.example.aas_app.data.entity.PeclProgramEntity::class,
-        com.example.aas_app.data.entity.PeclPoiEntity::class,
-        com.example.aas_app.data.entity.PeclTaskEntity::class,
-        com.example.aas_app.data.entity.PeclQuestionEntity::class,
-        com.example.aas_app.data.entity.QuestionAssignmentEntity::class,
-        com.example.aas_app.data.entity.InstructorStudentAssignmentEntity::class,
-        com.example.aas_app.data.entity.PeclEvaluationResultEntity::class,
-        com.example.aas_app.data.entity.PeclScaleEntity::class
+        UserEntity::class,
+        PeclProgramEntity::class,
+        PeclPoiEntity::class,
+        PeclTaskEntity::class,
+        PeclQuestionEntity::class,
+        QuestionAssignmentEntity::class,
+        InstructorStudentAssignmentEntity::class,
+        PeclEvaluationResultEntity::class,
+        ScaleEntity::class,
+        DemoTemplatesEntity::class,
+        QuestionRepositoryEntity::class,
+        ResponseEntity::class,
+        ProjectEntity::class
     ],
     version = 12,
     exportSchema = true
@@ -51,6 +63,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun instructorStudentAssignmentDao(): InstructorStudentAssignmentDao
     abstract fun evaluationResultDao(): EvaluationResultDao
     abstract fun scaleDao(): ScaleDao
+    abstract fun demoTemplatesDao(): DemoTemplatesDao
+    abstract fun questionRepositoryDao(): QuestionRepositoryDao
+    abstract fun responseDao(): ResponseDao
+    abstract fun projectDao(): ProjectDao
 
     companion object {
         @Volatile
@@ -92,6 +108,10 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `instructor_student_assignments` (`instructor_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `instructor_student_assignments` (`student_id`)")
                 db.execSQL("CREATE TABLE IF NOT EXISTS `pecl_scales` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `scale_name` TEXT NOT NULL, `options` TEXT NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `demotemplates` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `templateName` TEXT NOT NULL, `selectedItems` TEXT NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `question_repository` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `field` TEXT NOT NULL, `inputType` TEXT NOT NULL, `options` TEXT NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `demographics_results` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `userId` INTEGER NOT NULL, `questionId` INTEGER NOT NULL, `answer` TEXT NOT NULL, `surveyDate` TEXT NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `projects` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectName` TEXT NOT NULL)")
 
                 // Recreate pecl_questions to remove legacy columns (program, poi, task)
                 db.execSQL("CREATE TABLE `pecl_questions_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sub_task` TEXT NOT NULL, `control_type` TEXT NOT NULL, `scale` TEXT NOT NULL, `critical_task` TEXT NOT NULL)")
