@@ -22,7 +22,7 @@ interface ProjectDao {
     suspend fun delete(project: ProjectEntity)
 
     @Query("SELECT * FROM projects WHERE id = :id")
-    suspend fun getProjectById(id: Int): ProjectEntity?
+    suspend fun getProjectById(id: Long): ProjectEntity?
 
     @Query("DELETE FROM projects")
     suspend fun deleteAll()

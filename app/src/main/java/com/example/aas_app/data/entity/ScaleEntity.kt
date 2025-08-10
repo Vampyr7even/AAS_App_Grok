@@ -3,9 +3,9 @@ package com.example.aas_app.data.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "scales")
+@Entity(tableName = "pecl_scales")
 data class ScaleEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val scaleName: String,
-    val scaleData: String = "" // Added field for comma-separated items
+    val options: String
 )

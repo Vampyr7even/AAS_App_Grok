@@ -22,8 +22,8 @@ interface QuestionRepositoryDao {
     suspend fun getAllQuestions(): List<QuestionRepositoryEntity>
 
     @Query("SELECT * FROM question_repository WHERE id IN (:ids)")
-    suspend fun getQuestionsByIds(ids: List<Int>): List<QuestionRepositoryEntity>
+    suspend fun getQuestionsByIds(ids: List<Long>): List<QuestionRepositoryEntity>
 
     @Query("SELECT * FROM question_repository WHERE id = :id")
-    suspend fun getQuestionById(id: Int): QuestionRepositoryEntity?
+    suspend fun getQuestionById(id: Long): QuestionRepositoryEntity?
 }

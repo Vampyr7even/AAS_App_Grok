@@ -8,7 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.example.aas_app.data.UserEntity
+import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.DemographicsViewModel
 
 @Composable
@@ -28,7 +28,7 @@ fun UpdateUsersScreen(viewModel: DemographicsViewModel) {
     TextField(value = userRole.value, onValueChange = { userRole.value = it })
 
     Button(onClick = {
-        viewModel.insertUser(UserEntity(name = userName.value, role = userRole.value))
+        viewModel.insertUser(UserEntity(0, userName.value, "", "", null, userName.value, null, userRole.value))
     }) {
         Text("Add User")
     }

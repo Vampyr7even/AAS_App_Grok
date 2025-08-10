@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "demotemplates")
 data class DemoTemplatesEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val templateName: String,
     val selectedItems: String // Comma-separated IDs, e.g., "1,3,5"
 )

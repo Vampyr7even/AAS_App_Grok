@@ -11,5 +11,5 @@ interface ResponseDao {
     suspend fun insert(response: ResponseEntity)
 
     @Query("SELECT * FROM demographics_results WHERE userId = :userId")
-    suspend fun getResponsesForUser(userId: Int): List<ResponseEntity>
+    suspend fun getResponsesForUser(userId: Long): List<ResponseEntity>
 }

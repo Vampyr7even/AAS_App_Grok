@@ -20,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,7 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.aas_app.data.entities.PeclPoiEntity
+import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 
@@ -81,7 +80,7 @@ fun EditPoisScreen(navController: NavController, programId: Long) {
             label = { Text("New POI Name") }
         )
         Button(
-            onClick = { viewModel.insertPoi(PeclPoiEntity(0L, newPoiName, programId)) },
+            onClick = { viewModel.insertPoi(PeclPoiEntity(0, newPoiName, programId)) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {

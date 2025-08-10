@@ -6,7 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entities.PeclTaskEntity
+import com.example.aas_app.data.entity.PeclTaskEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

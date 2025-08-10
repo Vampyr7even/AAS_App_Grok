@@ -2,10 +2,11 @@ package com.example.aas_app
 
 import android.app.Application
 import android.util.Log
+import com.example.aas_app.data.AppDatabase
 import com.example.aas_app.data.AppRepository
-import com.example.aas_app.data.AppResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class ApexAnalyticsApplication : Application() {
@@ -13,40 +14,32 @@ class ApexAnalyticsApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        repository = AppRepository(applicationContext)
+        repository = AppRepository(AppDatabase.getDatabase(this))
 
         CoroutineScope(Dispatchers.IO).launch {
             repository.prePopulateAll()
 
             // Verify prepopulation
-            val programsResult = repository.getAllPrograms()
-            when (programsResult) {
-                is AppResult.Success -> Log.d("PrepopVerify", "Programs: ${programsResult.data.size}")
-                is AppResult.Error -> Log.e("PrepopVerify", "Error fetching programs: ${programsResult.message}")
-            }
+            try {
+                val programs = repository.getAllPrograms().first()
+                Log.d("PrepopVerify", "Programs: ${programs.size}")
 
-            val firstProgramId = if (programsResult is AppResult.Success && programsResult.data.isNotEmpty()) programsResult.data.first().id else 0L
+                val firstProgramId = if (programs.isNotEmpty()) programs.first().id else 0L
 
-            val poisResult = repository.getPoisForProgram(firstProgramId)
-            when (poisResult) {
-                is AppResult.Success -> Log.d("PrepopVerify", "POIs: ${poisResult.data.size}")
-                is AppResult.Error -> Log.e("PrepopVerify", "Error fetching POIs: ${poisResult.message}")
-            }
+                val pois = repository.getPoisForProgram(firstProgramId).first()
+                Log.d("PrepopVerify", "POIs: ${pois.size}")
 
-            val firstPoiId = if (poisResult is AppResult.Success && poisResult.data.isNotEmpty()) poisResult.data.first().id else 0L
+                val firstPoiId = if (pois.isNotEmpty()) pois.first().id else 0L
 
-            val tasksResult = repository.getTasksForPoi(firstPoiId)
-            when (tasksResult) {
-                is AppResult.Success -> Log.d("PrepopVerify", "Tasks: ${tasksResult.data.size}")
-                is AppResult.Error -> Log.e("PrepopVerify", "Error fetching tasks: ${tasksResult.message}")
-            }
+                val tasks = repository.getTasksForPoi(firstPoiId).first()
+                Log.d("PrepopVerify", "Tasks: ${tasks.size}")
 
-            val firstTaskId = if (tasksResult is AppResult.Success && tasksResult.data.isNotEmpty()) tasksResult.data.first().id else 0L
+                val firstTaskId = if (tasks.isNotEmpty()) tasks.first().id else 0L
 
-            val questionsResult = repository.getQuestionsForTask(firstTaskId)
-            when (questionsResult) {
-                is AppResult.Success -> Log.d("PrepopVerify", "Questions: ${questionsResult.data.size}")
-                is AppResult.Error -> Log.e("PrepopVerify", "Error fetching questions: ${questionsResult.message}")
+                val questions = repository.getQuestionsForTask(firstTaskId).first()
+                Log.d("PrepopVerify", "Questions: ${questions.size}")
+            } catch (e: Exception) {
+                Log.e("PrepopVerify", "Error during verification: ${e.message}", e)
             }
         }
     }

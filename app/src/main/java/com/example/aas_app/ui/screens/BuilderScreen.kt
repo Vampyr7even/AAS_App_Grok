@@ -20,20 +20,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.aas_app.data.entities.PeclPoiEntity
-import com.example.aas_app.data.entities.PeclQuestionEntity
+import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 
@@ -77,7 +75,7 @@ fun BuilderScreen(navController: NavController) {
         }
 
         Button(
-            onClick = { viewModel.insertPoi(PeclPoiEntity(0L, "New POI", 0L)) },
+            onClick = { viewModel.insertPoi(PeclPoiEntity(0, "New POI", 0L)) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {

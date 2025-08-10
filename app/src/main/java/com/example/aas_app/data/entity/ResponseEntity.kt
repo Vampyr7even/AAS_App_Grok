@@ -5,9 +5,9 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "demographics_results")
 data class ResponseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val userId: Int,
-    val questionId: Int,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: Long,
+    val questionId: Long,
     val answer: String,
     val surveyDate: String
 )

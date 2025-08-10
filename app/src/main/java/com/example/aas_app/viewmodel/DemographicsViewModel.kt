@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
-import com.example.aas_app.data.UserEntity
+import com.example.aas_app.data.entity.UserEntity
 import kotlinx.coroutines.launch
 
 class DemographicsViewModel(private val repository: AppRepository) : ViewModel() {

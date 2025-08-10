@@ -6,7 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entities.UserEntity
+import com.example.aas_app.data.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

@@ -5,11 +5,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.room.RoomSQLException
-import com.example.aas_app.data.entities.PeclEvaluationResultEntity
-import com.example.aas_app.data.entities.PeclQuestionEntity
-import com.example.aas_app.data.repository.AppRepository
-import com.example.aas_app.util.AppState
+import com.example.aas_app.data.AppRepository
+import com.example.aas_app.data.entity.PeclEvaluationResultEntity
+import com.example.aas_app.data.entity.PeclQuestionEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,15 +24,12 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     private val _averageScoreState = MutableLiveData<AppState<Float>>()
     val averageScoreState: LiveData<AppState<Float>> = _averageScoreState
 
-    fun loadQuestionsForPoi(programId: Long, poiId: Long) {
+    fun loadQuestionsForPoi(program: String, poi: String) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getQuestionsForPoi(programId, poiId)
+                val data = repository.getQuestionsForPoi(program, poi).first()
                 _questionsState.postValue(AppState.Success(data))
-            } catch (e: RoomSQLException) {
-                Log.e("PeclViewModel", "Database error loading questions: ${e.message}", e)
-                _questionsState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error loading questions: ${e.message}", e)
                 _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions for POI"))
@@ -44,16 +39,8 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
 
     fun insertEvaluationResult(result: PeclEvaluationResultEntity) {
         viewModelScope.launch {
-            try {
-                repository.insertEvaluationResult(result)
-                // Optionally post success if a dedicated state is added; for now, no state update as per current design
-            } catch (e: RoomSQLException) {
-                Log.e("PeclViewModel", "Database error inserting evaluation result: ${e.message}", e)
-                // Handle via UI feedback (e.g., pass error to a dedicated insert state if added)
-            } catch (e: Exception) {
-                Log.e("PeclViewModel", "Error inserting evaluation result: ${e.message}", e)
-                // Handle via UI feedback
-            }
+            val insertResult = repository.insertEvaluationResult(result)
+            // Handle result if needed
         }
     }
 
@@ -63,9 +50,6 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
             try {
                 val average = repository.getAverageScoreForStudent(studentId, poiId)
                 _averageScoreState.postValue(AppState.Success(average))
-            } catch (e: RoomSQLException) {
-                Log.e("PeclViewModel", "Database query error calculating average: ${e.message}", e)
-                _averageScoreState.postValue(AppState.Error("Database query error: ${e.message ?: "Unknown"}"))
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error calculating average score: ${e.message}", e)
                 _averageScoreState.postValue(AppState.Error(e.message ?: "Error calculating average score"))

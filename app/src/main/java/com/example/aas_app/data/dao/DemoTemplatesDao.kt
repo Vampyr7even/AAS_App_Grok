@@ -22,5 +22,5 @@ interface DemoTemplatesDao {
     suspend fun getAllDemoTemplates(): List<DemoTemplatesEntity>
 
     @Query("SELECT * FROM demotemplates WHERE id = :id")
-    suspend fun getTemplateById(id: Int): DemoTemplatesEntity?
+    suspend fun getTemplateById(id: Long): DemoTemplatesEntity?
 }

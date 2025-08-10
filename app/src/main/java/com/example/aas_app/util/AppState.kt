@@ -1,6 +1,4 @@
-package com.example.aas_app.util
-
-import android.util.Log
+package com.example.aas_app.viewmodel
 
 sealed class AppState<out T> {
     object Loading : AppState<Nothing>()

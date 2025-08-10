@@ -5,6 +5,6 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "pecl_programs")
 data class PeclProgramEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val peclProgram: String
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String
 )
