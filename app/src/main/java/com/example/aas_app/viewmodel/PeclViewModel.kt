@@ -6,9 +6,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
-import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -40,7 +40,7 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun insertEvaluationResult(result: PeclEvaluationResultEntity) {
         viewModelScope.launch {
             val insertResult = repository.insertEvaluationResult(result)
-            // Handle result if needed
+            // Useful result if needed
         }
     }
 

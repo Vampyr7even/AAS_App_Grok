@@ -348,8 +348,6 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     fun getStudentsForInstructor(instructorId: Long): Flow<List<UserEntity>> = instructorStudentAssignmentDao.getStudentsForInstructor(instructorId)
 
-    fun getStudentsForProgram(programId: Long): Flow<List<UserEntity>> = instructorStudentAssignmentDao.getStudentsForProgram(programId)
-
     fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>> = peclQuestionDao.getQuestionsForPoi(poiId) // Add DAO method for POI-specific questions
 
     // Add other missing methods similarly

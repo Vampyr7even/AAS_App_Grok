@@ -17,7 +17,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -39,8 +39,8 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun BuilderScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
+    val poisState by viewModel.poisState.collectAsStateWithLifecycle(AppState.Loading<List<PeclPoiEntity>>())
+    val questionsState by viewModel.questionsState.collectAsStateWithLifecycle(AppState.Loading<List<PeclQuestionEntity>>())
 
     LaunchedEffect(Unit) {
         viewModel.loadPoisForProgram(0L) // Assume default program ID; adjust as needed

@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -39,7 +38,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EditPoisScreen(navController: NavController, programId: Long) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
+    val poisState by viewModel.poisState.collectAsStateWithLifecycle(AppState.Loading<List<PeclPoiEntity>>())
 
     LaunchedEffect(programId) {
         viewModel.loadPoisForProgram(programId)

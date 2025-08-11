@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.example.aas_app.data.PeclScaleEntity
+import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 
 @Composable
@@ -19,7 +19,7 @@ fun AddScaleScreen(adminViewModel: AdminViewModel) {
     TextField(value = options.value, onValueChange = { options.value = it })
 
     Button(onClick = {
-        adminViewModel.insertScale(PeclScaleEntity(scaleName = scaleName.value, options = options.value))
+        adminViewModel.insertScale(ScaleEntity(scaleName = scaleName.value, options = options.value))
     }) {
         Text("Save")
     }

@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "pecl_evaluation_results")
 data class PeclEvaluationResultEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val student_id: Long,
     val instructor_id: Long,
     val question_id: Long,

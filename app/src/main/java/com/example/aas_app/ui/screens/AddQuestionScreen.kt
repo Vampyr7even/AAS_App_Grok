@@ -24,19 +24,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.compose.composable
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
-import kotlinx.coroutines.flow.Flow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddQuestionScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val scalesState by viewModel.scalesState.observeAsState(AppState.Loading<List<ScaleEntity>>())
+    val scalesState by viewModel.scalesState.collectAsStateWithLifecycle(AppState.Loading<List<ScaleEntity>>())
 
     LaunchedEffect(Unit) {
         viewModel.loadScales()
@@ -83,7 +82,7 @@ fun AddQuestionScreen(navController: NavController) {
             ) {
                 when (val state = scalesState) {
                     is AppState.Loading -> Text("Loading scales...")
-                    is AppState.Success -> state.data.forEach { peclScale ->
+                    is AppState.Success<List<ScaleEntity>> -> state.data.forEach { peclScale ->
                         DropdownMenuItem(
                             text = { Text(peclScale.scaleName) },
                             onClick = {

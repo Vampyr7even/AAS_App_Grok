@@ -17,7 +17,11 @@ fun EditProgramScreen(adminViewModel: AdminViewModel, programId: Long) {
         adminViewModel.loadPrograms()
     }
 
-    val program = adminViewModel.peclPrograms.value.orEmpty().find { it.id == programId }
+    val program = adminViewModel.programsState.value?.let { state ->
+        if (state is AppState.Success) {
+            state.data.find { it.id == programId }
+        } else null
+    }
 
     val name = remember { mutableStateOf(program?.name ?: "") }
 

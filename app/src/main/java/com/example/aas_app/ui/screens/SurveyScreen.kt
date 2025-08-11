@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
@@ -36,9 +37,9 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun SurveyScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel() // Adjust to appropriate ViewModel if needed
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
-    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading<List<UserEntity>>())
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
+    val poisState by viewModel.poisState.collectAsStateWithLifecycle(AppState.Loading<List<PeclPoiEntity>>())
+    val studentsState by viewModel.studentsState.collectAsStateWithLifecycle(AppState.Loading<List<UserEntity>>())
+    val questionsState by viewModel.questionsState.collectAsStateWithLifecycle(AppState.Loading<List<PeclQuestionEntity>>())
 
     var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
     var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }
@@ -67,6 +68,7 @@ fun SurveyScreen(navController: NavController) {
                 onDismissRequest = { expandedPoi = false }
             ) {
                 when (val state = poisState) {
+                    is AppState.Loading -> Text("Loading...")
                     is AppState.Success -> state.data.forEach { poi ->
                         DropdownMenuItem(
                             text = { Text(poi.name) },
@@ -77,7 +79,7 @@ fun SurveyScreen(navController: NavController) {
                             }
                         )
                     }
-                    else -> { }
+                    is AppState.Error -> Text("Error: ${state.message}")
                 }
             }
         }
@@ -100,6 +102,7 @@ fun SurveyScreen(navController: NavController) {
                 onDismissRequest = { expandedStudent = false }
             ) {
                 when (val state = studentsState) {
+                    is AppState.Loading -> Text("Loading...")
                     is AppState.Success -> state.data.forEach { student ->
                         DropdownMenuItem(
                             text = { Text(student.fullName) },
@@ -109,7 +112,7 @@ fun SurveyScreen(navController: NavController) {
                             }
                         )
                     }
-                    else -> { }
+                    is AppState.Error -> Text("Error: ${state.message}")
                 }
             }
         }
@@ -131,7 +134,7 @@ fun SurveyScreen(navController: NavController) {
         Button(
             onClick = {
                 // Collect responses and insert
-                val result = PeclEvaluationResultEntity(0, 0, 0, 0, 0.0, "comment", 0L)
+                val result = PeclEvaluationResultEntity(0, 0, 0, 0.0, "comment", 0L)
                 viewModel.insertEvaluationResult(result)
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),

@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
@@ -16,6 +17,7 @@ import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {

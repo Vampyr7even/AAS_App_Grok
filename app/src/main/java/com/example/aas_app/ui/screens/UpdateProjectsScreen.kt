@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -39,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun UpdateProjectsScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val programsState by viewModel.programsState.observeAsState(AppState.Loading<List<PeclProgramEntity>>())
+    val programsState by viewModel.programsState.collectAsStateWithLifecycle(AppState.Loading<List<PeclProgramEntity>>())
 
     LaunchedEffect(Unit) {
         viewModel.loadPrograms()

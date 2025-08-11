@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RectangleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -124,12 +124,12 @@ fun NavigationTopBar(navController: NavHostController) {
 fun NavigationButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        shape = RectangleShape,
+        shape = RoundedCornerShape(0.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) Color(0xFFE57373) else Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onPrimary
         ),
-        modifier = Modifier.border(1.dp, Color.Gray, RectangleShape)
+        modifier = Modifier.border(1.dp, Color.Gray, RoundedCornerShape(0.dp))
     ) {
         Text(text)
     }

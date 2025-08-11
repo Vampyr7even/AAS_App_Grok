@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -39,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EditScalesScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val scalesState by viewModel.scalesState.observeAsState(AppState.Loading<List<ScaleEntity>>())
+    val scalesState by viewModel.scalesState.collectAsStateWithLifecycle(AppState.Loading<List<ScaleEntity>>())
 
     LaunchedEffect(Unit) {
         viewModel.loadScales()
