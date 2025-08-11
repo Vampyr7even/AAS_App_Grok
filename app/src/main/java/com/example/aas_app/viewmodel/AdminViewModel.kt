@@ -116,19 +116,6 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
-    fun loadQuestionsByIds(ids: List<Long>) {
-        _questionsState.value = AppState.Loading
-        viewModelScope.launch {
-            try {
-                val data = repository.getQuestionsByIds(ids)
-                _questionsState.postValue(AppState.Success(data))
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error loading questions by IDs: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions by IDs"))
-            }
-        }
-    }
-
     fun loadStudentsForProgram(programId: Long) {
         _studentsState.value = AppState.Loading
         viewModelScope.launch {
@@ -141,6 +128,12 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             }
         }
     }
+
+    suspend fun getQuestionById(id: Long): PeclQuestionEntity? = repository.getQuestionById(id)
+
+    suspend fun getScaleById(id: Long): ScaleEntity? = repository.getScaleById(id) // Add DAO method if needed
+
+    suspend fun getTaskById(id: Long): PeclTaskEntity? = repository.getTaskById(id)
 
     fun insertProgram(program: PeclProgramEntity) {
         _programsState.value = AppState.Loading
@@ -208,6 +201,39 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
+    fun insertTask(task: PeclTaskEntity) {
+        _tasksState.value = AppState.Loading
+        viewModelScope.launch {
+            val result = repository.insertTask(task)
+            when (result) {
+                is AppResult.Success -> loadTasksForPoi(task.poi_id)
+                is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
+            }
+        }
+    }
+
+    fun updateTask(task: PeclTaskEntity) {
+        _tasksState.value = AppState.Loading
+        viewModelScope.launch {
+            val result = repository.updateTask(task)
+            when (result) {
+                is AppResult.Success -> loadTasksForPoi(task.poi_id)
+                is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
+            }
+        }
+    }
+
+    fun deleteTask(task: PeclTaskEntity) {
+        _tasksState.value = AppState.Loading
+        viewModelScope.launch {
+            val result = repository.deleteTask(task)
+            when (result) {
+                is AppResult.Success -> loadTasksForPoi(task.poi_id)
+                is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
+            }
+        }
+    }
+
     fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
@@ -241,10 +267,57 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
+    fun insertScale(scale: ScaleEntity) {
+        _scalesState.value = AppState.Loading
+        viewModelScope.launch {
+            val result = repository.insertScale(scale)
+            when (result) {
+                is AppResult.Success -> loadScales()
+                is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
+            }
+        }
+    }
+
+    fun updateScale(scale: ScaleEntity) {
+        _scalesState.value = AppState.Loading
+        viewModelScope.launch {
+            val result = repository.updateScale(scale)
+            when (result) {
+                is AppResult.Success -> loadScales()
+                is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
+            }
+        }
+    }
+
+    fun deleteScale(scale: ScaleEntity) {
+        _scalesState.value = AppState.Loading
+        viewModelScope.launch {
+            val result = repository.deleteScale(scale)
+            when (result) {
+                is AppResult.Success -> loadScales()
+                is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
+            }
+        }
+    }
+
     fun insertEvaluationResult(result: PeclEvaluationResultEntity) {
         viewModelScope.launch {
             val insertResult = repository.insertEvaluationResult(result)
             // Handle result if needed
+        }
+    }
+
+    fun loadQuestionsForPoi(poiId: Long) {
+        _questionsState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                // Implement query in repository/DAO if needed
+                val data = repository.getQuestionsForPoi(poiId).first()
+                _questionsState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading questions for POI: ${e.message}", e)
+                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions for POI"))
+            }
         }
     }
 }

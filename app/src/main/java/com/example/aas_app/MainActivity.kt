@@ -23,12 +23,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.aas_app.ui.screens.AddQuestionScreen
 import com.example.aas_app.ui.screens.BuilderScreen
 import com.example.aas_app.ui.screens.EditPoisScreen
@@ -66,16 +68,22 @@ fun AASAppScaffold() {
     ) { innerPadding ->
         NavHost(navController = navController, startDestination = "evaluate", modifier = Modifier.padding(innerPadding)) {
             composable("admin/programs") { EditProgramsScreen(navController) }
-            composable("admin/pois/{programId}") { backStackEntry ->
+            composable(
+                "admin/pois/{programId}",
+                arguments = listOf(navArgument("programId") { type = NavType.LongType })
+            ) { backStackEntry: NavBackStackEntry ->
                 EditPoisScreen(
                     navController,
-                    backStackEntry.arguments?.getString("programId")?.toLongOrNull() ?: 0L
+                    backStackEntry.arguments?.getLong("programId") ?: 0L
                 )
             }
-            composable("admin/tasks/{poiId}") { backStackEntry ->
+            composable(
+                "admin/tasks/{poiId}",
+                arguments = listOf(navArgument("poiId") { type = NavType.LongType })
+            ) { backStackEntry: NavBackStackEntry ->
                 EditTasksScreen(
                     navController,
-                    backStackEntry.arguments?.getString("poiId")?.toLongOrNull() ?: 0L
+                    backStackEntry.arguments?.getLong("poiId") ?: 0L
                 )
             }
             composable("admin/questions") { AddQuestionScreen(navController) }
@@ -96,7 +104,7 @@ fun NavigationTopBar(navController: NavHostController) {
     val currentRoute = currentBackStackEntry?.destination?.route
     TopAppBar(
         title = { Text("AAS App") },
-        colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = Color.Transparent),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         actions = {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(1.dp)

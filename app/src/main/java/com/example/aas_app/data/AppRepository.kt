@@ -289,6 +289,8 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
         }
     }
 
+    fun getQuestionsForTask(taskId: Long): Flow<List<PeclQuestionEntity>> = peclQuestionDao.getQuestionsForTask(taskId)
+
     suspend fun insertScale(scale: ScaleEntity): AppResult<Long> {
         return try {
             AppResult.Success(scaleDao.insertScale(scale))
@@ -318,6 +320,8 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     fun getAllScales(): Flow<List<ScaleEntity>> = scaleDao.getAllScales()
 
+    suspend fun getScaleById(id: Long): ScaleEntity? = scaleDao.getScaleById(id) // Add DAO method
+
     suspend fun insertEvaluationResult(result: PeclEvaluationResultEntity): AppResult<Long> {
         return try {
             AppResult.Success(evaluationResultDao.insertEvaluationResult(result))
@@ -344,9 +348,9 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     fun getStudentsForInstructor(instructorId: Long): Flow<List<UserEntity>> = instructorStudentAssignmentDao.getStudentsForInstructor(instructorId)
 
-    fun getQuestionsForTask(taskId: Long): Flow<List<PeclQuestionEntity>> = peclQuestionDao.getQuestionsForTask(taskId)
-
     fun getStudentsForProgram(programId: Long): Flow<List<UserEntity>> = instructorStudentAssignmentDao.getStudentsForProgram(programId)
+
+    fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>> = peclQuestionDao.getQuestionsForPoi(poiId) // Add DAO method for POI-specific questions
 
     // Add other missing methods similarly
 }

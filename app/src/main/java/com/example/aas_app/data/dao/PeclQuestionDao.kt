@@ -35,4 +35,20 @@ interface PeclQuestionDao {
 
     @Query("SELECT * FROM pecl_questions WHERE id = :id")
     suspend fun getQuestionById(id: Long): PeclQuestionEntity?
+
+    @Query("""
+        SELECT q.* FROM pecl_questions q
+        INNER JOIN question_assignments a ON q.id = a.question_id
+        INNER JOIN pecl_tasks t ON a.task_id = t.id
+        WHERE t.id = :taskId
+    """)
+    fun getQuestionsForTask(taskId: Long): Flow<List<PeclQuestionEntity>>
+
+    @Query("""
+        SELECT q.* FROM pecl_questions q
+        INNER JOIN question_assignments a ON q.id = a.question_id
+        INNER JOIN pecl_tasks t ON a.task_id = t.id
+        WHERE t.poi_id = :poiId
+    """)
+    fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>>
 }

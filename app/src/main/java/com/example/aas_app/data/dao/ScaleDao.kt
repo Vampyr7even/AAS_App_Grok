@@ -22,4 +22,7 @@ interface ScaleDao {
 
     @Query("SELECT * FROM pecl_scales")
     fun getAllScales(): Flow<List<ScaleEntity>>
+
+    @Query("SELECT * FROM pecl_scales WHERE id = :id")
+    suspend fun getScaleById(id: Long): ScaleEntity?
 }

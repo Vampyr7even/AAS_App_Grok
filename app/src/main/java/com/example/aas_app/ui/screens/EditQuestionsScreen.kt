@@ -2,65 +2,83 @@ package com.example.aas_app.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-modifier = Modifier.fillMaxSize().padding(16.dp),
-verticalArrangement = Arrangement.Center,
-horizontalAlignment = Alignment.CenterHorizontally
-) {
-    when (val state = questionsState) {
-        is AppState.Loading -> Text("Loading...")
-        is AppState.Success -> {
-            LazyColumn {
-                items(state.data) { question ->
-                    Row {
-                        Text(question.subTask)
-                        IconButton(onClick = { navController.navigate("edit_question/${question.id}") }) { // Assume route added
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit")
-                        }
-                        IconButton(onClick = { selectedQuestion = question; showDialog = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
-                        }
-                    }
-                }
-            }
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.viewmodel.AdminViewModel
+import com.example.aas_app.viewmodel.AppState
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditQuestionScreen(navController: NavController, questionId: Long) {
+    val viewModel: AdminViewModel = hiltViewModel()
+    var subTask by remember { mutableStateOf("") }
+    var controlType by remember { mutableStateOf("") }
+    var scale by remember { mutableStateOf("") }
+    var criticalTask by remember { mutableStateOf("") }
+
+    LaunchedEffect(questionId) {
+        viewModel.getQuestionById(questionId)?.let { question ->
+            subTask = question.subTask
+            controlType = question.controlType
+            scale = question.scale
+            criticalTask = question.criticalTask
         }
-        is AppState.Error -> Text("Error: ${state.message}")
     }
 
-    var newSubTask by remember { mutableStateOf("") }
-    // Add more fields as needed
-    TextField(
-        value = newSubTask,
-        onValueChange = { newSubTask = it },
-        label = { Text("New Sub Task") }
-    )
-    Button(
-        onClick = { viewModel.insertQuestion(PeclQuestionEntity(0, newSubTask, "Text", "Scale", "No"), 0L) },
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-        shape = RoundedCornerShape(4.dp)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Add Question")
-    }
-}
-
-if (showDialog) {
-    AlertDialog(
-        onDismissRequest = { showDialog = false },
-        title = { Text("Confirm Delete") },
-        text = { Text("Delete this question?") },
-        confirmButton = {
-            Button(onClick = {
-                selectedQuestion?.let { viewModel.deleteQuestion(it, 0L) }
-                showDialog = false
-            }) {
-                Text("Yes")
-            }
-        },
-        dismissButton = {
-            Button(onClick = { showDialog = false }) {
-                Text("No")
-            }
+        TextField(
+            value = subTask,
+            onValueChange = { subTask = it },
+            label = { Text("Sub Task") }
+        )
+        TextField(
+            value = controlType,
+            onValueChange = { controlType = it },
+            label = { Text("Control Type") }
+        )
+        TextField(
+            value = scale,
+            onValueChange = { scale = it },
+            label = { Text("Scale") }
+        )
+        TextField(
+            value = criticalTask,
+            onValueChange = { criticalTask = it },
+            label = { Text("Critical Task") }
+        )
+        Button(
+            onClick = {
+                val updatedQuestion = PeclQuestionEntity(questionId, subTask, controlType, scale, criticalTask)
+                viewModel.updateQuestion(updatedQuestion, 0L) // Adjust taskId as needed
+                navController.popBackStack()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text("Update")
         }
-    )
-}
+    }
 }
