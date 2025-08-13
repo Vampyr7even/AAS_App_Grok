@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface InstructorStudentAssignmentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity): Long
+    fun insertAssignment(assignment: InstructorStudentAssignmentEntity): Long
 
     @Query("SELECT u.* FROM users u JOIN instructor_student_assignments a ON u.id = a.student_id WHERE a.instructor_id = :instructorId")
     fun getStudentsForInstructor(instructorId: Long): Flow<List<UserEntity>>

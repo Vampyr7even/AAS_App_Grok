@@ -10,20 +10,20 @@ import com.example.aas_app.data.entity.QuestionRepositoryEntity
 @Dao
 interface QuestionRepositoryDao {
     @Insert
-    suspend fun insert(question: QuestionRepositoryEntity)
+    fun insert(question: QuestionRepositoryEntity)
 
     @Update
-    suspend fun update(question: QuestionRepositoryEntity)
+    fun update(question: QuestionRepositoryEntity)
 
     @Delete
-    suspend fun delete(question: QuestionRepositoryEntity)
+    fun delete(question: QuestionRepositoryEntity)
 
     @Query("SELECT * FROM question_repository")
-    suspend fun getAllQuestions(): List<QuestionRepositoryEntity>
+    fun getAllQuestions(): List<QuestionRepositoryEntity>
 
     @Query("SELECT * FROM question_repository WHERE id IN (:ids)")
-    suspend fun getQuestionsByIds(ids: List<Long>): List<QuestionRepositoryEntity>
+    fun getQuestionsByIds(ids: List<Int>): List<QuestionRepositoryEntity>
 
     @Query("SELECT * FROM question_repository WHERE id = :id")
-    suspend fun getQuestionById(id: Long): QuestionRepositoryEntity?
+    fun getQuestionById(id: Int): QuestionRepositoryEntity?
 }

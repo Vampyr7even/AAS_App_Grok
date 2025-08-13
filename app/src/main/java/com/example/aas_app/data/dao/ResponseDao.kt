@@ -8,8 +8,8 @@ import com.example.aas_app.data.entity.ResponseEntity
 @Dao
 interface ResponseDao {
     @Insert
-    suspend fun insert(response: ResponseEntity)
+    fun insert(response: ResponseEntity)
 
     @Query("SELECT * FROM demographics_results WHERE userId = :userId")
-    suspend fun getResponsesForUser(userId: Long): List<ResponseEntity>
+    fun getResponsesForUser(userId: Int): List<ResponseEntity>
 }

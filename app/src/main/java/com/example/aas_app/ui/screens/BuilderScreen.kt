@@ -40,8 +40,8 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun BuilderScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PeclPoiEntity>>)
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
 
     LaunchedEffect(Unit) {
         viewModel.loadPoisForProgram(0L) // Assume default program ID; adjust as needed

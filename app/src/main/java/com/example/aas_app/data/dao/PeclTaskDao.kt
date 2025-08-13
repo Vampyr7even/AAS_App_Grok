@@ -12,20 +12,20 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PeclTaskDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTask(task: PeclTaskEntity): Long
+    fun insertTask(task: PeclTaskEntity): Long
 
     @Update
-    suspend fun updateTask(task: PeclTaskEntity)
+    fun updateTask(task: PeclTaskEntity)
 
     @Delete
-    suspend fun deleteTask(task: PeclTaskEntity)
+    fun deleteTask(task: PeclTaskEntity)
 
     @Query("SELECT * FROM pecl_tasks WHERE poi_id = :poiId")
     fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>>
 
     @Query("SELECT * FROM pecl_tasks WHERE id = :id")
-    suspend fun getTaskById(id: Long): PeclTaskEntity?
+    fun getTaskById(id: Long): PeclTaskEntity?
 
     @Query("SELECT * FROM pecl_tasks WHERE name = :name")
-    suspend fun getTaskByName(name: String): PeclTaskEntity?
+    fun getTaskByName(name: String): PeclTaskEntity?
 }

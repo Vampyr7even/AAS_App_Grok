@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EditPoisScreen(navController: NavController, programId: Long) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PeclPoiEntity>>)
 
     LaunchedEffect(programId) {
         viewModel.loadPoisForProgram(programId)

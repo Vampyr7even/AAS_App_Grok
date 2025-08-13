@@ -26,8 +26,8 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EvaluateScreen(navController: NavController) {
     val viewModel: PeclViewModel = hiltViewModel()
-    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading<List<PeclTaskEntity>>())
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
+    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading as AppState<List<PeclTaskEntity>>)
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
 
     var selectedTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
 

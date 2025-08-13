@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun UpdateProjectsScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val programsState by viewModel.programsState.observeAsState(AppState.Loading<List<PeclProgramEntity>>())
+    val programsState by viewModel.programsState.observeAsState(AppState.Loading as AppState<List<PeclProgramEntity>>)
 
     LaunchedEffect(Unit) {
         viewModel.loadPrograms()

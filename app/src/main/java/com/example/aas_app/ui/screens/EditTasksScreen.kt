@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EditTasksScreen(navController: NavController, poiId: Long) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading<List<PeclTaskEntity>>())
+    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading as AppState<List<PeclTaskEntity>>)
 
     LaunchedEffect(poiId) {
         viewModel.loadTasksForPoi(poiId)

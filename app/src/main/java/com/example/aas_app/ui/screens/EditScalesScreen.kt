@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EditScalesScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val scalesState by viewModel.scalesState.observeAsState(AppState.Loading<List<ScaleEntity>>())
+    val scalesState by viewModel.scalesState.observeAsState(AppState.Loading as AppState<List<ScaleEntity>>)
 
     LaunchedEffect(Unit) {
         viewModel.loadScales()

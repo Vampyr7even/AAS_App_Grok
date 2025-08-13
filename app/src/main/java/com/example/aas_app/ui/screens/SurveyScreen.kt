@@ -37,9 +37,9 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun SurveyScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel() // Adjust to appropriate ViewModel if needed
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
-    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading<List<UserEntity>>())
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PeclPoiEntity>>)
+    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading as AppState<List<UserEntity>>)
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
 
     var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
     var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }

@@ -1,10 +1,10 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
-    alias(libs.plugins.hiltAndroid)
+    id("dagger.hilt.android.plugin")
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
@@ -34,12 +34,12 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlin {
         compilerOptions {
-            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget("1.8")
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget("11")
         }
     }
     buildFeatures {
@@ -49,6 +49,9 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+    kapt {
+        correctErrorTypes = true
     }
 }
 
@@ -67,10 +70,10 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
+    annotationProcessor(libs.room.compiler)
 
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
     implementation(libs.androidx.navigation.compose)

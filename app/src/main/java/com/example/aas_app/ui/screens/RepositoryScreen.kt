@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun RepositoryScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
 
     LaunchedEffect(Unit) {
         viewModel.loadAllQuestions()

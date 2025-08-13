@@ -12,20 +12,20 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PeclProgramDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertProgram(program: PeclProgramEntity): Long
+    fun insertProgram(program: PeclProgramEntity): Long
 
     @Update
-    suspend fun updateProgram(program: PeclProgramEntity)
+    fun updateProgram(program: PeclProgramEntity)
 
     @Delete
-    suspend fun deleteProgram(program: PeclProgramEntity)
+    fun deleteProgram(program: PeclProgramEntity)
 
     @Query("SELECT * FROM pecl_programs")
     fun getAllPrograms(): Flow<List<PeclProgramEntity>>
 
     @Query("SELECT * FROM pecl_programs WHERE id = :id")
-    suspend fun getProgramById(id: Long): PeclProgramEntity?
+    fun getProgramById(id: Long): PeclProgramEntity?
 
     @Query("SELECT * FROM pecl_programs WHERE name = :name")
-    suspend fun getProgramByName(name: String): PeclProgramEntity?
+    fun getProgramByName(name: String): PeclProgramEntity?
 }
