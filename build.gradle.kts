@@ -1,10 +1,4 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
-plugins {
-    id("com.android.application") version "8.11.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.0.0" apply false
-    id("com.google.dagger.hilt.android") version "2.46.1" apply false
-    id("org.jetbrains.kotlin.kapt") apply false
-}
 
 tasks.register("clean", Delete::class) {
     delete(rootProject.layout.buildDirectory.get().asFile)

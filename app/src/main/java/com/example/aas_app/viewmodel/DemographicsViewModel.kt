@@ -8,6 +8,7 @@ import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.entity.UserEntity
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 class DemographicsViewModel(private val repository: AppRepository) : ViewModel() {
 
@@ -23,30 +24,31 @@ class DemographicsViewModel(private val repository: AppRepository) : ViewModel()
     // Load methods
     fun loadUsers() {
         viewModelScope.launch {
-            val result = repository.getAllUsers()
-            when (result) {
-                is AppResult.Success<List<UserEntity>> -> _users.value = result.data
-                is AppResult.Error -> { /* Handle error */ }
+            try {
+                _users.value = repository.getAllUsers().first()
+            } catch (e: Exception) {
+                // Handle error, e.g., log or post empty list
+                _users.value = emptyList()
             }
         }
     }
 
     fun loadInstructors() {
         viewModelScope.launch {
-            val result = repository.getUsersByRole("instructor")
-            when (result) {
-                is AppResult.Success<List<UserEntity>> -> _instructors.value = result.data
-                is AppResult.Error -> { /* Handle error */ }
+            try {
+                _instructors.value = repository.getUsersByRole("instructor").first()
+            } catch (e: Exception) {
+                _instructors.value = emptyList()
             }
         }
     }
 
     fun loadStudents() {
         viewModelScope.launch {
-            val result = repository.getUsersByRole("student")
-            when (result) {
-                is AppResult.Success<List<UserEntity>> -> _students.value = result.data
-                is AppResult.Error -> { /* Handle error */ }
+            try {
+                _students.value = repository.getUsersByRole("student").first()
+            } catch (e: Exception) {
+                _students.value = emptyList()
             }
         }
     }

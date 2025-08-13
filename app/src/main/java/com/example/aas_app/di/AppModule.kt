@@ -12,26 +12,23 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-class AppModule {
+object AppModule {
 
-    companion object {
+    @Provides
+    @Singleton
+    fun provideAppDatabase(app: Application): AppDatabase {
+        return Room.databaseBuilder(
+            app,
+            AppDatabase::class.java,
+            "aas_database"
+        )
+            .addMigrations(AppDatabase.MIGRATION_11_12)
+            .build()
+    }
 
-        @Provides
-        @Singleton
-        fun provideAppDatabase(app: Application): AppDatabase {
-            return Room.databaseBuilder(
-                app,
-                AppDatabase::class.java,
-                "aas_database"
-            )
-                .addMigrations(AppDatabase.MIGRATION_11_12)
-                .build()
-        }
-
-        @Provides
-        @Singleton
-        fun provideAppRepository(db: AppDatabase): AppRepository {
-            return AppRepository(db)
-        }
+    @Provides
+    @Singleton
+    fun provideAppRepository(db: AppDatabase): AppRepository {
+        return AppRepository(db)
     }
 }

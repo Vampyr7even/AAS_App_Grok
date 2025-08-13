@@ -1,10 +1,10 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
-    id("dagger.hilt.android.plugin")
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.room)
-    id("org.jetbrains.kotlin.kapt")
+    id("com.google.dagger.hilt.android")
+    id("com.google.devtools.ksp") // For Hilt KSP
 }
 
 android {
@@ -50,9 +50,6 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-    kapt {
-        correctErrorTypes = true
-    }
 }
 
 room {
@@ -70,13 +67,15 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    annotationProcessor(libs.room.compiler)
+    ksp(libs.room.compiler)
 
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler) // Switched to KSP for Kotlin 2.0+ support
     implementation(libs.hilt.navigation.compose)
 
     implementation(libs.androidx.navigation.compose)
+
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
