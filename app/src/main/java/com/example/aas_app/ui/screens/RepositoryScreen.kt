@@ -29,8 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun RepositoryScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val questionsState by viewModel.questionsState.collectAsStateWithLifecycle(AppState.Loading<List<PeclQuestionEntity>>())
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
 
     LaunchedEffect(Unit) {
         viewModel.loadAllQuestions()
@@ -75,7 +75,7 @@ fun RepositoryScreen(navController: NavController) {
         }
 
         Button(
-            onClick = { viewModel.insertQuestion(PeclQuestionEntity(0, "New Question", "Text", "Scale", "No"), 0L) },
+            onClick = { viewModel.insertQuestion(PeclQuestionEntity(0L, "New Question", "Text", "Scale", "No"), 0L) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {

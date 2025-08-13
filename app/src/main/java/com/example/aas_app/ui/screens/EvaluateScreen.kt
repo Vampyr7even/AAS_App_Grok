@@ -14,8 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
@@ -26,8 +26,8 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EvaluateScreen(navController: NavController) {
     val viewModel: PeclViewModel = hiltViewModel()
-    val tasksState by viewModel.tasksState.collectAsStateWithLifecycle(AppState.Loading<List<PeclTaskEntity>>()) // Assume tasksState added to PeclViewModel
-    val questionsState by viewModel.questionsState.collectAsStateWithLifecycle(AppState.Loading<List<PeclQuestionEntity>>())
+    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading<List<PeclTaskEntity>>())
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
 
     var selectedTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
 

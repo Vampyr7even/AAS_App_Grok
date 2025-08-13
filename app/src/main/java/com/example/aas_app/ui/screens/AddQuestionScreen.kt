@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.ScaleEntity
@@ -35,7 +35,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun AddQuestionScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val scalesState by viewModel.scalesState.collectAsStateWithLifecycle(AppState.Loading<List<ScaleEntity>>())
+    val scalesState by viewModel.scalesState.observeAsState(AppState.Loading as AppState<List<ScaleEntity>>)
 
     LaunchedEffect(Unit) {
         viewModel.loadScales()
@@ -82,7 +82,7 @@ fun AddQuestionScreen(navController: NavController) {
             ) {
                 when (val state = scalesState) {
                     is AppState.Loading -> Text("Loading scales...")
-                    is AppState.Success<List<ScaleEntity>> -> state.data.forEach { peclScale ->
+                    is AppState.Success -> state.data.forEach { peclScale ->
                         DropdownMenuItem(
                             text = { Text(peclScale.scaleName) },
                             onClick = {
@@ -102,7 +102,7 @@ fun AddQuestionScreen(navController: NavController) {
         )
         Button(
             onClick = {
-                viewModel.insertQuestion(PeclQuestionEntity(0, subTask, controlType, scale, criticalTask), 0L) // Adjust taskId as needed
+                viewModel.insertQuestion(PeclQuestionEntity(0L, subTask, controlType, scale, criticalTask), 0L) // Adjust taskId as needed
                 navController.popBackStack()
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),

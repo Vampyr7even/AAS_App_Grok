@@ -29,8 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EditScalesScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val scalesState by viewModel.scalesState.collectAsStateWithLifecycle(AppState.Loading<List<ScaleEntity>>())
+    val scalesState by viewModel.scalesState.observeAsState(AppState.Loading<List<ScaleEntity>>())
 
     LaunchedEffect(Unit) {
         viewModel.loadScales()
@@ -81,7 +81,7 @@ fun EditScalesScreen(navController: NavController) {
             label = { Text("New Scale Name") }
         )
         Button(
-            onClick = { viewModel.insertScale(ScaleEntity(0, newScaleName, "")) },
+            onClick = { viewModel.insertScale(ScaleEntity(0L, newScaleName, "")) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {

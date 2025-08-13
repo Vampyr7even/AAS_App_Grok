@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entity.PeclEvaluationResultEntity
+import com.example.aas_app.data.entity.PeclTaskEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -24,6 +26,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     private val _averageScoreState = MutableLiveData<AppState<Float>>()
     val averageScoreState: LiveData<AppState<Float>> = _averageScoreState
 
+    private val _tasksState = MutableLiveData<AppState<List<PeclTaskEntity>>>()
+    val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = _tasksState
+
     fun loadQuestionsForPoi(program: String, poi: String) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
@@ -40,7 +45,7 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun insertEvaluationResult(result: PeclEvaluationResultEntity) {
         viewModelScope.launch {
             val insertResult = repository.insertEvaluationResult(result)
-            // Useful result if needed
+            // Handle result if needed
         }
     }
 
@@ -53,6 +58,32 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error calculating average score: ${e.message}", e)
                 _averageScoreState.postValue(AppState.Error(e.message ?: "Error calculating average score"))
+            }
+        }
+    }
+
+    fun loadTasksForPoi(poiId: Long) {
+        _tasksState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getTasksForPoi(poiId).first()
+                _tasksState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error loading tasks for POI: ${e.message}", e)
+                _tasksState.postValue(AppState.Error(e.message ?: "Error loading tasks for POI"))
+            }
+        }
+    }
+
+    fun loadQuestionsForTask(taskId: Long) {
+        _questionsState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getQuestionsForTask(taskId).first()
+                _questionsState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error loading questions for task: ${e.message}", e)
+                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions for task"))
             }
         }
     }

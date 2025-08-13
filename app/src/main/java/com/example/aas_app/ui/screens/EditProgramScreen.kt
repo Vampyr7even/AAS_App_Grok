@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
+import com.example.aas_app.viewmodel.AppState
 
 @Composable
 fun EditProgramScreen(adminViewModel: AdminViewModel, programId: Long) {
@@ -18,7 +19,7 @@ fun EditProgramScreen(adminViewModel: AdminViewModel, programId: Long) {
     }
 
     val program = adminViewModel.programsState.value?.let { state ->
-        if (state is AppState.Success) {
+        if (state is AppState.Success<List<PeclProgramEntity>>) {
             state.data.find { it.id == programId }
         } else null
     }

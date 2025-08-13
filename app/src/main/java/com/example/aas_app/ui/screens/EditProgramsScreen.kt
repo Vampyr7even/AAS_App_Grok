@@ -29,8 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EditProgramsScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val programsState by viewModel.programsState.collectAsStateWithLifecycle(AppState.Loading<List<PeclProgramEntity>>())
+    val programsState by viewModel.programsState.observeAsState(AppState.Loading<List<PeclProgramEntity>>())
 
     LaunchedEffect(Unit) {
         viewModel.loadPrograms()
@@ -81,7 +81,7 @@ fun EditProgramsScreen(navController: NavController) {
             label = { Text("New Program Name") }
         )
         Button(
-            onClick = { viewModel.insertProgram(PeclProgramEntity(0, newProgramName)) },
+            onClick = { viewModel.insertProgram(PeclProgramEntity(0L, newProgramName)) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {

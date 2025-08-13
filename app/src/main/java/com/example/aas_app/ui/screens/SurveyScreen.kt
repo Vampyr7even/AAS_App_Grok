@@ -23,8 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
@@ -37,9 +37,9 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun SurveyScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel() // Adjust to appropriate ViewModel if needed
-    val poisState by viewModel.poisState.collectAsStateWithLifecycle(AppState.Loading<List<PeclPoiEntity>>())
-    val studentsState by viewModel.studentsState.collectAsStateWithLifecycle(AppState.Loading<List<UserEntity>>())
-    val questionsState by viewModel.questionsState.collectAsStateWithLifecycle(AppState.Loading<List<PeclQuestionEntity>>())
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
+    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading<List<UserEntity>>())
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
 
     var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
     var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }
@@ -134,7 +134,7 @@ fun SurveyScreen(navController: NavController) {
         Button(
             onClick = {
                 // Collect responses and insert
-                val result = PeclEvaluationResultEntity(0, 0, 0, 0.0, "comment", 0L)
+                val result = PeclEvaluationResultEntity(0L, 0L, 0L, 0L, 0.0, "comment", System.currentTimeMillis())
                 viewModel.insertEvaluationResult(result)
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),

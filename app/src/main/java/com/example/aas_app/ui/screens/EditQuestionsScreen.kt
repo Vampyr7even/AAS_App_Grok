@@ -24,11 +24,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.viewmodel.AdminViewModel
-import com.example.aas_app.viewmodel.AppState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditQuestionScreen(navController: NavController, questionId: Long) {
+fun EditQuestionsScreen(navController: NavController, questionId: Long) {
     val viewModel: AdminViewModel = hiltViewModel()
     var subTask by remember { mutableStateOf("") }
     var controlType by remember { mutableStateOf("") }

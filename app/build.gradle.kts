@@ -71,6 +71,7 @@ dependencies {
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
 
     implementation(libs.androidx.navigation.compose)
 
@@ -83,4 +84,5 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.androidx.foundation)
     implementation(libs.lifecycle.viewmodel.compose)
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.8")
 }

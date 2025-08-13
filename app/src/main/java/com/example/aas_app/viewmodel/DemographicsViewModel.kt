@@ -25,7 +25,7 @@ class DemographicsViewModel(private val repository: AppRepository) : ViewModel()
         viewModelScope.launch {
             val result = repository.getAllUsers()
             when (result) {
-                is AppResult.Success -> _users.value = result.data
+                is AppResult.Success<List<UserEntity>> -> _users.value = result.data
                 is AppResult.Error -> { /* Handle error */ }
             }
         }
@@ -35,7 +35,7 @@ class DemographicsViewModel(private val repository: AppRepository) : ViewModel()
         viewModelScope.launch {
             val result = repository.getUsersByRole("instructor")
             when (result) {
-                is AppResult.Success -> _instructors.value = result.data
+                is AppResult.Success<List<UserEntity>> -> _instructors.value = result.data
                 is AppResult.Error -> { /* Handle error */ }
             }
         }
@@ -45,7 +45,7 @@ class DemographicsViewModel(private val repository: AppRepository) : ViewModel()
         viewModelScope.launch {
             val result = repository.getUsersByRole("student")
             when (result) {
-                is AppResult.Success -> _students.value = result.data
+                is AppResult.Success<List<UserEntity>> -> _students.value = result.data
                 is AppResult.Error -> { /* Handle error */ }
             }
         }

@@ -29,8 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -40,7 +40,7 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun EditTasksScreen(navController: NavController, poiId: Long) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val tasksState by viewModel.tasksState.collectAsStateWithLifecycle(AppState.Loading<List<PeclTaskEntity>>())
+    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading<List<PeclTaskEntity>>())
 
     LaunchedEffect(poiId) {
         viewModel.loadTasksForPoi(poiId)
@@ -81,7 +81,7 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
             label = { Text("New Task Name") }
         )
         Button(
-            onClick = { viewModel.insertTask(PeclTaskEntity(0, newTaskName, poiId)) },
+            onClick = { viewModel.insertTask(PeclTaskEntity(0L, newTaskName, poiId)) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {

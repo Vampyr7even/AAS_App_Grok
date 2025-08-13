@@ -22,7 +22,7 @@ object AppModule {
             AppDatabase::class.java,
             "aas_database"
         )
-            .addMigrations(AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13)
+            .addMigrations(AppDatabase.MIGRATION_11_12)
             .build()
     }
 

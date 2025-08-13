@@ -28,10 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
+import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 
@@ -39,8 +40,8 @@ import com.example.aas_app.viewmodel.AppState
 @Composable
 fun BuilderScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val poisState by viewModel.poisState.collectAsStateWithLifecycle(AppState.Loading<List<PeclPoiEntity>>())
-    val questionsState by viewModel.questionsState.collectAsStateWithLifecycle(AppState.Loading<List<PeclQuestionEntity>>())
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading<List<PeclPoiEntity>>())
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading<List<PeclQuestionEntity>>())
 
     LaunchedEffect(Unit) {
         viewModel.loadPoisForProgram(0L) // Assume default program ID; adjust as needed
@@ -75,7 +76,7 @@ fun BuilderScreen(navController: NavController) {
         }
 
         Button(
-            onClick = { viewModel.insertPoi(PeclPoiEntity(0, "New POI", 0L)) },
+            onClick = { viewModel.insertPoi(PeclPoiEntity(0L, "New POI", 0L)) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {
