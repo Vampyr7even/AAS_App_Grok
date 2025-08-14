@@ -41,7 +41,9 @@ import com.example.aas_app.ui.screens.RepositoryScreen
 import com.example.aas_app.ui.screens.SurveyScreen
 import com.example.aas_app.ui.screens.UpdateProjectsScreen
 import com.example.aas_app.ui.theme.AAS_AppTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
