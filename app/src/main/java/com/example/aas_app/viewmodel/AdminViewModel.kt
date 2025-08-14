@@ -11,8 +11,8 @@ import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
-import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -133,7 +133,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
 
     suspend fun getQuestionById(id: Long): PeclQuestionEntity? = repository.getQuestionById(id)
 
-    suspend fun getScaleById(id: Long): ScaleEntity? = repository.getScaleById(id) // Add DAO method if needed
+    suspend fun getScaleById(id: Long): ScaleEntity? = repository.getScaleById(id)
 
     suspend fun getTaskById(id: Long): PeclTaskEntity? = repository.getTaskById(id)
 
@@ -313,7 +313,6 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                // Implement query in repository/DAO if needed
                 val data = repository.getQuestionsForPoi(poiId).first()
                 _questionsState.postValue(AppState.Success(data))
             } catch (e: Exception) {

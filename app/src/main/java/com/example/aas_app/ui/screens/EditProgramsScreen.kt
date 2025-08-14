@@ -48,6 +48,9 @@ fun EditProgramsScreen(navController: NavController) {
 
     var showDialog by remember { mutableStateOf(false) }
     var selectedProgram by remember { mutableStateOf<PeclProgramEntity?>(null) }
+    var editProgram by remember { mutableStateOf<PeclProgramEntity?>(null) }
+    var editName by remember { mutableStateOf("") }
+    var newProgramName by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -59,9 +62,9 @@ fun EditProgramsScreen(navController: NavController) {
             is AppState.Success -> {
                 LazyColumn {
                     items(state.data) { program ->
-                        Row {
-                            Text(program.name)
-                            IconButton(onClick = { /* Edit logic */ }) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(program.name, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { editProgram = program; editName = program.name }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
                             IconButton(onClick = { selectedProgram = program; showDialog = true }) {
@@ -74,18 +77,47 @@ fun EditProgramsScreen(navController: NavController) {
             is AppState.Error -> Text("Error: ${state.message}")
         }
 
-        var newProgramName by remember { mutableStateOf("") }
         TextField(
             value = newProgramName,
             onValueChange = { newProgramName = it },
             label = { Text("New Program Name") }
         )
         Button(
-            onClick = { viewModel.insertProgram(PeclProgramEntity(0L, newProgramName)) },
+            onClick = {
+                viewModel.insertProgram(PeclProgramEntity(0L, newProgramName))
+                newProgramName = ""
+            },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {
             Text("Add Program")
+        }
+
+        editProgram?.let { program ->
+            AlertDialog(
+                onDismissRequest = { editProgram = null },
+                title = { Text("Edit Program") },
+                text = {
+                    TextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        label = { Text("Program Name") }
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        viewModel.updateProgram(program.copy(name = editName))
+                        editProgram = null
+                    }) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { editProgram = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 

@@ -48,6 +48,9 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
 
     var showDialog by remember { mutableStateOf(false) }
     var selectedTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
+    var editTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
+    var editName by remember { mutableStateOf("") }
+    var newTaskName by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -59,9 +62,9 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
             is AppState.Success -> {
                 LazyColumn {
                     items(state.data) { task ->
-                        Row {
-                            Text(task.name)
-                            IconButton(onClick = { /* Edit logic */ }) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(task.name, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { editTask = task; editName = task.name }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
                             IconButton(onClick = { selectedTask = task; showDialog = true }) {
@@ -74,18 +77,47 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
             is AppState.Error -> Text("Error: ${state.message}")
         }
 
-        var newTaskName by remember { mutableStateOf("") }
         TextField(
             value = newTaskName,
             onValueChange = { newTaskName = it },
             label = { Text("New Task Name") }
         )
         Button(
-            onClick = { viewModel.insertTask(PeclTaskEntity(0L, newTaskName, poiId)) },
+            onClick = {
+                viewModel.insertTask(PeclTaskEntity(0L, newTaskName, poiId))
+                newTaskName = ""
+            },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {
             Text("Add Task")
+        }
+
+        editTask?.let { task ->
+            AlertDialog(
+                onDismissRequest = { editTask = null },
+                title = { Text("Edit Task") },
+                text = {
+                    TextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        label = { Text("Task Name") }
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        viewModel.updateTask(task.copy(name = editName))
+                        editTask = null
+                    }) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { editTask = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 

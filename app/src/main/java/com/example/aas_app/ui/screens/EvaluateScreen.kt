@@ -38,7 +38,7 @@ fun EvaluateScreen(navController: NavController) {
         when (val state = tasksState) {
             is AppState.Loading -> Text("Loading tasks...")
             is AppState.Success -> state.data.forEach { task ->
-                Button(onClick = { selectedTask = task; viewModel.loadQuestionsForTask(task.id) }) { // Assume loadQuestionsForTask added
+                Button(onClick = { selectedTask = task; viewModel.loadQuestionsForTask(task.id) }) {
                     Text(task.name)
                 }
             }
@@ -50,9 +50,18 @@ fun EvaluateScreen(navController: NavController) {
                 is AppState.Loading -> Text("Loading questions...")
                 is AppState.Success -> {
                     // Display questions and grading UI
+                    state.data.forEach { question ->
+                        // Render dynamic control based on question.controlType
+                        Text(question.subTask)
+                        // Add input field based on type, save to evaluations
+                    }
                 }
                 is AppState.Error -> Text("Error: ${state.message}")
             }
+        }
+
+        Button(onClick = { navController.navigate("evaluate/dashboard/0") }) { // Placeholder poiId for dashboard
+            Text("View Dashboard")
         }
     }
 }

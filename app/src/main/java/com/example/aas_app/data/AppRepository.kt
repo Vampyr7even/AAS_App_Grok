@@ -179,6 +179,10 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun insertPoi(poi: PeclPoiEntity): AppResult<Long> {
         return try {
+            // Validate parent exists
+            if (getProgramById(poi.program_id) == null) {
+                return AppResult.Error("Cannot insert POI: Program ID ${poi.program_id} does not exist")
+            }
             AppResult.Success(peclPoiDao.insertPoi(poi))
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting POI", e)
@@ -212,6 +216,10 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun insertTask(task: PeclTaskEntity): AppResult<Long> {
         return try {
+            // Validate parent exists
+            if (getPoiById(task.poi_id) == null) {
+                return AppResult.Error("Cannot insert task: POI ID ${task.poi_id} does not exist")
+            }
             AppResult.Success(peclTaskDao.insertTask(task))
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting task", e)
@@ -279,6 +287,10 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
     suspend fun insertQuestionWithAssignment(question: PeclQuestionEntity, taskId: Long): AppResult<Unit> {
         return try {
             db.withTransaction {
+                // Validate parent exists
+                if (getTaskById(taskId) == null) {
+                    throw Exception("Cannot assign question: Task ID $taskId does not exist")
+                }
                 val qId = peclQuestionDao.insertQuestion(question)
                 questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(question_id = qId, task_id = taskId))
             }
@@ -320,10 +332,14 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     fun getAllScales(): Flow<List<ScaleEntity>> = scaleDao.getAllScales()
 
-    suspend fun getScaleById(id: Long): ScaleEntity? = scaleDao.getScaleById(id) // Add DAO method
+    suspend fun getScaleById(id: Long): ScaleEntity? = scaleDao.getScaleById(id)
 
     suspend fun insertEvaluationResult(result: PeclEvaluationResultEntity): AppResult<Long> {
         return try {
+            // Validate references
+            if (getQuestionById(result.question_id) == null) {
+                return AppResult.Error("Cannot insert result: Question ID ${result.question_id} does not exist")
+            }
             AppResult.Success(evaluationResultDao.insertEvaluationResult(result))
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting evaluation result", e)
@@ -339,6 +355,10 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity): AppResult<Long> {
         return try {
+            // Validate references
+            if (assignment.program_id != null && getProgramById(assignment.program_id!!) == null) {
+                return AppResult.Error("Cannot insert assignment: Program ID ${assignment.program_id} does not exist")
+            }
             AppResult.Success(instructorStudentAssignmentDao.insertAssignment(assignment))
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting assignment", e)
@@ -350,7 +370,6 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     fun getStudentsForProgram(programId: Long): Flow<List<UserEntity>> = instructorStudentAssignmentDao.getStudentsForProgram(programId)
 
-    fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>> = peclQuestionDao.getQuestionsForPoi(poiId) // Add DAO method for POI-specific questions
-
+    fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>> = peclQuestionDao.getQuestionsForPoi(poiId)
     // Add other missing methods similarly
 }
