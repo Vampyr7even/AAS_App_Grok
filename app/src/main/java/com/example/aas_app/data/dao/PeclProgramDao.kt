@@ -6,26 +6,26 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclPoiEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface PeclProgramDao {
+interface PeclPoiDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertProgram(program: PeclProgramEntity): Long
+    suspend fun insertPoi(poi: PeclPoiEntity): Long
 
     @Update
-    fun updateProgram(program: PeclProgramEntity)
+    suspend fun updatePoi(poi: PeclPoiEntity)
 
     @Delete
-    fun deleteProgram(program: PeclProgramEntity)
+    suspend fun deletePoi(poi: PeclPoiEntity)
 
-    @Query("SELECT * FROM pecl_programs")
-    fun getAllPrograms(): Flow<List<PeclProgramEntity>>
+    @Query("SELECT * FROM pecl_pois WHERE program_id = :programId")
+    fun getPoisForProgram(programId: Long): Flow<List<PeclPoiEntity>>
 
-    @Query("SELECT * FROM pecl_programs WHERE id = :id")
-    fun getProgramById(id: Long): PeclProgramEntity?
+    @Query("SELECT * FROM pecl_pois WHERE id = :id")
+    suspend fun getPoiById(id: Long): PeclPoiEntity?
 
-    @Query("SELECT * FROM pecl_programs WHERE name = :name")
-    fun getProgramByName(name: String): PeclProgramEntity?
+    @Query("SELECT * FROM pecl_pois WHERE name = :name")
+    suspend fun getPoiByName(name: String): PeclPoiEntity?
 }

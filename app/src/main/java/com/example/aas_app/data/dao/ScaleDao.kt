@@ -12,17 +12,17 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ScaleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertScale(scale: ScaleEntity): Long
+    suspend fun insertScale(scale: ScaleEntity): Long
 
     @Update
-    fun updateScale(scale: ScaleEntity)
+    suspend fun updateScale(scale: ScaleEntity)
 
     @Delete
-    fun deleteScale(scale: ScaleEntity)
+    suspend fun deleteScale(scale: ScaleEntity)
 
     @Query("SELECT * FROM pecl_scales")
     fun getAllScales(): Flow<List<ScaleEntity>>
 
     @Query("SELECT * FROM pecl_scales WHERE id = :id")
-    fun getScaleById(id: Long): ScaleEntity?
+    suspend fun getScaleById(id: Long): ScaleEntity?
 }

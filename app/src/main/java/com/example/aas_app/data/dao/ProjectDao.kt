@@ -10,20 +10,20 @@ import com.example.aas_app.data.entity.ProjectEntity
 @Dao
 interface ProjectDao {
     @Insert
-    fun insert(project: ProjectEntity)
+    suspend fun insert(project: ProjectEntity)
 
     @Query("SELECT * FROM projects")
-    fun getAllProjects(): List<ProjectEntity>
+    suspend fun getAllProjects(): List<ProjectEntity>
 
     @Update
-    fun update(project: ProjectEntity)
+    suspend fun update(project: ProjectEntity)
 
     @Delete
-    fun delete(project: ProjectEntity)
+    suspend fun delete(project: ProjectEntity)
 
     @Query("SELECT * FROM projects WHERE id = :id")
-    fun getProjectById(id: Int): ProjectEntity?
+    suspend fun getProjectById(id: Long): ProjectEntity?
 
     @Query("DELETE FROM projects")
-    fun deleteAll()
+    suspend fun deleteAll()
 }

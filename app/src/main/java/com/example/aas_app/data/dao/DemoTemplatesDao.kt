@@ -10,17 +10,17 @@ import com.example.aas_app.data.entity.DemoTemplatesEntity
 @Dao
 interface DemoTemplatesDao {
     @Insert
-    fun insert(template: DemoTemplatesEntity)
+    suspend fun insert(template: DemoTemplatesEntity)
 
     @Update
-    fun update(template: DemoTemplatesEntity)
+    suspend fun update(template: DemoTemplatesEntity)
 
     @Delete
-    fun delete(template: DemoTemplatesEntity)
+    suspend fun delete(template: DemoTemplatesEntity)
 
     @Query("SELECT * FROM demotemplates")
-    fun getAllDemoTemplates(): List<DemoTemplatesEntity>
+    suspend fun getAllDemoTemplates(): List<DemoTemplatesEntity>
 
     @Query("SELECT * FROM demotemplates WHERE id = :id")
-    fun getTemplateById(id: Int): DemoTemplatesEntity?
+    suspend fun getTemplateById(id: Long): DemoTemplatesEntity?
 }

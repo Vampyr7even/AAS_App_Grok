@@ -14,8 +14,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.extended.Save
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -103,18 +105,39 @@ fun PeclScreen(navController: NavController) {
                 is AppState.Success -> {
                     LazyColumn {
                         items(state.data) { program ->
+                            var isEditing by remember { mutableStateOf(false) }
                             var editName by remember { mutableStateOf(program.name) }
+
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                TextField(
-                                    value = editName,
-                                    onValueChange = { editName = it },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                IconButton(onClick = { viewModel.updateProgram(program.copy(name = editName)) }) {
-                                    Icon(imageVector = Icons.Extended.Save, contentDescription = "Save")
-                                }
-                                IconButton(onClick = { selectedProgramToDelete = program }) {
-                                    Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                                if (isEditing) {
+                                    TextField(
+                                        value = editName,
+                                        onValueChange = { editName = it },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    IconButton(onClick = {
+                                        viewModel.updateProgram(program.copy(name = editName))
+                                        isEditing = false
+                                    }) {
+                                        Icon(imageVector = Icons.Filled.Save, contentDescription = "Save")
+                                    }
+                                    IconButton(onClick = {
+                                        editName = program.name
+                                        isEditing = false
+                                    }) {
+                                        Icon(imageVector = Icons.Filled.Cancel, contentDescription = "Cancel")
+                                    }
+                                } else {
+                                    Text(program.name, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = {
+                                        isEditing = true
+                                        editName = program.name
+                                    }) {
+                                        Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                                    }
+                                    IconButton(onClick = { selectedProgramToDelete = program }) {
+                                        Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                                    }
                                 }
                             }
                         }
@@ -149,7 +172,7 @@ fun PeclScreen(navController: NavController) {
                         newProgramName = ""
                         showAddProgram = false
                     }) {
-                        Icon(imageVector = Icons.Extended.Save, contentDescription = "Save New Program")
+                        Icon(imageVector = Icons.Filled.Save, contentDescription = "Save New Program")
                     }
                 }
             }

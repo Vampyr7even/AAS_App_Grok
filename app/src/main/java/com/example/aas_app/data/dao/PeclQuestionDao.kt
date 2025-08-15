@@ -12,13 +12,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PeclQuestionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertQuestion(question: PeclQuestionEntity): Long
+    suspend fun insertQuestion(question: PeclQuestionEntity): Long
 
     @Update
-    fun updateQuestion(question: PeclQuestionEntity)
+    suspend fun updateQuestion(question: PeclQuestionEntity)
 
     @Delete
-    fun deleteQuestion(question: PeclQuestionEntity)
+    suspend fun deleteQuestion(question: PeclQuestionEntity)
 
     @Query("SELECT * FROM pecl_questions")
     fun getAllQuestions(): Flow<List<PeclQuestionEntity>>
@@ -34,7 +34,7 @@ interface PeclQuestionDao {
     fun getQuestionsForPoi(program: String, poi: String): Flow<List<PeclQuestionEntity>>
 
     @Query("SELECT * FROM pecl_questions WHERE id = :id")
-    fun getQuestionById(id: Long): PeclQuestionEntity?
+    suspend fun getQuestionById(id: Long): PeclQuestionEntity?
 
     @Query("""
         SELECT q.* FROM pecl_questions q

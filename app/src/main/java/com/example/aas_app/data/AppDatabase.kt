@@ -50,7 +50,7 @@ import com.example.aas_app.data.entity.UserEntity
         ProjectEntity::class
     ],
     version = 12,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
 

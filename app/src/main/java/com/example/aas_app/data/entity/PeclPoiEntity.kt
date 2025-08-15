@@ -1,9 +1,20 @@
 package com.example.aas_app.data.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "pecl_pois")
+@Entity(
+    tableName = "pecl_pois",
+    foreignKeys = [
+        ForeignKey(
+            entity = PeclProgramEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["program_id"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ]
+)
 data class PeclPoiEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val name: String,

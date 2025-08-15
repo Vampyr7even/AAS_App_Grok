@@ -10,11 +10,11 @@ import com.example.aas_app.data.entity.QuestionAssignmentEntity
 @Dao
 interface QuestionAssignmentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertAssignment(assignment: QuestionAssignmentEntity)
+    suspend fun insertAssignment(assignment: QuestionAssignmentEntity)
 
     @Query("DELETE FROM question_assignments WHERE question_id = :questionId")
-    fun deleteAssignmentsForQuestion(questionId: Long)
+    suspend fun deleteAssignmentsForQuestion(questionId: Long)
 
     @Query("SELECT * FROM question_assignments WHERE task_id = :taskId")
-    fun getAssignmentsForTask(taskId: Long): List<QuestionAssignmentEntity>
+    suspend fun getAssignmentsForTask(taskId: Long): List<QuestionAssignmentEntity>
 }
