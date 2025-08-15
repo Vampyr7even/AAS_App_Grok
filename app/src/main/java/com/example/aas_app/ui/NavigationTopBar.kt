@@ -1,6 +1,5 @@
 package com.example.aas_app.ui
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,7 +23,7 @@ fun NavigationTopBar(navController: NavHostController) {
     val currentBackStackEntryState = navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntryState.value?.destination?.route
     TopAppBar(
-        title = { Text("AAS App") },
+        title = { Text("APEX Analytics Suite") },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         actions = {
             Row(
@@ -48,9 +47,8 @@ fun NavigationButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
         shape = RoundedCornerShape(0.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) Color(0xFFE57373) else Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ),
-        modifier = Modifier.border(1.dp, Color.Gray, RoundedCornerShape(0.dp))
+            contentColor = if (isSelected) Color.White else Color.Black
+        )
     ) {
         Text(text)
     }

@@ -34,6 +34,7 @@ fun PeclDashboardScreen(navController: NavController, poiId: Long) {
     val viewModel: PeclViewModel = hiltViewModel()
     val studentsState by viewModel.studentsState.observeAsState(AppState.Loading as AppState<List<UserEntity>>)
     val resultsState by viewModel.evaluationResultsState.observeAsState(AppState.Loading as AppState<List<PeclEvaluationResultEntity>>)
+    val commentsState by viewModel.commentsState.observeAsState(AppState.Loading as AppState<List<String>>)
 
     var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }
     var showComments by remember { mutableStateOf(false) }
@@ -72,7 +73,7 @@ fun PeclDashboardScreen(navController: NavController, poiId: Long) {
                     }
                 }
             }
-            is AppState.Error -> Text("Error: ${state.message}")
+            is AppState.Error -> Text("Error loading students: ${state.message}")
         }
 
         if (showComments) {
@@ -80,10 +81,10 @@ fun PeclDashboardScreen(navController: NavController, poiId: Long) {
                 onDismissRequest = { showComments = false },
                 title = { Text("Comments for ${selectedStudent?.fullName}") },
                 text = {
-                    when (val state = resultsState) {
+                    when (val state = commentsState) {
                         is AppState.Loading -> Text("Loading comments...")
-                        is AppState.Success -> state.data.forEach { result ->
-                            Text(result.comment)
+                        is AppState.Success -> state.data.forEach { comment ->
+                            Text(comment)
                         }
                         is AppState.Error -> Text("Error: ${state.message}")
                     }

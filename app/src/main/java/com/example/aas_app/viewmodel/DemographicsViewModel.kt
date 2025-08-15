@@ -7,10 +7,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.entity.UserEntity
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import javax.inject.Inject
 
-class DemographicsViewModel(private val repository: AppRepository) : ViewModel() {
+@HiltViewModel
+class DemographicsViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
 
     private val _users = MutableLiveData<List<UserEntity>>()
     val users: LiveData<List<UserEntity>> get() = _users

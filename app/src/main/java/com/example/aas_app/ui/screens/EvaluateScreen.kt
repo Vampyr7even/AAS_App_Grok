@@ -60,7 +60,7 @@ fun EvaluateScreen(navController: NavController) {
             }
         }
 
-        Button(onClick = { navController.navigate("evaluate/dashboard/0") }) { // Placeholder poiId for dashboard
+        Button(onClick = { navController.navigate("pecl/dashboard/0") }) { // Placeholder poiId for dashboard
             Text("View Dashboard")
         }
     }

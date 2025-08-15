@@ -20,7 +20,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.border
 import androidx.navigation.NavController
 
 @Composable
@@ -47,11 +46,11 @@ fun HomeScreen(navController: NavController) {
         ) {
             listOf(
                 "Demographics" to "demographics",
-                "Surveys" to "surveys",
+                "Surveys" to "survey",
                 "PECL" to "pecl",
                 "Examinations" to "examinations",
                 "Analytics" to "analytics",
-                "Administration" to "administration"
+                "Administration" to "admin/programs"
             ).forEach { (label, route) ->
                 Button(
                     onClick = {
@@ -60,10 +59,9 @@ fun HomeScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (selectedNav == route) Color(0xFFE57373) else Color.Transparent,
-                        contentColor = Color.Black
+                        contentColor = if (selectedNav == route) Color.White else Color.Black
                     ),
-                    shape = RoundedCornerShape(0.dp),
-                    modifier = Modifier.border(1.dp, Color.Gray, RoundedCornerShape(0.dp))
+                    shape = RoundedCornerShape(0.dp)
                 ) {
                     Text(label)
                 }
