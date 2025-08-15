@@ -13,6 +13,7 @@ import com.example.aas_app.data.dao.PeclPoiDao
 import com.example.aas_app.data.dao.PeclProgramDao
 import com.example.aas_app.data.dao.PeclQuestionDao
 import com.example.aas_app.data.dao.PeclTaskDao
+import com.example.aas_app.data.dao.PoiProgramAssignmentDao
 import com.example.aas_app.data.dao.ProjectDao
 import com.example.aas_app.data.dao.QuestionAssignmentDao
 import com.example.aas_app.data.dao.QuestionRepositoryDao
@@ -26,6 +27,7 @@ import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.PoiProgramAssignmentEntity
 import com.example.aas_app.data.entity.ProjectEntity
 import com.example.aas_app.data.entity.QuestionAssignmentEntity
 import com.example.aas_app.data.entity.QuestionRepositoryEntity
@@ -47,9 +49,10 @@ import com.example.aas_app.data.entity.UserEntity
         DemoTemplatesEntity::class,
         QuestionRepositoryEntity::class,
         ResponseEntity::class,
-        ProjectEntity::class
+        ProjectEntity::class,
+        PoiProgramAssignmentEntity::class
     ],
-    version = 12,
+    version = 15,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -67,6 +70,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun questionRepositoryDao(): QuestionRepositoryDao
     abstract fun responseDao(): ResponseDao
     abstract fun projectDao(): ProjectDao
+    abstract fun poiProgramAssignmentDao(): PoiProgramAssignmentDao
 
     companion object {
         @Volatile
@@ -79,7 +83,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aas_database"
                 )
-                    .addMigrations(MIGRATION_11_12)
+                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
                     .build()
                 INSTANCE = instance
                 instance
@@ -126,6 +130,46 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX `index_pecl_evaluation_results_question_id` ON `pecl_evaluation_results` (`question_id`)")
 
                 // Data migration for hierarchy: Handle comma-separated parsing in app logic (e.g., prepopulate in repository), not here
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add indices to existing tables if not present (Room handles creation, but ensure for migration)
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_pois_program_id` ON `pecl_pois` (`program_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_tasks_poi_id` ON `pecl_tasks` (`poi_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_question_assignments_question_id_task_id` ON `question_assignments` (`question_id`, `task_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_question_assignments_task_id` ON `question_assignments` (`task_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `instructor_student_assignments` (`instructor_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `instructor_student_assignments` (`student_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_program_id` ON `instructor_student_assignments` (`program_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_evaluation_results_student_id` ON `pecl_evaluation_results` (`student_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_evaluation_results_instructor_id` ON `pecl_evaluation_results` (`instructor_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_evaluation_results_question_id` ON `pecl_evaluation_results` (`question_id`)")
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Empty migration to force schema validation and refresh
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create junction table for many-to-many
+                db.execSQL("CREATE TABLE IF NOT EXISTS `poi_program_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `poi_id` INTEGER NOT NULL, `program_id` INTEGER NOT NULL, FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_poi_program_assignments_poi_id_program_id` ON `poi_program_assignments` (`poi_id`, `program_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_poi_program_assignments_program_id` ON `poi_program_assignments` (`program_id`)")
+
+                // Migrate data from old program_id in pecl_pois to junction
+                db.execSQL("INSERT OR IGNORE INTO `poi_program_assignments` (`poi_id`, `program_id`) SELECT `id`, `program_id` FROM `pecl_pois` WHERE `program_id` IS NOT NULL")
+
+                // Drop old program_id column from pecl_pois
+                db.execSQL("CREATE TABLE `pecl_pois_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL UNIQUE)")
+                db.execSQL("INSERT INTO `pecl_pois_new` (`id`, `name`) SELECT `id`, `name` FROM `pecl_pois`")
+                db.execSQL("DROP TABLE `pecl_pois`")
+                db.execSQL("ALTER TABLE `pecl_pois_new` RENAME TO `pecl_pois`")
             }
         }
     }

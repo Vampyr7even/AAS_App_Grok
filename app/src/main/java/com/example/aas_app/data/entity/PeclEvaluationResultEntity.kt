@@ -2,6 +2,7 @@ package com.example.aas_app.data.entity
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
@@ -25,6 +26,11 @@ import androidx.room.PrimaryKey
             childColumns = ["question_id"],
             onDelete = ForeignKey.RESTRICT
         )
+    ],
+    indices = [
+        Index(value = ["student_id"]),
+        Index(value = ["instructor_id"]),
+        Index(value = ["question_id"])
     ]
 )
 data class PeclEvaluationResultEntity(

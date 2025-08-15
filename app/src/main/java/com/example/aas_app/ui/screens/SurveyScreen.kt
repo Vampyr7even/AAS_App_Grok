@@ -27,21 +27,21 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
-import com.example.aas_app.data.entity.PeclPoiEntity
-import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.UserEntity
+import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.PoiWithPrograms
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SurveyScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel() // Adjust to appropriate ViewModel if needed
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PeclPoiEntity>>)
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PoiWithPrograms>>)
     val studentsState by viewModel.studentsState.observeAsState(AppState.Loading as AppState<List<UserEntity>>)
     val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
 
-    var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
+    var selectedPoi by remember { mutableStateOf<PoiWithPrograms?>(null) }
     var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }
     var expandedPoi by remember { mutableStateOf(false) }
     var expandedStudent by remember { mutableStateOf(false) }
@@ -56,7 +56,7 @@ fun SurveyScreen(navController: NavController) {
         ) {
             TextField(
                 readOnly = true,
-                value = selectedPoi?.name ?: "",
+                value = selectedPoi?.poi?.name ?: "",
                 onValueChange = { },
                 label = { Text("Select POI") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPoi) },
@@ -69,13 +69,13 @@ fun SurveyScreen(navController: NavController) {
             ) {
                 when (val state = poisState) {
                     is AppState.Loading -> Text("Loading...")
-                    is AppState.Success -> state.data.forEach { poi ->
+                    is AppState.Success -> state.data.forEach { poiWithPrograms ->
                         DropdownMenuItem(
-                            text = { Text(poi.name) },
+                            text = { Text(poiWithPrograms.poi.name) },
                             onClick = {
-                                selectedPoi = poi
+                                selectedPoi = poiWithPrograms
                                 expandedPoi = false
-                                viewModel.loadQuestionsForPoi(poi.id) // Adjust to load questions for POI
+                                viewModel.loadQuestionsForPoi(poiWithPrograms.poi.id) // Adjust to load questions for POI
                             }
                         )
                     }

@@ -28,7 +28,8 @@ interface PeclQuestionDao {
         INNER JOIN question_assignments a ON q.id = a.question_id
         INNER JOIN pecl_tasks t ON a.task_id = t.id
         INNER JOIN pecl_pois p ON t.poi_id = p.id
-        INNER JOIN pecl_programs pr ON p.program_id = pr.id
+        INNER JOIN poi_program_assignments pa ON p.id = pa.poi_id
+        INNER JOIN pecl_programs pr ON pa.program_id = pr.id
         WHERE pr.name = :program AND p.name = :poi
     """)
     fun getQuestionsForPoi(program: String, poi: String): Flow<List<PeclQuestionEntity>>

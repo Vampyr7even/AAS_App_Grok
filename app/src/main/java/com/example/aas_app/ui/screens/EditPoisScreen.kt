@@ -35,39 +35,40 @@ import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.PoiWithPrograms
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPoisScreen(navController: NavController, programId: Long) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PeclPoiEntity>>)
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PoiWithPrograms>>)
 
     LaunchedEffect(programId) {
         viewModel.loadPoisForProgram(programId)
     }
 
     var showDialog by remember { mutableStateOf(false) }
-    var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
-    var editPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
+    var selectedPoi by remember { mutableStateOf<PoiWithPrograms?>(null) }
+    var editPoi by remember { mutableStateOf<PoiWithPrograms?>(null) }
     var editName by remember { mutableStateOf("") }
     var newPoiName by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.Center
     ) {
         when (val state = poisState) {
             is AppState.Loading -> Text("Loading...")
             is AppState.Success -> {
                 LazyColumn {
-                    items(state.data) { poi ->
+                    items(state.data) { poiWithPrograms ->
+                        val poi = poiWithPrograms.poi
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(poi.name, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { editPoi = poi; editName = poi.name }) {
+                            IconButton(onClick = { editPoi = poiWithPrograms; editName = poi.name }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
-                            IconButton(onClick = { selectedPoi = poi; showDialog = true }) {
+                            IconButton(onClick = { selectedPoi = poiWithPrograms; showDialog = true }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete")
                             }
                         }
@@ -84,7 +85,7 @@ fun EditPoisScreen(navController: NavController, programId: Long) {
         )
         Button(
             onClick = {
-                viewModel.insertPoi(PeclPoiEntity(0L, newPoiName, programId))
+                viewModel.insertPoi(PeclPoiEntity(name = newPoiName), listOf(programId))
                 newPoiName = ""
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
@@ -93,7 +94,7 @@ fun EditPoisScreen(navController: NavController, programId: Long) {
             Text("Add POI")
         }
 
-        editPoi?.let { poi ->
+        editPoi?.let { poiWithPrograms ->
             AlertDialog(
                 onDismissRequest = { editPoi = null },
                 title = { Text("Edit POI") },
@@ -106,7 +107,7 @@ fun EditPoisScreen(navController: NavController, programId: Long) {
                 },
                 confirmButton = {
                     Button(onClick = {
-                        viewModel.updatePoi(poi.copy(name = editName))
+                        viewModel.updatePoi(poiWithPrograms.poi.copy(name = editName), listOf(programId)) // Adjust with new programIds if multi
                         editPoi = null
                     }) {
                         Text("Save")
@@ -128,7 +129,7 @@ fun EditPoisScreen(navController: NavController, programId: Long) {
             text = { Text("Delete this POI?") },
             confirmButton = {
                 Button(onClick = {
-                    selectedPoi?.let { viewModel.deletePoi(it) }
+                    selectedPoi?.let { viewModel.deletePoi(it.poi) }
                     showDialog = false
                 }) {
                     Text("Yes")

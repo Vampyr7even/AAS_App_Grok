@@ -18,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
@@ -25,8 +26,8 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     private val _programsState = MutableLiveData<AppState<List<PeclProgramEntity>>>()
     val programsState: LiveData<AppState<List<PeclProgramEntity>>> = _programsState
 
-    private val _poisState = MutableLiveData<AppState<List<PeclPoiEntity>>>()
-    val poisState: LiveData<AppState<List<PeclPoiEntity>>> = _poisState
+    private val _poisState = MutableLiveData<AppState<List<PoiWithPrograms>>>()
+    val poisState: LiveData<AppState<List<PoiWithPrograms>>> = _poisState
 
     private val _tasksState = MutableLiveData<AppState<List<PeclTaskEntity>>>()
     val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = _tasksState
@@ -53,12 +54,29 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
+    fun loadAllPoisWithPrograms() {
+        _poisState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val pois = repository.getAllPois().first()
+                val poisWithPrograms = pois.map { poi ->
+                    val programs = repository.getProgramsForPoi(poi.id).first()
+                    PoiWithPrograms(poi, programs)
+                }
+                _poisState.postValue(AppState.Success(poisWithPrograms))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading POIs with programs: ${e.message}", e)
+                _poisState.postValue(AppState.Error(e.message ?: "Error loading POIs with programs"))
+            }
+        }
+    }
+
     fun loadPoisForProgram(programId: Long) {
         _poisState.value = AppState.Loading
         viewModelScope.launch {
             try {
                 val data = repository.getPoisForProgram(programId).first()
-                _poisState.postValue(AppState.Success(data))
+                _poisState.postValue(AppState.Success(data.map { PoiWithPrograms(it, emptyList()) })) // Adjust if needed
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading POIs: ${e.message}", e)
                 _poisState.postValue(AppState.Error(e.message ?: "Error loading POIs"))
@@ -170,23 +188,23 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
-    fun insertPoi(poi: PeclPoiEntity) {
+    fun insertPoi(poi: PeclPoiEntity, programIds: List<Long>) {
         _poisState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.insertPoi(poi)
+            val result = repository.insertPoi(poi, programIds)
             when (result) {
-                is AppResult.Success -> loadPoisForProgram(poi.program_id)
+                is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
             }
         }
     }
 
-    fun updatePoi(poi: PeclPoiEntity) {
+    fun updatePoi(poi: PeclPoiEntity, programIds: List<Long>) {
         _poisState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.updatePoi(poi)
+            val result = repository.updatePoi(poi, programIds)
             when (result) {
-                is AppResult.Success -> loadPoisForProgram(poi.program_id)
+                is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
             }
         }
@@ -197,7 +215,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         viewModelScope.launch {
             val result = repository.deletePoi(poi)
             when (result) {
-                is AppResult.Success -> loadPoisForProgram(poi.program_id)
+                is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
             }
         }
@@ -322,3 +340,8 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 }
+
+data class PoiWithPrograms(
+    val poi: PeclPoiEntity,
+    val programs: List<String>
+)

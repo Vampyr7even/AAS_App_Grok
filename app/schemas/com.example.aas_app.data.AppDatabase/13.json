@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 13,
-    "identityHash": "da8a839d1cc239d61f6f5ccc6557847f",
+    "identityHash": "b2e59e7820851f6f4a32b0b51d928494",
     "entities": [
       {
         "tableName": "users",
@@ -94,7 +94,7 @@
       },
       {
         "tableName": "pecl_pois",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `program_id` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `program_id` INTEGER NOT NULL, FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -121,12 +121,34 @@
             "id"
           ]
         },
-        "indices": [],
-        "foreignKeys": []
+        "indices": [
+          {
+            "name": "index_pecl_pois_program_id",
+            "unique": false,
+            "columnNames": [
+              "program_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pecl_pois_program_id` ON `${TABLE_NAME}` (`program_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "pecl_programs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "program_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "pecl_tasks",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `poi_id` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `poi_id` INTEGER NOT NULL, FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -153,12 +175,34 @@
             "id"
           ]
         },
-        "indices": [],
-        "foreignKeys": []
+        "indices": [
+          {
+            "name": "index_pecl_tasks_poi_id",
+            "unique": false,
+            "columnNames": [
+              "poi_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pecl_tasks_poi_id` ON `${TABLE_NAME}` (`poi_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "pecl_pois",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "poi_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "pecl_questions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `subTask` TEXT NOT NULL, `controlType` TEXT NOT NULL, `scale` TEXT NOT NULL, `criticalTask` TEXT NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sub_task` TEXT NOT NULL, `control_type` TEXT NOT NULL, `scale` TEXT NOT NULL, `critical_task` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -168,13 +212,13 @@
           },
           {
             "fieldPath": "subTask",
-            "columnName": "subTask",
+            "columnName": "sub_task",
             "affinity": "TEXT",
             "notNull": true
           },
           {
             "fieldPath": "controlType",
-            "columnName": "controlType",
+            "columnName": "control_type",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -186,7 +230,7 @@
           },
           {
             "fieldPath": "criticalTask",
-            "columnName": "criticalTask",
+            "columnName": "critical_task",
             "affinity": "TEXT",
             "notNull": true
           }
@@ -202,7 +246,7 @@
       },
       {
         "tableName": "question_assignments",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `question_id` INTEGER NOT NULL, `task_id` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `question_id` INTEGER NOT NULL, `task_id` INTEGER NOT NULL, FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -229,12 +273,55 @@
             "id"
           ]
         },
-        "indices": [],
-        "foreignKeys": []
+        "indices": [
+          {
+            "name": "index_question_assignments_question_id_task_id",
+            "unique": true,
+            "columnNames": [
+              "question_id",
+              "task_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_question_assignments_question_id_task_id` ON `${TABLE_NAME}` (`question_id`, `task_id`)"
+          },
+          {
+            "name": "index_question_assignments_task_id",
+            "unique": false,
+            "columnNames": [
+              "task_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_question_assignments_task_id` ON `${TABLE_NAME}` (`task_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "pecl_questions",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "question_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "pecl_tasks",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "task_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "instructor_student_assignments",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `student_id` INTEGER NOT NULL, `program_id` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `student_id` INTEGER NOT NULL, `program_id` INTEGER, FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`student_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -267,12 +354,74 @@
             "id"
           ]
         },
-        "indices": [],
-        "foreignKeys": []
+        "indices": [
+          {
+            "name": "index_instructor_student_assignments_instructor_id",
+            "unique": false,
+            "columnNames": [
+              "instructor_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `${TABLE_NAME}` (`instructor_id`)"
+          },
+          {
+            "name": "index_instructor_student_assignments_student_id",
+            "unique": false,
+            "columnNames": [
+              "student_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `${TABLE_NAME}` (`student_id`)"
+          },
+          {
+            "name": "index_instructor_student_assignments_program_id",
+            "unique": false,
+            "columnNames": [
+              "program_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_program_id` ON `${TABLE_NAME}` (`program_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "users",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "instructor_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "users",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "student_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "pecl_programs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "program_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "pecl_evaluation_results",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `student_id` INTEGER NOT NULL, `instructor_id` INTEGER NOT NULL, `question_id` INTEGER NOT NULL, `score` REAL NOT NULL, `comment` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `student_id` INTEGER NOT NULL, `instructor_id` INTEGER NOT NULL, `question_id` INTEGER NOT NULL, `score` REAL NOT NULL, `comment` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, FOREIGN KEY(`student_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -323,12 +472,74 @@
             "id"
           ]
         },
-        "indices": [],
-        "foreignKeys": []
+        "indices": [
+          {
+            "name": "index_pecl_evaluation_results_student_id",
+            "unique": false,
+            "columnNames": [
+              "student_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pecl_evaluation_results_student_id` ON `${TABLE_NAME}` (`student_id`)"
+          },
+          {
+            "name": "index_pecl_evaluation_results_instructor_id",
+            "unique": false,
+            "columnNames": [
+              "instructor_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pecl_evaluation_results_instructor_id` ON `${TABLE_NAME}` (`instructor_id`)"
+          },
+          {
+            "name": "index_pecl_evaluation_results_question_id",
+            "unique": false,
+            "columnNames": [
+              "question_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pecl_evaluation_results_question_id` ON `${TABLE_NAME}` (`question_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "users",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "student_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "users",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "instructor_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "pecl_questions",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "question_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "pecl_scales",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `scaleName` TEXT NOT NULL, `options` TEXT NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `scale_name` TEXT NOT NULL, `options` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -338,7 +549,7 @@
           },
           {
             "fieldPath": "scaleName",
-            "columnName": "scaleName",
+            "columnName": "scale_name",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -502,7 +713,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'da8a839d1cc239d61f6f5ccc6557847f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b2e59e7820851f6f4a32b0b51d928494')"
     ]
   }
 }

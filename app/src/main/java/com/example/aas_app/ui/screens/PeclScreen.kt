@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,22 +43,45 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.PoiWithPrograms
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeclScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
     val programsState by viewModel.programsState.observeAsState(AppState.Loading as AppState<List<PeclProgramEntity>>)
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PoiWithPrograms>>)
     var selectedTab by remember { mutableStateOf<String?>(null) }
     var showAddProgram by remember { mutableStateOf(false) }
     var newProgramName by remember { mutableStateOf("") }
     var selectedProgramToDelete by remember { mutableStateOf<PeclProgramEntity?>(null) }
+    var showAddPoiDialog by remember { mutableStateOf(false) }
+    var newPoiName by remember { mutableStateOf("") }
+    var selectedProgramsForAdd by remember { mutableStateOf(setOf<Long>()) }
+    var showEditPoiDialog by remember { mutableStateOf<PoiWithPrograms?>(null) }
+    var editPoiName by remember { mutableStateOf("") }
+    var selectedProgramsForEdit by remember { mutableStateOf(setOf<Long>()) }
+    var selectedPoiToDelete by remember { mutableStateOf<PeclPoiEntity?>(null) }
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == "Programs") {
             viewModel.loadPrograms()
+        } else if (selectedTab == "POI") {
+            viewModel.loadPrograms() // For add/edit dialogs
+            viewModel.loadAllPoisWithPrograms()
+        }
+    }
+
+    LaunchedEffect(showEditPoiDialog) {
+        showEditPoiDialog?.let { poiWithPrograms ->
+            editPoiName = poiWithPrograms.poi.name
+            selectedProgramsForEdit = poiWithPrograms.programs.mapNotNull { programName ->
+                programsState.data?.find { it.name == programName }?.id
+            }.toSet()
         }
     }
 
@@ -87,8 +112,8 @@ fun PeclScreen(navController: NavController) {
         ) {
             PeclModuleNavButton("Evaluate", selectedTab == "Evaluate") { navController.navigate("pecl/dashboard/0"); selectedTab = "Evaluate" }
             PeclModuleNavButton("Programs", selectedTab == "Programs") { selectedTab = "Programs" }
-            PeclModuleNavButton("POI", selectedTab == "POI") { navController.navigate("pecl/pois/0"); selectedTab = "POI" } // Placeholder programId; adjust as needed
-            PeclModuleNavButton("Tasks", selectedTab == "Tasks") { navController.navigate("pecl/tasks/0"); selectedTab = "Tasks" } // Similarly, placeholder poiId
+            PeclModuleNavButton("POI", selectedTab == "POI") { selectedTab = "POI" }
+            PeclModuleNavButton("Tasks", selectedTab == "Tasks") { navController.navigate("pecl/tasks/0"); selectedTab = "Tasks" } // Placeholder poiId
             PeclModuleNavButton("Sub Tasks", selectedTab == "Sub Tasks") { navController.navigate("pecl/subtasks"); selectedTab = "Sub Tasks" }
             PeclModuleNavButton("Instructors", selectedTab == "Instructors") { navController.navigate("pecl/instructors"); selectedTab = "Instructors" }
             PeclModuleNavButton("Students", selectedTab == "Students") { navController.navigate("pecl/students"); selectedTab = "Students" }
@@ -176,6 +201,170 @@ fun PeclScreen(navController: NavController) {
                     }
                 }
             }
+        } else if (selectedTab == "POI") {
+            Text(
+                text = "Program of Instruction",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            when (val state = poisState) {
+                is AppState.Loading -> Text("Loading POIs...")
+                is AppState.Success -> {
+                    LazyColumn {
+                        items(state.data) { poiWithPrograms ->
+                            Column {
+                                Text(poiWithPrograms.poi.name, modifier = Modifier.weight(1f))
+                                Text("Programs: ${poiWithPrograms.programs.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { showEditPoiDialog = poiWithPrograms }) {
+                                    Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                                }
+                                IconButton(onClick = { selectedPoiToDelete = poiWithPrograms.poi }) {
+                                    Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                                }
+                            }
+                        }
+                    }
+                }
+                is AppState.Error -> Text("Error: ${state.message}")
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { showAddPoiDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add POI")
+                }
+                Text("Add POI", modifier = Modifier.padding(start = 4.dp))
+            }
+
+            if (showAddPoiDialog) {
+                AlertDialog(
+                    onDismissRequest = { showAddPoiDialog = false },
+                    title = { Text("Add POI") },
+                    text = {
+                        Column {
+                            TextField(
+                                value = newPoiName,
+                                onValueChange = { newPoiName = it },
+                                label = { Text("POI Name") }
+                            )
+                            Text("Select Programs:")
+                            LazyColumn {
+                                items(programsState.data.orEmpty()) { program ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedProgramsForAdd.contains(program.id),
+                                            onCheckedChange = { checked ->
+                                                selectedProgramsForAdd = if (checked) {
+                                                    selectedProgramsForAdd + program.id
+                                                } else {
+                                                    selectedProgramsForAdd - program.id
+                                                }
+                                            }
+                                        )
+                                        Text(program.name)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (newPoiName.isNotBlank() && selectedProgramsForAdd.isNotEmpty()) {
+                                    viewModel.insertPoi(PeclPoiEntity(name = newPoiName), selectedProgramsForAdd.toList())
+                                    showAddPoiDialog = false
+                                    newPoiName = ""
+                                    selectedProgramsForAdd = emptySet()
+                                } else {
+                                    // Handle error, e.g., toast "Name and programs required"
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showAddPoiDialog = false },
+                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            showEditPoiDialog?.let { poiWithPrograms ->
+                AlertDialog(
+                    onDismissRequest = { showEditPoiDialog = null },
+                    title = { Text("Edit POI") },
+                    text = {
+                        Column {
+                            TextField(
+                                value = editPoiName,
+                                onValueChange = { editPoiName = it },
+                                label = { Text("POI Name") }
+                            )
+                            Text("Select Programs:")
+                            LazyColumn {
+                                items(programsState.data.orEmpty()) { program ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedProgramsForEdit.contains(program.id),
+                                            onCheckedChange = { checked ->
+                                                selectedProgramsForEdit = if (checked) {
+                                                    selectedProgramsForEdit + program.id
+                                                } else {
+                                                    selectedProgramsForEdit - program.id
+                                                }
+                                            }
+                                        )
+                                        Text(program.name)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (editPoiName.isNotBlank() && selectedProgramsForEdit.isNotEmpty()) {
+                                    viewModel.updatePoi(poiWithPrograms.poi.copy(name = editPoiName), selectedProgramsForEdit.toList())
+                                    showEditPoiDialog = null
+                                    editPoiName = ""
+                                    selectedProgramsForEdit = emptySet()
+                                } else {
+                                    // Handle error
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showEditPoiDialog = null },
+                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
         }
     }
 
@@ -199,6 +388,35 @@ fun PeclScreen(navController: NavController) {
             dismissButton = {
                 Button(
                     onClick = { selectedProgramToDelete = null },
+                    colors = ButtonDefaults.buttonColors(Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("No")
+                }
+            }
+        )
+    }
+
+    selectedPoiToDelete?.let { poi ->
+        AlertDialog(
+            onDismissRequest = { selectedPoiToDelete = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Are you sure you want to delete this POI?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deletePoi(poi)
+                        selectedPoiToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { selectedPoiToDelete = null },
                     colors = ButtonDefaults.buttonColors(Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {

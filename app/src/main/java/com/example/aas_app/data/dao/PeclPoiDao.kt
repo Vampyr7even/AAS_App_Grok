@@ -20,8 +20,11 @@ interface PeclPoiDao {
     @Delete
     suspend fun deletePoi(poi: PeclPoiEntity)
 
-    @Query("SELECT * FROM pecl_pois WHERE program_id = :programId")
+    @Query("SELECT * FROM pecl_pois WHERE id IN (SELECT poi_id FROM poi_program_assignments WHERE program_id = :programId)")
     fun getPoisForProgram(programId: Long): Flow<List<PeclPoiEntity>>
+
+    @Query("SELECT * FROM pecl_pois")
+    fun getAllPois(): Flow<List<PeclPoiEntity>>
 
     @Query("SELECT * FROM pecl_pois WHERE id = :id")
     suspend fun getPoiById(id: Long): PeclPoiEntity?
