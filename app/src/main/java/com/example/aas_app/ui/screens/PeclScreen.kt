@@ -45,9 +45,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PoiWithPrograms
+import com.example.aas_app.viewmodel.TaskWithPois
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +57,8 @@ fun PeclScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
     val programsState by viewModel.programsState.observeAsState(AppState.Loading as AppState<List<PeclProgramEntity>>)
     val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PoiWithPrograms>>)
+    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading as AppState<List<TaskWithPois>>)
+    val poisSimple by viewModel.poisSimple.observeAsState(emptyList())
     var selectedTab by remember { mutableStateOf<String?>(null) }
     var showAddProgram by remember { mutableStateOf(false) }
     var newProgramName by remember { mutableStateOf("") }
@@ -66,6 +70,13 @@ fun PeclScreen(navController: NavController) {
     var editPoiName by remember { mutableStateOf("") }
     var selectedProgramsForEdit by remember { mutableStateOf(setOf<Long>()) }
     var selectedPoiToDelete by remember { mutableStateOf<PeclPoiEntity?>(null) }
+    var showAddTaskDialog by remember { mutableStateOf(false) }
+    var newTaskName by remember { mutableStateOf("") }
+    var selectedPoisForAdd by remember { mutableStateOf(setOf<Long>()) }
+    var showEditTaskDialog by remember { mutableStateOf<TaskWithPois?>(null) }
+    var editTaskName by remember { mutableStateOf("") }
+    var selectedPoisForEdit by remember { mutableStateOf(setOf<Long>()) }
+    var selectedTaskToDelete by remember { mutableStateOf<PeclTaskEntity?>(null) }
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == "Programs") {
@@ -73,6 +84,9 @@ fun PeclScreen(navController: NavController) {
         } else if (selectedTab == "POI") {
             viewModel.loadPrograms() // For add/edit dialogs
             viewModel.loadAllPoisWithPrograms()
+        } else if (selectedTab == "Tasks") {
+            viewModel.loadAllPois() // For selection in dialogs
+            viewModel.loadAllTasksWithPois()
         }
     }
 
@@ -80,7 +94,20 @@ fun PeclScreen(navController: NavController) {
         showEditPoiDialog?.let { poiWithPrograms ->
             editPoiName = poiWithPrograms.poi.name
             selectedProgramsForEdit = poiWithPrograms.programs.mapNotNull { programName ->
-                programsState.data?.find { it.name == programName }?.id
+                programsState.let { state ->
+                    if (state is AppState.Success) {
+                        state.data.find { it.name == programName }?.id
+                    } else null
+                }
+            }.toSet()
+        }
+    }
+
+    LaunchedEffect(showEditTaskDialog) {
+        showEditTaskDialog?.let { taskWithPois ->
+            editTaskName = taskWithPois.task.name
+            selectedPoisForEdit = taskWithPois.pois.mapNotNull { poiName ->
+                poisSimple.find { it.name == poiName }?.id
             }.toSet()
         }
     }
@@ -113,7 +140,7 @@ fun PeclScreen(navController: NavController) {
             PeclModuleNavButton("Evaluate", selectedTab == "Evaluate") { navController.navigate("pecl/dashboard/0"); selectedTab = "Evaluate" }
             PeclModuleNavButton("Programs", selectedTab == "Programs") { selectedTab = "Programs" }
             PeclModuleNavButton("POI", selectedTab == "POI") { selectedTab = "POI" }
-            PeclModuleNavButton("Tasks", selectedTab == "Tasks") { navController.navigate("pecl/tasks/0"); selectedTab = "Tasks" } // Placeholder poiId
+            PeclModuleNavButton("Tasks", selectedTab == "Tasks") { selectedTab = "Tasks" }
             PeclModuleNavButton("Sub Tasks", selectedTab == "Sub Tasks") { navController.navigate("pecl/subtasks"); selectedTab = "Sub Tasks" }
             PeclModuleNavButton("Instructors", selectedTab == "Instructors") { navController.navigate("pecl/instructors"); selectedTab = "Instructors" }
             PeclModuleNavButton("Students", selectedTab == "Students") { navController.navigate("pecl/students"); selectedTab = "Students" }
@@ -213,11 +240,11 @@ fun PeclScreen(navController: NavController) {
                 is AppState.Success -> {
                     LazyColumn {
                         items(state.data) { poiWithPrograms ->
-                            Column {
-                                Text(poiWithPrograms.poi.name, modifier = Modifier.weight(1f))
-                                Text("Programs: ${poiWithPrograms.programs.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
-                            }
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(poiWithPrograms.poi.name)
+                                    Text("Programs: ${poiWithPrograms.programs.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
+                                }
                                 IconButton(onClick = { showEditPoiDialog = poiWithPrograms }) {
                                     Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
                                 }
@@ -257,7 +284,9 @@ fun PeclScreen(navController: NavController) {
                             )
                             Text("Select Programs:")
                             LazyColumn {
-                                items(programsState.data.orEmpty()) { program ->
+                                items(programsState.let { state ->
+                                    if (state is AppState.Success) state.data else emptyList()
+                                }) { program ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedProgramsForAdd.contains(program.id),
@@ -284,7 +313,7 @@ fun PeclScreen(navController: NavController) {
                                     newPoiName = ""
                                     selectedProgramsForAdd = emptySet()
                                 } else {
-                                    // Handle error, e.g., toast "Name and programs required"
+                                    // Handle error, e.g., post to state for UI toast
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
@@ -318,7 +347,9 @@ fun PeclScreen(navController: NavController) {
                             )
                             Text("Select Programs:")
                             LazyColumn {
-                                items(programsState.data.orEmpty()) { program ->
+                                items(programsState.let { state ->
+                                    if (state is AppState.Success) state.data else emptyList()
+                                }) { program ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedProgramsForEdit.contains(program.id),
@@ -357,6 +388,170 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showEditPoiDialog = null },
+                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+        } else if (selectedTab == "Tasks") {
+            Text(
+                text = "POI Tasks",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            when (val state = tasksState) {
+                is AppState.Loading -> Text("Loading Tasks...")
+                is AppState.Success -> {
+                    LazyColumn {
+                        items(state.data) { taskWithPois ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(taskWithPois.task.name)
+                                    Text("POI: ${taskWithPois.pois.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                IconButton(onClick = { showEditTaskDialog = taskWithPois }) {
+                                    Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                                }
+                                IconButton(onClick = { selectedTaskToDelete = taskWithPois.task }) {
+                                    Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                                }
+                            }
+                        }
+                    }
+                }
+                is AppState.Error -> Text("Error: ${state.message}")
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { showAddTaskDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Task")
+                }
+                Text("Add Task", modifier = Modifier.padding(start = 4.dp))
+            }
+
+            if (showAddTaskDialog) {
+                AlertDialog(
+                    onDismissRequest = { showAddTaskDialog = false },
+                    title = { Text("Add Task") },
+                    text = {
+                        Column {
+                            TextField(
+                                value = newTaskName,
+                                onValueChange = { newTaskName = it },
+                                label = { Text("Task Name") }
+                            )
+                            Text("Select POIs:")
+                            LazyColumn {
+                                items(poisSimple) { poi ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedPoisForAdd.contains(poi.id),
+                                            onCheckedChange = { checked ->
+                                                selectedPoisForAdd = if (checked) {
+                                                    selectedPoisForAdd + poi.id
+                                                } else {
+                                                    selectedPoisForAdd - poi.id
+                                                }
+                                            }
+                                        )
+                                        Text(poi.name)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (newTaskName.isNotBlank() && selectedPoisForAdd.isNotEmpty()) {
+                                    viewModel.insertTask(PeclTaskEntity(name = newTaskName), selectedPoisForAdd.toList())
+                                    showAddTaskDialog = false
+                                    newTaskName = ""
+                                    selectedPoisForAdd = emptySet()
+                                } else {
+                                    // Handle error
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showAddTaskDialog = false },
+                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            showEditTaskDialog?.let { taskWithPois ->
+                AlertDialog(
+                    onDismissRequest = { showEditTaskDialog = null },
+                    title = { Text("Edit Task") },
+                    text = {
+                        Column {
+                            TextField(
+                                value = editTaskName,
+                                onValueChange = { editTaskName = it },
+                                label = { Text("Task Name") }
+                            )
+                            Text("Select POIs:")
+                            LazyColumn {
+                                items(poisSimple) { poi ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedPoisForEdit.contains(poi.id),
+                                            onCheckedChange = { checked ->
+                                                selectedPoisForEdit = if (checked) {
+                                                    selectedPoisForEdit + poi.id
+                                                } else {
+                                                    selectedPoisForEdit - poi.id
+                                                }
+                                            }
+                                        )
+                                        Text(poi.name)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (editTaskName.isNotBlank() && selectedPoisForEdit.isNotEmpty()) {
+                                    viewModel.updateTask(taskWithPois.task.copy(name = editTaskName), selectedPoisForEdit.toList())
+                                    showEditTaskDialog = null
+                                    editTaskName = ""
+                                    selectedPoisForEdit = emptySet()
+                                } else {
+                                    // Handle error
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showEditTaskDialog = null },
                             colors = ButtonDefaults.buttonColors(Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
@@ -417,6 +612,35 @@ fun PeclScreen(navController: NavController) {
             dismissButton = {
                 Button(
                     onClick = { selectedPoiToDelete = null },
+                    colors = ButtonDefaults.buttonColors(Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("No")
+                }
+            }
+        )
+    }
+
+    selectedTaskToDelete?.let { task ->
+        AlertDialog(
+            onDismissRequest = { selectedTaskToDelete = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Are you sure you want to delete this task?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteTask(task)
+                        selectedTaskToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { selectedTaskToDelete = null },
                     colors = ButtonDefaults.buttonColors(Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {

@@ -20,8 +20,11 @@ interface PeclTaskDao {
     @Delete
     suspend fun deleteTask(task: PeclTaskEntity)
 
-    @Query("SELECT * FROM pecl_tasks WHERE poi_id = :poiId")
+    @Query("SELECT t.* FROM pecl_tasks t JOIN task_poi_assignments a ON t.id = a.task_id WHERE a.poi_id = :poiId")
     fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>>
+
+    @Query("SELECT * FROM pecl_tasks")
+    fun getAllTasks(): Flow<List<PeclTaskEntity>>
 
     @Query("SELECT * FROM pecl_tasks WHERE id = :id")
     suspend fun getTaskById(id: Long): PeclTaskEntity?

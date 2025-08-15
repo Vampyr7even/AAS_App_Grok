@@ -11,6 +11,7 @@ import com.example.aas_app.data.dao.PeclTaskDao
 import com.example.aas_app.data.dao.PoiProgramAssignmentDao
 import com.example.aas_app.data.dao.QuestionAssignmentDao
 import com.example.aas_app.data.dao.ScaleDao
+import com.example.aas_app.data.dao.TaskPoiAssignmentDao
 import com.example.aas_app.data.dao.UserDao
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
@@ -21,6 +22,7 @@ import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.PoiProgramAssignmentEntity
 import com.example.aas_app.data.entity.QuestionAssignmentEntity
 import com.example.aas_app.data.entity.ScaleEntity
+import com.example.aas_app.data.entity.TaskPoiAssignmentEntity
 import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.scopes.ViewModelScoped
 import javax.inject.Inject
@@ -43,6 +45,7 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
     private val evaluationResultDao = db.evaluationResultDao()
     private val scaleDao = db.scaleDao()
     private val poiProgramAssignmentDao = db.poiProgramAssignmentDao()
+    private val taskPoiAssignmentDao = db.taskPoiAssignmentDao()
 
     // Prepopulation method with transaction and error handling
     suspend fun prePopulateAll(): AppResult<Unit> {
@@ -51,7 +54,7 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
                 // Clear existing data if needed for dev (comment out in production)
                 // Programs
                 val programMap = mutableMapOf<String, Long>()
-                val programs = listOf("AASB", "RSLC")
+                val programs = listOf("AASB", "RSLC", "USMC Fires", "USMC PFT_CFT")
                 programs.forEach { name ->
                     val program = peclProgramDao.getProgramByName(name)
                     if (program == null) {
@@ -61,16 +64,15 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
                         programMap[name] = program.id
                     }
                 }
-                // POIs - Updated with user's provided data, some assigned to multiple programs for demo
+                // POIs - Updated with user's provided data, assigned to programs
                 val poiMap = mutableMapOf<String, Long>()
                 val poiAssignments = listOf(
                     "Boat Operations" to listOf(programMap["AASB"]!!),
-                    "Team Leader Planning" to listOf(programMap["AASB"]!!),
-                    "ATL Planning" to listOf(programMap["AASB"]!!, programMap["RSLC"]!!), // Example multi
-                    "RTO Planning" to listOf(programMap["AASB"]!!),
-                    "Fire Support Marine Artillery" to listOf(programMap["AASB"]!!),
-                    "PFTCFT" to listOf(programMap["AASB"]!!),
-                    "RSLC_POI_1" to listOf(programMap["RSLC"]!!)
+                    "Team Leader Planning" to listOf(programMap["RSLC"]!!),
+                    "ATL Planning" to listOf(programMap["RSLC"]!!),
+                    "RTO Planning" to listOf(programMap["RSLC"]!!),
+                    "Fire Support Marine Artillery" to listOf(programMap["USMC Fires"]!!),
+                    "PFTCFT" to listOf(programMap["USMC PFT_CFT"]!!)
                 )
                 poiAssignments.forEach { (name, programIds) ->
                     val poi = peclPoiDao.getPoiByName(name)
@@ -86,18 +88,63 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
                     }
                     poiMap[name] = poiId
                 }
-                // Tasks
+                // Tasks - Updated with user's provided data, assigned to multiple POIs
                 val taskMap = mutableMapOf<String, Long>()
-                listOf(
-                    Pair("Task1", poiMap["Boat Operations"]!!),
-                    Pair("Task2", poiMap["RSLC_POI_1"]!!)
-                ).forEach { (name, poiId) ->
-                    val task = peclTaskDao.getTaskByName(name)
-                    if (task == null) {
-                        val id = peclTaskDao.insertTask(PeclTaskEntity(name = name, poi_id = poiId))
-                        taskMap[name] = id
+                val taskData = listOf(
+                    "Launch" to "Boat Operations",
+                    "Moor" to "Boat Operations",
+                    "Radar-Nav-FLIR" to "Boat Operations",
+                    "Plotting" to "Boat Operations",
+                    "Radio" to "Boat Operations",
+                    "Depart Dock" to "Boat Operations",
+                    "Maneuvering the AASB" to "Boat Operations",
+                    "M-O-B" to "Boat Operations",
+                    "Maintain Station" to "Boat Operations",
+                    "Recover AASB" to "Boat Operations",
+                    "Comments" to "Boat Operations",
+                    "Confirmation Brief" to "Team Leader Planning",
+                    "Issue a Warning Order" to "Team Leader Planning",
+                    "Mission Analysis/IPB" to "Team Leader Planning",
+                    "Conduct Mission Analysis Brief" to "Team Leader Planning",
+                    "Develop Teams Course of Action" to "Team Leader Planning",
+                    "Issue an Operations Order" to "Team Leader Planning",
+                    "Conduct Rehearsals" to "Team Leader Planning,ATL Planning,RTO Planning",
+                    "Conduct Backbrief" to "Team Leader Planning,ATL Planning,RTO Planning",
+                    "Evaluation Data" to "Fire Support Marine Artillery",
+                    "Leadership" to "Fire Support Marine Artillery",
+                    "Conduct Initial Inspections" to "ATL Planning",
+                    "Prepare for Mission" to "ATL Planning",
+                    "Prepare and Issue an OPORD" to "ATL Planning",
+                    "Issues 4 Para OPORD" to "ATL Planning",
+                    "Conduct Final Inspection" to "ATL Planning",
+                    "Prepare for OPORD and Operations" to "RTO Planning",
+                    "Issue 5 para OPORD" to "RTO Planning",
+                    "Preexecution" to "Fire Support Marine Artillery",
+                    "Call for Fire" to "Fire Support Marine Artillery",
+                    "Spottings/Corrections" to "Fire Support Marine Artillery",
+                    "RREMS" to "Fire Support Marine Artillery",
+                    "Idividual Data" to "PFTCFT",
+                    "PFT Performance Data" to "PFTCFT",
+                    "CFT Performance Data" to "PFTCFT"
+                )
+                taskData.forEach { (name, poiNamesStr) ->
+                    val poiNames = poiNamesStr.split(",").map { it.trim() }
+                    val poiIds = poiNames.mapNotNull { poiMap[it] }
+                    if (poiIds.isNotEmpty()) {
+                        val task = peclTaskDao.getTaskByName(name)
+                        val taskId = if (task == null) {
+                            val id = peclTaskDao.insertTask(PeclTaskEntity(name = name))
+                            poiIds.forEach { poiId ->
+                                taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = id, poi_id = poiId))
+                            }
+                            id
+                        } else {
+                            // For existing, update assignments if needed (assume add if not present)
+                            task.id
+                        }
+                        taskMap[name] = taskId
                     } else {
-                        taskMap[name] = task.id
+                        Log.w("AppRepository", "Skipping task '$name': No valid POIs found for '$poiNamesStr'")
                     }
                 }
                 // Questions
@@ -106,7 +153,7 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
                 )
                 questions.forEach { question ->
                     val qId = peclQuestionDao.insertQuestion(question)
-                    questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(question_id = qId, task_id = taskMap["Task1"]!!))
+                    questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(question_id = qId, task_id = taskMap["Launch"] ?: 0L))  // Example assignment; adjust as needed
                 }
                 // Scales
                 listOf(
@@ -259,24 +306,49 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     fun getProgramsForPoi(poiId: Long): Flow<List<String>> = poiProgramAssignmentDao.getProgramsForPoi(poiId)
 
-    suspend fun insertTask(task: PeclTaskEntity): AppResult<Long> {
+    suspend fun insertTask(task: PeclTaskEntity, poiIds: List<Long>): AppResult<Long> {
         return try {
-            // Validate parent exists
-            if (getPoiById(task.poi_id) == null) {
-                return AppResult.Error("Cannot insert task: POI ID ${task.poi_id} does not exist")
+            if (poiIds.isEmpty()) {
+                return AppResult.Error("Cannot insert task: At least one POI must be assigned")
             }
-            AppResult.Success(peclTaskDao.insertTask(task))
+            db.withTransaction {
+                poiIds.forEach { poiId ->
+                    if (getPoiById(poiId) == null) {
+                        throw Exception("Cannot insert task: POI ID $poiId does not exist")
+                    }
+                }
+                val taskId = peclTaskDao.insertTask(task)
+                poiIds.forEach { poiId ->
+                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId, poi_id = poiId))
+                }
+                AppResult.Success(taskId)
+            }
         } catch (e: Exception) {
-            Log.e("AppRepository", "Error inserting task", e)
+            Log.e("AppRepository", "Error inserting task with assignments", e)
             AppResult.Error("Failed to insert task: ${e.message}", e)
         }
     }
 
-    suspend fun updateTask(task: PeclTaskEntity): AppResult<Unit> {
+    suspend fun updateTask(task: PeclTaskEntity, poiIds: List<Long>): AppResult<Unit> {
         return try {
-            AppResult.Success(peclTaskDao.updateTask(task))
+            if (poiIds.isEmpty()) {
+                return AppResult.Error("Cannot update task: At least one POI must be assigned")
+            }
+            db.withTransaction {
+                poiIds.forEach { poiId ->
+                    if (getPoiById(poiId) == null) {
+                        throw Exception("Cannot update task: POI ID $poiId does not exist")
+                    }
+                }
+                peclTaskDao.updateTask(task)
+                taskPoiAssignmentDao.deleteAssignmentsForTask(task.id)
+                poiIds.forEach { poiId ->
+                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = task.id, poi_id = poiId))
+                }
+            }
+            AppResult.Success(Unit)
         } catch (e: Exception) {
-            Log.e("AppRepository", "Error updating task", e)
+            Log.e("AppRepository", "Error updating task with assignments", e)
             AppResult.Error("Failed to update task: ${e.message}", e)
         }
     }
@@ -292,9 +364,15 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>> = peclTaskDao.getTasksForPoi(poiId)
 
+    fun getAllTasks(): Flow<List<PeclTaskEntity>> = peclTaskDao.getAllTasks()
+
     suspend fun getTaskById(id: Long): PeclTaskEntity? = peclTaskDao.getTaskById(id)
 
     suspend fun getTaskByName(name: String): PeclTaskEntity? = peclTaskDao.getTaskByName(name)
+
+    suspend fun getPoiIdsForTask(taskId: Long): List<Long> = taskPoiAssignmentDao.getPoiIdsForTask(taskId)
+
+    fun getPoisForTask(taskId: Long): Flow<List<String>> = taskPoiAssignmentDao.getPoisForTask(taskId)
 
     suspend fun insertQuestion(question: PeclQuestionEntity): AppResult<Long> {
         return try {

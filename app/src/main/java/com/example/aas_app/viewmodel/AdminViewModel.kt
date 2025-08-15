@@ -29,8 +29,8 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     private val _poisState = MutableLiveData<AppState<List<PoiWithPrograms>>>()
     val poisState: LiveData<AppState<List<PoiWithPrograms>>> = _poisState
 
-    private val _tasksState = MutableLiveData<AppState<List<PeclTaskEntity>>>()
-    val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = _tasksState
+    private val _tasksState = MutableLiveData<AppState<List<TaskWithPois>>>()
+    val tasksState: LiveData<AppState<List<TaskWithPois>>> = _tasksState
 
     private val _questionsState = MutableLiveData<AppState<List<PeclQuestionEntity>>>()
     val questionsState: LiveData<AppState<List<PeclQuestionEntity>>> = _questionsState
@@ -40,6 +40,9 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
 
     private val _studentsState = MutableLiveData<AppState<List<UserEntity>>>()
     val studentsState: LiveData<AppState<List<UserEntity>>> = _studentsState
+
+    private val _poisSimple = MutableLiveData<List<PeclPoiEntity>>()
+    val poisSimple: LiveData<List<PeclPoiEntity>> = _poisSimple
 
     fun loadPrograms() {
         _programsState.value = AppState.Loading
@@ -71,6 +74,34 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
+    fun loadAllPois() {
+        viewModelScope.launch {
+            try {
+                val data = repository.getAllPois().first()
+                _poisSimple.postValue(data)
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading simple POIs: ${e.message}", e)
+            }
+        }
+    }
+
+    fun loadAllTasksWithPois() {
+        _tasksState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val tasks = repository.getAllTasks().first()
+                val tasksWithPois = tasks.map { task ->
+                    val pois = repository.getPoisForTask(task.id).first()
+                    TaskWithPois(task, pois)
+                }
+                _tasksState.postValue(AppState.Success(tasksWithPois))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading tasks with POIs: ${e.message}", e)
+                _tasksState.postValue(AppState.Error(e.message ?: "Error loading tasks with POIs"))
+            }
+        }
+    }
+
     fun loadPoisForProgram(programId: Long) {
         _poisState.value = AppState.Loading
         viewModelScope.launch {
@@ -89,7 +120,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         viewModelScope.launch {
             try {
                 val data = repository.getTasksForPoi(poiId).first()
-                _tasksState.postValue(AppState.Success(data))
+                _tasksState.postValue(AppState.Success(data.map { TaskWithPois(it, emptyList()) })) // Adjust if needed
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading tasks: ${e.message}", e)
                 _tasksState.postValue(AppState.Error(e.message ?: "Error loading tasks"))
@@ -221,23 +252,23 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
-    fun insertTask(task: PeclTaskEntity) {
+    fun insertTask(task: PeclTaskEntity, poiIds: List<Long>) {
         _tasksState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.insertTask(task)
+            val result = repository.insertTask(task, poiIds)
             when (result) {
-                is AppResult.Success -> loadTasksForPoi(task.poi_id)
+                is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
             }
         }
     }
 
-    fun updateTask(task: PeclTaskEntity) {
+    fun updateTask(task: PeclTaskEntity, poiIds: List<Long>) {
         _tasksState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.updateTask(task)
+            val result = repository.updateTask(task, poiIds)
             when (result) {
-                is AppResult.Success -> loadTasksForPoi(task.poi_id)
+                is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
             }
         }
@@ -248,7 +279,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         viewModelScope.launch {
             val result = repository.deleteTask(task)
             when (result) {
-                is AppResult.Success -> loadTasksForPoi(task.poi_id)
+                is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
             }
         }
@@ -344,4 +375,9 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
 data class PoiWithPrograms(
     val poi: PeclPoiEntity,
     val programs: List<String>
+)
+
+data class TaskWithPois(
+    val task: PeclTaskEntity,
+    val pois: List<String>
 )

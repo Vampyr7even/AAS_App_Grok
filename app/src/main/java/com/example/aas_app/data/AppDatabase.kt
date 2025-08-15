@@ -19,6 +19,7 @@ import com.example.aas_app.data.dao.QuestionAssignmentDao
 import com.example.aas_app.data.dao.QuestionRepositoryDao
 import com.example.aas_app.data.dao.ResponseDao
 import com.example.aas_app.data.dao.ScaleDao
+import com.example.aas_app.data.dao.TaskPoiAssignmentDao
 import com.example.aas_app.data.dao.UserDao
 import com.example.aas_app.data.entity.DemoTemplatesEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
@@ -33,6 +34,7 @@ import com.example.aas_app.data.entity.QuestionAssignmentEntity
 import com.example.aas_app.data.entity.QuestionRepositoryEntity
 import com.example.aas_app.data.entity.ResponseEntity
 import com.example.aas_app.data.entity.ScaleEntity
+import com.example.aas_app.data.entity.TaskPoiAssignmentEntity
 import com.example.aas_app.data.entity.UserEntity
 
 @Database(
@@ -50,9 +52,10 @@ import com.example.aas_app.data.entity.UserEntity
         QuestionRepositoryEntity::class,
         ResponseEntity::class,
         ProjectEntity::class,
-        PoiProgramAssignmentEntity::class
+        PoiProgramAssignmentEntity::class,
+        TaskPoiAssignmentEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -71,6 +74,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun responseDao(): ResponseDao
     abstract fun projectDao(): ProjectDao
     abstract fun poiProgramAssignmentDao(): PoiProgramAssignmentDao
+    abstract fun taskPoiAssignmentDao(): TaskPoiAssignmentDao
 
     companion object {
         @Volatile
@@ -83,7 +87,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aas_database"
                 )
-                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
+                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
                     .build()
                 INSTANCE = instance
                 instance
@@ -170,6 +174,24 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("INSERT INTO `pecl_pois_new` (`id`, `name`) SELECT `id`, `name` FROM `pecl_pois`")
                 db.execSQL("DROP TABLE `pecl_pois`")
                 db.execSQL("ALTER TABLE `pecl_pois_new` RENAME TO `pecl_pois`")
+            }
+        }
+
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create junction table for many-to-many tasks to POIs
+                db.execSQL("CREATE TABLE IF NOT EXISTS `task_poi_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `task_id` INTEGER NOT NULL, `poi_id` INTEGER NOT NULL, FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_task_poi_assignments_task_id_poi_id` ON `task_poi_assignments` (`task_id`, `poi_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_poi_assignments_poi_id` ON `task_poi_assignments` (`poi_id`)")
+
+                // Migrate data from old poi_id in pecl_tasks to junction
+                db.execSQL("INSERT OR IGNORE INTO `task_poi_assignments` (`task_id`, `poi_id`) SELECT `id`, `poi_id` FROM `pecl_tasks` WHERE `poi_id` IS NOT NULL")
+
+                // Drop old poi_id column from pecl_tasks
+                db.execSQL("CREATE TABLE `pecl_tasks_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL UNIQUE)")
+                db.execSQL("INSERT INTO `pecl_tasks_new` (`id`, `name`) SELECT `id`, `name` FROM `pecl_tasks`")
+                db.execSQL("DROP TABLE `pecl_tasks`")
+                db.execSQL("ALTER TABLE `pecl_tasks_new` RENAME TO `pecl_tasks`")
             }
         }
     }
