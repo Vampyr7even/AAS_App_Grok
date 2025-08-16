@@ -14,11 +14,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,7 +34,6 @@ import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RepositoryScreen(navController: NavController) {
     val viewModel: AdminViewModel = hiltViewModel()
@@ -59,7 +56,7 @@ fun RepositoryScreen(navController: NavController) {
             is AppState.Success -> {
                 LazyColumn {
                     items(state.data) { question ->
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(question.subTask)
                             IconButton(onClick = { /* Edit logic */ }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
@@ -75,7 +72,9 @@ fun RepositoryScreen(navController: NavController) {
         }
 
         Button(
-            onClick = { viewModel.insertQuestion(PeclQuestionEntity(0L, "New Question", "Text", "Scale", "No"), 0L) },
+            onClick = {
+                viewModel.insertQuestion(PeclQuestionEntity(task_id = 0L, subTask = "New Question", controlType = "Text", scale = "Scale", criticalTask = "No"), 0L)
+            },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {

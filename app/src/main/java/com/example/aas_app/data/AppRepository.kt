@@ -147,6 +147,12 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
                         Log.w("AppRepository", "Skipping task '$name': No valid POIs found for '$poiNamesStr'")
                     }
                 }
+                // Scales
+                listOf(
+                    ScaleEntity(scaleName = "1-10", options = "1,2,3,4,5,6,7,8,9,10")
+                ).forEach { scale ->
+                    scaleDao.insertScale(scale)
+                }
                 // Questions
                 val questions = listOf(
                     PeclQuestionEntity(subTask = "Subtask1", controlType = "textbox", scale = "1-5", criticalTask = "yes")
@@ -154,12 +160,6 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
                 questions.forEach { question ->
                     val qId = peclQuestionDao.insertQuestion(question)
                     questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(question_id = qId, task_id = taskMap["Launch"] ?: 0L))  // Example assignment; adjust as needed
-                }
-                // Scales
-                listOf(
-                    ScaleEntity(scaleName = "1-10", options = "1,2,3,4,5,6,7,8,9,10")
-                ).forEach { scale ->
-                    scaleDao.insertScale(scale)
                 }
                 // Users and assignments
                 val instructorId = userDao.insertUser(UserEntity(firstName = "Instructor1", lastName = "", grade = "", pin = null, fullName = "Instructor1", assignedProject = null, role = "instructor"))
@@ -329,21 +329,23 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
         }
     }
 
-    suspend fun updateTask(task: PeclTaskEntity, poiIds: List<Long>): AppResult<Unit> {
+    suspend fun updateTask(task: PeclTaskEntity, poiIds: List<Long>? = null): AppResult<Unit> {
         return try {
-            if (poiIds.isEmpty()) {
-                return AppResult.Error("Cannot update task: At least one POI must be assigned")
-            }
             db.withTransaction {
-                poiIds.forEach { poiId ->
-                    if (getPoiById(poiId) == null) {
-                        throw Exception("Cannot update task: POI ID $poiId does not exist")
-                    }
-                }
                 peclTaskDao.updateTask(task)
-                taskPoiAssignmentDao.deleteAssignmentsForTask(task.id)
-                poiIds.forEach { poiId ->
-                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = task.id, poi_id = poiId))
+                if (poiIds != null) {
+                    if (poiIds.isEmpty()) {
+                        return@withTransaction AppResult.Error("Cannot update task: At least one POI must be assigned")
+                    }
+                    poiIds.forEach { poiId ->
+                        if (getPoiById(poiId) == null) {
+                            throw Exception("Cannot update task: POI ID $poiId does not exist")
+                        }
+                    }
+                    taskPoiAssignmentDao.deleteAssignmentsForTask(task.id)
+                    poiIds.forEach { poiId ->
+                        taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = task.id, poi_id = poiId))
+                    }
                 }
             }
             AppResult.Success(Unit)
@@ -410,11 +412,10 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
     suspend fun insertQuestionWithAssignment(question: PeclQuestionEntity, taskId: Long): AppResult<Unit> {
         return try {
             db.withTransaction {
-                // Validate parent exists
                 if (getTaskById(taskId) == null) {
                     throw Exception("Cannot assign question: Task ID $taskId does not exist")
                 }
-                val qId = peclQuestionDao.insertQuestion(question)
+                val qId = peclQuestionDao.insertQuestion(question.copy(task_id = taskId))
                 questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(question_id = qId, task_id = taskId))
             }
             AppResult.Success(Unit)
@@ -459,7 +460,6 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun insertEvaluationResult(result: PeclEvaluationResultEntity): AppResult<Long> {
         return try {
-            // Validate references
             if (getQuestionById(result.question_id) == null) {
                 return AppResult.Error("Cannot insert result: Question ID ${result.question_id} does not exist")
             }
@@ -478,7 +478,6 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity): AppResult<Long> {
         return try {
-            // Validate references
             if (assignment.program_id != null && getProgramById(assignment.program_id!!) == null) {
                 return AppResult.Error("Cannot insert assignment: Program ID ${assignment.program_id} does not exist")
             }

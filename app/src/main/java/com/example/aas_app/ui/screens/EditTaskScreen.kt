@@ -24,7 +24,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.viewmodel.AdminViewModel
-import com.example.aas_app.viewmodel.AppState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,8 +49,8 @@ fun EditTaskScreen(navController: NavController, taskId: Long) {
         )
         Button(
             onClick = {
-                val updatedTask = PeclTaskEntity(taskId, taskName, 0L) // Adjust poiId
-                viewModel.updateTask(updatedTask)
+                val updatedTask = PeclTaskEntity(taskId, taskName)
+                viewModel.updateTask(updatedTask, null)
                 navController.popBackStack()
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),

@@ -35,20 +35,21 @@ import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.TaskWithPois
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditTasksScreen(navController: NavController, poiId: Long) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading as AppState<List<PeclTaskEntity>>)
+    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading as AppState<List<TaskWithPois>>)
 
     LaunchedEffect(poiId) {
         viewModel.loadTasksForPoi(poiId)
     }
 
     var showDialog by remember { mutableStateOf(false) }
-    var selectedTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
-    var editTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
+    var selectedTask by remember { mutableStateOf<TaskWithPois?>(null) }
+    var editTask by remember { mutableStateOf<TaskWithPois?>(null) }
     var editName by remember { mutableStateOf("") }
     var newTaskName by remember { mutableStateOf("") }
 
@@ -58,23 +59,29 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         when (val state = tasksState) {
-            is AppState.Loading -> Text("Loading...")
+            is AppState.Loading -> Text(text = "Loading...")
             is AppState.Success -> {
                 LazyColumn {
-                    items(state.data) { task ->
+                    items(items = state.data) { taskWithPois ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(task.name, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { editTask = task; editName = task.name }) {
+                            Text(text = taskWithPois.task.name, modifier = Modifier.weight(1f))
+                            IconButton(onClick = {
+                                editTask = taskWithPois
+                                editName = taskWithPois.task.name
+                            }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
-                            IconButton(onClick = { selectedTask = task; showDialog = true }) {
+                            IconButton(onClick = {
+                                selectedTask = taskWithPois
+                                showDialog = true
+                            }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete")
                             }
                         }
                     }
                 }
             }
-            is AppState.Error -> Text("Error: ${state.message}")
+            is AppState.Error -> Text(text = "Error: ${state.message}")
         }
 
         TextField(
@@ -84,7 +91,7 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
         )
         Button(
             onClick = {
-                viewModel.insertTask(PeclTaskEntity(0L, newTaskName, poiId))
+                viewModel.insertTask(PeclTaskEntity(name = newTaskName), listOf(poiId))
                 newTaskName = ""
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
@@ -93,7 +100,7 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
             Text("Add Task")
         }
 
-        editTask?.let { task ->
+        editTask?.let { taskWithPois ->
             AlertDialog(
                 onDismissRequest = { editTask = null },
                 title = { Text("Edit Task") },
@@ -106,7 +113,7 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
                 },
                 confirmButton = {
                     Button(onClick = {
-                        viewModel.updateTask(task.copy(name = editName))
+                        viewModel.updateTask(taskWithPois.task.copy(name = editName), null)
                         editTask = null
                     }) {
                         Text("Save")
@@ -128,7 +135,7 @@ fun EditTasksScreen(navController: NavController, poiId: Long) {
             text = { Text("Delete this task?") },
             confirmButton = {
                 Button(onClick = {
-                    selectedTask?.let { viewModel.deleteTask(it) }
+                    selectedTask?.let { viewModel.deleteTask(it.task) }
                     showDialog = false
                 }) {
                     Text("Yes")

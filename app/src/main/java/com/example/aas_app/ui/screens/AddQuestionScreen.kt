@@ -32,7 +32,7 @@ import com.example.aas_app.viewmodel.AppState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddQuestionScreen(navController: NavController) {
+fun AddQuestionScreen(navController: NavController, taskId: Long = 0L) {  // Added taskId parameter for association
     val viewModel: AdminViewModel = hiltViewModel()
     val scalesState by viewModel.scalesState.observeAsState(AppState.Loading as AppState<List<ScaleEntity>>)
 
@@ -100,7 +100,7 @@ fun AddQuestionScreen(navController: NavController) {
         )
         Button(
             onClick = {
-                viewModel.insertQuestion(PeclQuestionEntity(0L, subTask, controlType, scale, criticalTask), 0L) // Adjust taskId as needed
+                viewModel.insertQuestion(PeclQuestionEntity(task_id = taskId, subTask = subTask, controlType = controlType, scale = scale, criticalTask = criticalTask), taskId)
                 navController.popBackStack()
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),

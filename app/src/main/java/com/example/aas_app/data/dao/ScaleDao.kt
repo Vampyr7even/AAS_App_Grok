@@ -25,4 +25,7 @@ interface ScaleDao {
 
     @Query("SELECT * FROM pecl_scales WHERE id = :id")
     suspend fun getScaleById(id: Long): ScaleEntity?
+
+    @Query("SELECT * FROM pecl_scales WHERE scale_name = :name")
+    suspend fun getScaleByName(name: String): ScaleEntity?
 }

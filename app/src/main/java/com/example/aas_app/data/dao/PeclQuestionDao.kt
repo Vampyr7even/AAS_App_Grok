@@ -40,16 +40,13 @@ interface PeclQuestionDao {
 
     @Query("""
         SELECT q.* FROM pecl_questions q
-        INNER JOIN question_assignments a ON q.id = a.question_id
-        INNER JOIN pecl_tasks t ON a.task_id = t.id
-        WHERE t.id = :taskId
+        WHERE q.task_id = :taskId
     """)
     fun getQuestionsForTask(taskId: Long): Flow<List<PeclQuestionEntity>>
 
     @Query("""
         SELECT q.* FROM pecl_questions q
-        INNER JOIN question_assignments a ON q.id = a.question_id
-        INNER JOIN pecl_tasks t ON a.task_id = t.id
+        INNER JOIN pecl_tasks t ON q.task_id = t.id
         INNER JOIN task_poi_assignments tp ON t.id = tp.task_id
         WHERE tp.poi_id = :poiId
     """)

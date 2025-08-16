@@ -1,6 +1,7 @@
 package com.example.aas_app.data
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -55,7 +56,7 @@ import com.example.aas_app.data.entity.UserEntity
         PoiProgramAssignmentEntity::class,
         TaskPoiAssignmentEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -87,7 +88,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aas_database"
                 )
-                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
+                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
                     .build()
                 INSTANCE = instance
                 instance
@@ -96,14 +97,12 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Add role column to users if not exists
                 try {
                     db.execSQL("ALTER TABLE users ADD COLUMN role TEXT DEFAULT ''")
                 } catch (e: Exception) {
                     // Column already exists; ignore
                 }
 
-                // Create new tables if not exist
                 db.execSQL("CREATE TABLE IF NOT EXISTS `pecl_programs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL UNIQUE)")
                 db.execSQL("CREATE TABLE IF NOT EXISTS `pecl_pois` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL UNIQUE, `program_id` INTEGER NOT NULL, FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_pois_program_id` ON `pecl_pois` (`program_id`)")
@@ -121,25 +120,20 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `demographics_results` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `userId` INTEGER NOT NULL, `questionId` INTEGER NOT NULL, `answer` TEXT NOT NULL, `surveyDate` TEXT NOT NULL)")
                 db.execSQL("CREATE TABLE IF NOT EXISTS `projects` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectName` TEXT NOT NULL)")
 
-                // Recreate pecl_questions to remove legacy columns (program, poi, task)
                 db.execSQL("CREATE TABLE `pecl_questions_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sub_task` TEXT NOT NULL, `control_type` TEXT NOT NULL, `scale` TEXT NOT NULL, `critical_task` TEXT NOT NULL)")
                 db.execSQL("INSERT INTO `pecl_questions_new` (`id`, `sub_task`, `control_type`, `scale`, `critical_task`) SELECT `id`, `sub_task`, `control_type`, `scale`, `critical_task` FROM `pecl_questions`")
                 db.execSQL("DROP TABLE `pecl_questions`")
                 db.execSQL("ALTER TABLE `pecl_questions_new` RENAME TO `pecl_questions`")
 
-                // Recreate pecl_evaluation_results with new schema (drop old if exists, as data mapping to question_id is complex; assume dev phase)
                 db.execSQL("DROP TABLE IF EXISTS `pecl_evaluation_results`")
                 db.execSQL("CREATE TABLE `pecl_evaluation_results` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `student_id` INTEGER NOT NULL, `instructor_id` INTEGER NOT NULL, `question_id` INTEGER NOT NULL, `score` REAL NOT NULL, `comment` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, FOREIGN KEY(`student_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
                 db.execSQL("CREATE INDEX `index_pecl_evaluation_results_student_id` ON `pecl_evaluation_results` (`student_id`)")
                 db.execSQL("CREATE INDEX `index_pecl_evaluation_results_question_id` ON `pecl_evaluation_results` (`question_id`)")
-
-                // Data migration for hierarchy: Handle comma-separated parsing in app logic (e.g., prepopulate in repository), not here
             }
         }
 
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Add indices to existing tables if not present (Room handles creation, but ensure for migration)
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_pois_program_id` ON `pecl_pois` (`program_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_pecl_tasks_poi_id` ON `pecl_tasks` (`poi_id`)")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_question_assignments_question_id_task_id` ON `question_assignments` (`question_id`, `task_id`)")
@@ -161,15 +155,12 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Create junction table for many-to-many
                 db.execSQL("CREATE TABLE IF NOT EXISTS `poi_program_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `poi_id` INTEGER NOT NULL, `program_id` INTEGER NOT NULL, FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_poi_program_assignments_poi_id_program_id` ON `poi_program_assignments` (`poi_id`, `program_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_poi_program_assignments_program_id` ON `poi_program_assignments` (`program_id`)")
 
-                // Migrate data from old program_id in pecl_pois to junction
                 db.execSQL("INSERT OR IGNORE INTO `poi_program_assignments` (`poi_id`, `program_id`) SELECT `id`, `program_id` FROM `pecl_pois` WHERE `program_id` IS NOT NULL")
 
-                // Drop old program_id column from pecl_pois
                 db.execSQL("CREATE TABLE `pecl_pois_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL UNIQUE)")
                 db.execSQL("INSERT INTO `pecl_pois_new` (`id`, `name`) SELECT `id`, `name` FROM `pecl_pois`")
                 db.execSQL("DROP TABLE `pecl_pois`")
@@ -179,19 +170,31 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Create junction table for many-to-many tasks to POIs
                 db.execSQL("CREATE TABLE IF NOT EXISTS `task_poi_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `task_id` INTEGER NOT NULL, `poi_id` INTEGER NOT NULL, FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_task_poi_assignments_task_id_poi_id` ON `task_poi_assignments` (`task_id`, `poi_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_poi_assignments_poi_id` ON `task_poi_assignments` (`poi_id`)")
 
-                // Migrate data from old poi_id in pecl_tasks to junction
                 db.execSQL("INSERT OR IGNORE INTO `task_poi_assignments` (`task_id`, `poi_id`) SELECT `id`, `poi_id` FROM `pecl_tasks` WHERE `poi_id` IS NOT NULL")
 
-                // Drop old poi_id column from pecl_tasks
                 db.execSQL("CREATE TABLE `pecl_tasks_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL UNIQUE)")
                 db.execSQL("INSERT INTO `pecl_tasks_new` (`id`, `name`) SELECT `id`, `name` FROM `pecl_tasks`")
                 db.execSQL("DROP TABLE `pecl_tasks`")
                 db.execSQL("ALTER TABLE `pecl_tasks_new` RENAME TO `pecl_tasks`")
+            }
+        }
+
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE pecl_questions ADD COLUMN task_id INTEGER NOT NULL DEFAULT 0")
+                } catch (e: Exception) {
+                    Log.e("Migration16_17", "task_id column already exists", e)
+                }
+                db.execSQL("CREATE TABLE pecl_questions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, task_id INTEGER NOT NULL DEFAULT 0, sub_task TEXT NOT NULL, control_type TEXT NOT NULL, scale TEXT NOT NULL, critical_task TEXT NOT NULL, FOREIGN KEY(task_id) REFERENCES pecl_tasks(id) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+                db.execSQL("INSERT INTO pecl_questions_new (id, task_id, sub_task, control_type, scale, critical_task) SELECT id, 0, sub_task, control_type, scale, critical_task FROM pecl_questions")
+                db.execSQL("DROP TABLE pecl_questions")
+                db.execSQL("ALTER TABLE pecl_questions_new RENAME TO pecl_questions")
+                db.execSQL("CREATE INDEX index_pecl_questions_task_id ON pecl_questions (task_id)")
             }
         }
     }

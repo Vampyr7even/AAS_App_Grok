@@ -16,9 +16,9 @@ import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
@@ -263,7 +263,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
-    fun updateTask(task: PeclTaskEntity, poiIds: List<Long>) {
+    fun updateTask(task: PeclTaskEntity, poiIds: List<Long>? = null) {
         _tasksState.value = AppState.Loading
         viewModelScope.launch {
             val result = repository.updateTask(task, poiIds)

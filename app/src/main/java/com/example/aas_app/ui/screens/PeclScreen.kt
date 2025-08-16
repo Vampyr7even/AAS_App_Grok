@@ -22,7 +22,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,7 +48,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PoiWithPrograms
@@ -58,6 +63,8 @@ fun PeclScreen(navController: NavController) {
     val programsState by viewModel.programsState.observeAsState(AppState.Loading as AppState<List<PeclProgramEntity>>)
     val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PoiWithPrograms>>)
     val tasksState by viewModel.tasksState.observeAsState(AppState.Loading as AppState<List<TaskWithPois>>)
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
+    val scalesState by viewModel.scalesState.observeAsState(AppState.Loading as AppState<List<ScaleEntity>>)
     val poisSimple by viewModel.poisSimple.observeAsState(emptyList())
     var selectedTab by remember { mutableStateOf<String?>(null) }
     var showAddProgram by remember { mutableStateOf(false) }
@@ -77,6 +84,18 @@ fun PeclScreen(navController: NavController) {
     var editTaskName by remember { mutableStateOf("") }
     var selectedPoisForEdit by remember { mutableStateOf(setOf<Long>()) }
     var selectedTaskToDelete by remember { mutableStateOf<PeclTaskEntity?>(null) }
+    var showAddQuestionDialog by remember { mutableStateOf(false) }
+    var newSubTask by remember { mutableStateOf("") }
+    var newControlType by remember { mutableStateOf("") }
+    var newScale by remember { mutableStateOf("") }
+    var newCriticalTask by remember { mutableStateOf("") }
+    var showEditQuestionDialog by remember { mutableStateOf<PeclQuestionEntity?>(null) }
+    var editSubTask by remember { mutableStateOf("") }
+    var editControlType by remember { mutableStateOf("") }
+    var editScale by remember { mutableStateOf("") }
+    var editCriticalTask by remember { mutableStateOf("") }
+    var selectedQuestionToDelete by remember { mutableStateOf<PeclQuestionEntity?>(null) }
+    var expanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == "Programs") {
@@ -87,6 +106,9 @@ fun PeclScreen(navController: NavController) {
         } else if (selectedTab == "Tasks") {
             viewModel.loadAllPois() // For selection in dialogs
             viewModel.loadAllTasksWithPois()
+        } else if (selectedTab == "Sub Tasks") {
+            viewModel.loadAllQuestions()
+            viewModel.loadScales()
         }
     }
 
@@ -109,6 +131,15 @@ fun PeclScreen(navController: NavController) {
             selectedPoisForEdit = taskWithPois.pois.mapNotNull { poiName ->
                 poisSimple.find { it.name == poiName }?.id
             }.toSet()
+        }
+    }
+
+    LaunchedEffect(showEditQuestionDialog) {
+        showEditQuestionDialog?.let { question ->
+            editSubTask = question.subTask
+            editControlType = question.controlType
+            editScale = question.scale
+            editCriticalTask = question.criticalTask
         }
     }
 
@@ -137,11 +168,11 @@ fun PeclScreen(navController: NavController) {
                 .padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(1.dp)
         ) {
-            PeclModuleNavButton("Evaluate", selectedTab == "Evaluate") { navController.navigate("pecl/dashboard/0"); selectedTab = "Evaluate" }
+            PeclModuleNavButton("Evaluate", selectedTab == "Evaluate") { navController.navigate("pecl/evaluate"); selectedTab = "Evaluate" }
             PeclModuleNavButton("Programs", selectedTab == "Programs") { selectedTab = "Programs" }
             PeclModuleNavButton("POI", selectedTab == "POI") { selectedTab = "POI" }
             PeclModuleNavButton("Tasks", selectedTab == "Tasks") { selectedTab = "Tasks" }
-            PeclModuleNavButton("Sub Tasks", selectedTab == "Sub Tasks") { navController.navigate("pecl/subtasks"); selectedTab = "Sub Tasks" }
+            PeclModuleNavButton("Sub Tasks", selectedTab == "Sub Tasks") { selectedTab = "Sub Tasks" }
             PeclModuleNavButton("Instructors", selectedTab == "Instructors") { navController.navigate("pecl/instructors"); selectedTab = "Instructors" }
             PeclModuleNavButton("Students", selectedTab == "Students") { navController.navigate("pecl/students"); selectedTab = "Students" }
         }
@@ -560,6 +591,223 @@ fun PeclScreen(navController: NavController) {
                     }
                 )
             }
+        } else if (selectedTab == "Sub Tasks") {
+            Text(
+                text = "Sub Tasks - Questions",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            when (val state = questionsState) {
+                is AppState.Loading -> Text("Loading...")
+                is AppState.Success -> {
+                    val sortedQuestions = state.data.sortedBy { it.subTask }
+                    LazyColumn {
+                        items(sortedQuestions) { question ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(question.subTask)
+                                    Text("Task ID: ${question.task_id}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                IconButton(onClick = { showEditQuestionDialog = question }) {
+                                    Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                                }
+                                IconButton(onClick = { selectedQuestionToDelete = question }) {
+                                    Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                                }
+                            }
+                        }
+                    }
+                }
+                is AppState.Error -> Text("Error: ${state.message}")
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { showAddQuestionDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Question")
+                }
+                Text("Add Question", modifier = Modifier.padding(start = 4.dp))
+            }
+
+            if (showAddQuestionDialog) {
+                AlertDialog(
+                    onDismissRequest = { showAddQuestionDialog = false },
+                    title = { Text("Add Question") },
+                    text = {
+                        Column {
+                            TextField(
+                                value = newSubTask,
+                                onValueChange = { newSubTask = it },
+                                label = { Text("Sub Task") }
+                            )
+                            TextField(
+                                value = newControlType,
+                                onValueChange = { newControlType = it },
+                                label = { Text("Control Type") }
+                            )
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded }
+                            ) {
+                                TextField(
+                                    readOnly = true,
+                                    value = newScale,
+                                    onValueChange = { },
+                                    label = { Text("Scale") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    when (val state = scalesState) {
+                                        is AppState.Loading -> Text("Loading scales...")
+                                        is AppState.Success -> state.data.forEach { scale ->
+                                            DropdownMenuItem(
+                                                text = { Text(scale.scaleName) },
+                                                onClick = {
+                                                    newScale = scale.scaleName
+                                                    expanded = false
+                                                }
+                                            )
+                                        }
+                                        is AppState.Error -> Text("Error: ${state.message}")
+                                    }
+                                }
+                            }
+                            TextField(
+                                value = newCriticalTask,
+                                onValueChange = { newCriticalTask = it },
+                                label = { Text("Critical Task") }
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (newSubTask.isNotBlank()) {
+                                    viewModel.insertQuestion(PeclQuestionEntity(task_id = 0L, subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), 0L)
+                                    showAddQuestionDialog = false
+                                    newSubTask = ""
+                                    newControlType = ""
+                                    newScale = ""
+                                    newCriticalTask = ""
+                                } else {
+                                    // Handle error
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showAddQuestionDialog = false },
+                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            showEditQuestionDialog?.let { question ->
+                AlertDialog(
+                    onDismissRequest = { showEditQuestionDialog = null },
+                    title = { Text("Edit Question") },
+                    text = {
+                        Column {
+                            TextField(
+                                value = editSubTask,
+                                onValueChange = { editSubTask = it },
+                                label = { Text("Sub Task") }
+                            )
+                            TextField(
+                                value = editControlType,
+                                onValueChange = { editControlType = it },
+                                label = { Text("Control Type") }
+                            )
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded }
+                            ) {
+                                TextField(
+                                    readOnly = true,
+                                    value = editScale,
+                                    onValueChange = { },
+                                    label = { Text("Scale") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    when (val state = scalesState) {
+                                        is AppState.Loading -> Text("Loading scales...")
+                                        is AppState.Success -> state.data.forEach { scale ->
+                                            DropdownMenuItem(
+                                                text = { Text(scale.scaleName) },
+                                                onClick = {
+                                                    editScale = scale.scaleName
+                                                    expanded = false
+                                                }
+                                            )
+                                        }
+                                        is AppState.Error -> Text("Error: ${state.message}")
+                                    }
+                                }
+                            }
+                            TextField(
+                                value = editCriticalTask,
+                                onValueChange = { editCriticalTask = it },
+                                label = { Text("Critical Task") }
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (editSubTask.isNotBlank()) {
+                                    viewModel.updateQuestion(question.copy(subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), 0L)
+                                    showEditQuestionDialog = null
+                                    editSubTask = ""
+                                    editControlType = ""
+                                    editScale = ""
+                                    editCriticalTask = ""
+                                } else {
+                                    // Handle error
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showEditQuestionDialog = null },
+                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
         }
     }
 
@@ -567,25 +815,17 @@ fun PeclScreen(navController: NavController) {
         AlertDialog(
             onDismissRequest = { selectedProgramToDelete = null },
             title = { Text("Confirm Delete") },
-            text = { Text("Are you sure you want to delete this program?") },
+            text = { Text("Delete this program?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteProgram(program)
-                        selectedProgramToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
+                Button(onClick = {
+                    viewModel.deleteProgram(program)
+                    selectedProgramToDelete = null
+                }) {
                     Text("Yes")
                 }
             },
             dismissButton = {
-                Button(
-                    onClick = { selectedProgramToDelete = null },
-                    colors = ButtonDefaults.buttonColors(Color.Gray),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
+                Button(onClick = { selectedProgramToDelete = null }) {
                     Text("No")
                 }
             }
@@ -596,25 +836,17 @@ fun PeclScreen(navController: NavController) {
         AlertDialog(
             onDismissRequest = { selectedPoiToDelete = null },
             title = { Text("Confirm Delete") },
-            text = { Text("Are you sure you want to delete this POI?") },
+            text = { Text("Delete this POI?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deletePoi(poi)
-                        selectedPoiToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
+                Button(onClick = {
+                    viewModel.deletePoi(poi)
+                    selectedPoiToDelete = null
+                }) {
                     Text("Yes")
                 }
             },
             dismissButton = {
-                Button(
-                    onClick = { selectedPoiToDelete = null },
-                    colors = ButtonDefaults.buttonColors(Color.Gray),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
+                Button(onClick = { selectedPoiToDelete = null }) {
                     Text("No")
                 }
             }
@@ -625,25 +857,38 @@ fun PeclScreen(navController: NavController) {
         AlertDialog(
             onDismissRequest = { selectedTaskToDelete = null },
             title = { Text("Confirm Delete") },
-            text = { Text("Are you sure you want to delete this task?") },
+            text = { Text("Delete this task?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteTask(task)
-                        selectedTaskToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
+                Button(onClick = {
+                    viewModel.deleteTask(task)
+                    selectedTaskToDelete = null
+                }) {
                     Text("Yes")
                 }
             },
             dismissButton = {
-                Button(
-                    onClick = { selectedTaskToDelete = null },
-                    colors = ButtonDefaults.buttonColors(Color.Gray),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
+                Button(onClick = { selectedTaskToDelete = null }) {
+                    Text("No")
+                }
+            }
+        )
+    }
+
+    selectedQuestionToDelete?.let { question ->
+        AlertDialog(
+            onDismissRequest = { selectedQuestionToDelete = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Delete this question?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.deleteQuestion(question, 0L)
+                    selectedQuestionToDelete = null
+                }) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { selectedQuestionToDelete = null }) {
                     Text("No")
                 }
             }
