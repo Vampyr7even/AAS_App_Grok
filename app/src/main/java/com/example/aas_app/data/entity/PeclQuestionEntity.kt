@@ -20,7 +20,7 @@ import androidx.room.PrimaryKey
 )
 data class PeclQuestionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
-    val task_id: Long = 0L,
+    val task_id: Long? = null,
     @ColumnInfo(name = "sub_task") val subTask: String,
     @ColumnInfo(name = "control_type") val controlType: String,
     val scale: String,

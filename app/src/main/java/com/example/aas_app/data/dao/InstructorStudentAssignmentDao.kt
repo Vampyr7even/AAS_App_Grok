@@ -18,4 +18,10 @@ interface InstructorStudentAssignmentDao {
 
     @Query("SELECT u.* FROM users u JOIN instructor_student_assignments a ON u.id = a.student_id WHERE a.program_id = :programId")
     fun getStudentsForProgram(programId: Long): Flow<List<UserEntity>>
+
+    @Query("SELECT * FROM instructor_student_assignments WHERE instructor_id = :instructorId")
+    fun getAssignmentsForInstructor(instructorId: Long): Flow<List<InstructorStudentAssignmentEntity>>
+
+    @Query("DELETE FROM instructor_student_assignments WHERE instructor_id = :instructorId")
+    suspend fun deleteAssignmentsForInstructor(instructorId: Long)
 }

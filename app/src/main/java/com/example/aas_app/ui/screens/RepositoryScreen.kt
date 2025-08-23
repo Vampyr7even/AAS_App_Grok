@@ -89,7 +89,7 @@ fun RepositoryScreen(navController: NavController) {
             text = { Text("Delete this question?") },
             confirmButton = {
                 Button(onClick = {
-                    selectedQuestion?.let { viewModel.deleteQuestion(it, 0L) }
+                    selectedQuestion?.let { viewModel.deleteQuestion(it) }
                     showDialog = false
                 }) {
                     Text("Yes")

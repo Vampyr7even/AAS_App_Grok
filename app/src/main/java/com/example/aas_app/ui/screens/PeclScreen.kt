@@ -89,13 +89,26 @@ fun PeclScreen(navController: NavController) {
     var newControlType by remember { mutableStateOf("") }
     var newScale by remember { mutableStateOf("") }
     var newCriticalTask by remember { mutableStateOf("") }
+    var newTaskId by remember { mutableStateOf<Long?>(null) } // Changed to Long? for nullability
     var showEditQuestionDialog by remember { mutableStateOf<PeclQuestionEntity?>(null) }
     var editSubTask by remember { mutableStateOf("") }
     var editControlType by remember { mutableStateOf("") }
     var editScale by remember { mutableStateOf("") }
     var editCriticalTask by remember { mutableStateOf("") }
+    var editTaskId by remember { mutableStateOf<Long?>(null) } // Changed to Long? for nullability
     var selectedQuestionToDelete by remember { mutableStateOf<PeclQuestionEntity?>(null) }
-    var expanded by remember { mutableStateOf(false) }
+    var expandedScaleAdd by remember { mutableStateOf(false) }
+    var expandedTaskAdd by remember { mutableStateOf(false) }
+    var expandedControlTypeAdd by remember { mutableStateOf(false) }
+    var expandedCriticalTaskAdd by remember { mutableStateOf(false) }
+    var expandedScaleEdit by remember { mutableStateOf(false) }
+    var expandedTaskEdit by remember { mutableStateOf(false) }
+    var expandedControlTypeEdit by remember { mutableStateOf(false) }
+    var expandedCriticalTaskEdit by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) } // Added for Tasks delete confirmation
+
+    val controlTypeOptions = listOf("CheckBox", "ComboBox", "Comment", "ListBox", "OptionButton", "ScoreBox", "TextBox")
+    val criticalTaskOptions = listOf("No", "Yes")
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == "Programs") {
@@ -109,6 +122,7 @@ fun PeclScreen(navController: NavController) {
         } else if (selectedTab == "Sub Tasks") {
             viewModel.loadAllQuestions()
             viewModel.loadScales()
+            viewModel.loadAllTasksWithPois() // For task dropdown
         }
     }
 
@@ -140,6 +154,7 @@ fun PeclScreen(navController: NavController) {
             editControlType = question.controlType
             editScale = question.scale
             editCriticalTask = question.criticalTask
+            editTaskId = question.task_id
         }
     }
 
@@ -178,11 +193,22 @@ fun PeclScreen(navController: NavController) {
         }
 
         if (selectedTab == "Programs") {
-            Text(
-                text = "Programs",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Programs",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showAddProgram = !showAddProgram }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Program")
+                }
+                Text("Add Program", modifier = Modifier.padding(start = 4.dp))
+            }
             when (val state = programsState) {
                 is AppState.Loading -> Text("Loading...")
                 is AppState.Success -> {
@@ -229,19 +255,6 @@ fun PeclScreen(navController: NavController) {
                 is AppState.Error -> Text("Error: ${state.message}")
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { showAddProgram = !showAddProgram }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Program")
-                }
-                Text("Add Program", modifier = Modifier.padding(start = 4.dp))
-            }
-
             if (showAddProgram) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextField(
@@ -260,11 +273,22 @@ fun PeclScreen(navController: NavController) {
                 }
             }
         } else if (selectedTab == "POI") {
-            Text(
-                text = "Program of Instruction",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Program of Instruction",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showAddPoiDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add POI")
+                }
+                Text("Add POI", modifier = Modifier.padding(start = 4.dp))
+            }
 
             when (val state = poisState) {
                 is AppState.Loading -> Text("Loading POIs...")
@@ -287,19 +311,6 @@ fun PeclScreen(navController: NavController) {
                     }
                 }
                 is AppState.Error -> Text("Error: ${state.message}")
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { showAddPoiDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add POI")
-                }
-                Text("Add POI", modifier = Modifier.padding(start = 4.dp))
             }
 
             if (showAddPoiDialog) {
@@ -344,7 +355,7 @@ fun PeclScreen(navController: NavController) {
                                     newPoiName = ""
                                     selectedProgramsForAdd = emptySet()
                                 } else {
-                                    // Handle error, e.g., post to state for UI toast
+                                    // Handle error
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
@@ -428,14 +439,25 @@ fun PeclScreen(navController: NavController) {
                 )
             }
         } else if (selectedTab == "Tasks") {
-            Text(
-                text = "POI Tasks",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "POI Tasks",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showAddTaskDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Task")
+                }
+                Text("Add Task", modifier = Modifier.padding(start = 4.dp))
+            }
 
             when (val state = tasksState) {
-                is AppState.Loading -> Text("Loading Tasks...")
+                is AppState.Loading -> Text(text = "Loading...")
                 is AppState.Success -> {
                     LazyColumn {
                         items(state.data) { taskWithPois ->
@@ -447,27 +469,17 @@ fun PeclScreen(navController: NavController) {
                                 IconButton(onClick = { showEditTaskDialog = taskWithPois }) {
                                     Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
                                 }
-                                IconButton(onClick = { selectedTaskToDelete = taskWithPois.task }) {
+                                IconButton(onClick = {
+                                    selectedTaskToDelete = taskWithPois.task
+                                    showDialog = true // Use showDialog for confirmation
+                                }) {
                                     Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
                                 }
                             }
                         }
                     }
                 }
-                is AppState.Error -> Text("Error: ${state.message}")
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { showAddTaskDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Task")
-                }
-                Text("Add Task", modifier = Modifier.padding(start = 4.dp))
+                is AppState.Error -> Text(text = "Error: ${state.message}")
             }
 
             if (showAddTaskDialog) {
@@ -592,22 +604,39 @@ fun PeclScreen(navController: NavController) {
                 )
             }
         } else if (selectedTab == "Sub Tasks") {
-            Text(
-                text = "Sub Tasks - Questions",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Sub Tasks - Questions",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showAddQuestionDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Question")
+                }
+                Text("Add Question", modifier = Modifier.padding(start = 4.dp))
+            }
 
             when (val state = questionsState) {
                 is AppState.Loading -> Text("Loading...")
                 is AppState.Success -> {
-                    val sortedQuestions = state.data.sortedBy { it.subTask }
+                    val sortedQuestions = state.data.sortedBy { it.subTask } // Alphabetical sort by subTask
+                    val taskMap = tasksState.let { tState ->
+                        if (tState is AppState.Success) {
+                            tState.data.associate { it.task.id to it.task.name }
+                        } else emptyMap()
+                    }
                     LazyColumn {
                         items(sortedQuestions) { question ->
+                            val taskName = question.task_id?.let { taskMap[it] } ?: "Unassigned"
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(question.subTask)
-                                    Text("Task ID: ${question.task_id}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Task: $taskName, ControlType: ${question.controlType}, Scale: ${question.scale}, CriticalTask: ${question.criticalTask}", style = MaterialTheme.typography.bodySmall)
                                 }
                                 IconButton(onClick = { showEditQuestionDialog = question }) {
                                     Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
@@ -622,19 +651,6 @@ fun PeclScreen(navController: NavController) {
                 is AppState.Error -> Text("Error: ${state.message}")
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { showAddQuestionDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Question")
-                }
-                Text("Add Question", modifier = Modifier.padding(start = 4.dp))
-            }
-
             if (showAddQuestionDialog) {
                 AlertDialog(
                     onDismissRequest = { showAddQuestionDialog = false },
@@ -646,36 +662,97 @@ fun PeclScreen(navController: NavController) {
                                 onValueChange = { newSubTask = it },
                                 label = { Text("Sub Task") }
                             )
-                            TextField(
-                                value = newControlType,
-                                onValueChange = { newControlType = it },
-                                label = { Text("Control Type") }
-                            )
                             ExposedDropdownMenuBox(
-                                expanded = expanded,
-                                onExpandedChange = { expanded = !expanded }
+                                expanded = expandedControlTypeAdd,
+                                onExpandedChange = { expandedControlTypeAdd = !expandedControlTypeAdd }
                             ) {
                                 TextField(
                                     readOnly = true,
-                                    value = newScale,
+                                    value = newControlType,
                                     onValueChange = { },
-                                    label = { Text("Scale") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                    label = { Text("Control Type") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedControlTypeAdd) },
                                     colors = ExposedDropdownMenuDefaults.textFieldColors(),
                                     modifier = Modifier.menuAnchor()
                                 )
                                 ExposedDropdownMenu(
-                                    expanded = expanded,
-                                    onDismissRequest = { expanded = false }
+                                    expanded = expandedControlTypeAdd,
+                                    onDismissRequest = { expandedControlTypeAdd = false }
                                 ) {
-                                    when (val state = scalesState) {
-                                        is AppState.Loading -> Text("Loading scales...")
-                                        is AppState.Success -> state.data.forEach { scale ->
+                                    controlTypeOptions.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = {
+                                                newControlType = option
+                                                expandedControlTypeAdd = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            if (newControlType == "ComboBox" || newControlType == "ListBox") {
+                                ExposedDropdownMenuBox(
+                                    expanded = expandedScaleAdd,
+                                    onExpandedChange = { expandedScaleAdd = !expandedScaleAdd }
+                                ) {
+                                    TextField(
+                                        readOnly = true,
+                                        value = newScale,
+                                        onValueChange = { },
+                                        label = { Text("Scale") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScaleAdd) },
+                                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                        modifier = Modifier.menuAnchor()
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = expandedScaleAdd,
+                                        onDismissRequest = { expandedScaleAdd = false }
+                                    ) {
+                                        when (val state = scalesState) {
+                                            is AppState.Loading -> Text("Loading scales...")
+                                            is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { scale ->
+                                                DropdownMenuItem(
+                                                    text = { Text(scale.scaleName) },
+                                                    onClick = {
+                                                        newScale = scale.scaleName
+                                                        expandedScaleAdd = false
+                                                    }
+                                                )
+                                            }
+                                            is AppState.Error -> Text("Error: ${state.message}")
+                                        }
+                                    }
+                                }
+                            }
+                            ExposedDropdownMenuBox(
+                                expanded = expandedTaskAdd,
+                                onExpandedChange = { expandedTaskAdd = !expandedTaskAdd }
+                            ) {
+                                TextField(
+                                    readOnly = true,
+                                    value = tasksState.let { state ->
+                                        if (state is AppState.Success) {
+                                            state.data.sortedBy { it.task.name }.find { it.task.id == newTaskId }?.task?.name ?: ""
+                                        } else ""
+                                    },
+                                    onValueChange = { },
+                                    label = { Text("Assign to Task") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTaskAdd) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedTaskAdd,
+                                    onDismissRequest = { expandedTaskAdd = false }
+                                ) {
+                                    when (val state = tasksState) {
+                                        is AppState.Loading -> Text("Loading tasks...")
+                                        is AppState.Success -> state.data.sortedBy { it.task.name }.forEach { taskWithPois ->
                                             DropdownMenuItem(
-                                                text = { Text(scale.scaleName) },
+                                                text = { Text(taskWithPois.task.name) },
                                                 onClick = {
-                                                    newScale = scale.scaleName
-                                                    expanded = false
+                                                    newTaskId = taskWithPois.task.id
+                                                    expandedTaskAdd = false
                                                 }
                                             )
                                         }
@@ -683,25 +760,53 @@ fun PeclScreen(navController: NavController) {
                                     }
                                 }
                             }
-                            TextField(
-                                value = newCriticalTask,
-                                onValueChange = { newCriticalTask = it },
-                                label = { Text("Critical Task") }
-                            )
+                            ExposedDropdownMenuBox(
+                                expanded = expandedCriticalTaskAdd,
+                                onExpandedChange = { expandedCriticalTaskAdd = !expandedCriticalTaskAdd }
+                            ) {
+                                TextField(
+                                    readOnly = true,
+                                    value = newCriticalTask,
+                                    onValueChange = { },
+                                    label = { Text("Critical Task") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCriticalTaskAdd) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedCriticalTaskAdd,
+                                    onDismissRequest = { expandedCriticalTaskAdd = false }
+                                ) {
+                                    criticalTaskOptions.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = {
+                                                newCriticalTask = option
+                                                expandedCriticalTaskAdd = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     },
                     confirmButton = {
                         Button(
                             onClick = {
-                                if (newSubTask.isNotBlank()) {
-                                    viewModel.insertQuestion(PeclQuestionEntity(task_id = 0L, subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), 0L)
-                                    showAddQuestionDialog = false
-                                    newSubTask = ""
-                                    newControlType = ""
-                                    newScale = ""
-                                    newCriticalTask = ""
-                                } else {
-                                    // Handle error
+                                newTaskId?.let { taskId ->
+                                    if (newSubTask.isNotBlank()) {
+                                        viewModel.insertQuestion(PeclQuestionEntity(task_id = taskId, subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), taskId)
+                                        showAddQuestionDialog = false
+                                        newSubTask = ""
+                                        newControlType = ""
+                                        newScale = ""
+                                        newCriticalTask = ""
+                                        newTaskId = null
+                                    } else {
+                                        // Handle error (e.g., required fields)
+                                    }
+                                } ?: run {
+                                    // Handle null taskId error
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
@@ -733,36 +838,97 @@ fun PeclScreen(navController: NavController) {
                                 onValueChange = { editSubTask = it },
                                 label = { Text("Sub Task") }
                             )
-                            TextField(
-                                value = editControlType,
-                                onValueChange = { editControlType = it },
-                                label = { Text("Control Type") }
-                            )
                             ExposedDropdownMenuBox(
-                                expanded = expanded,
-                                onExpandedChange = { expanded = !expanded }
+                                expanded = expandedControlTypeEdit,
+                                onExpandedChange = { expandedControlTypeEdit = !expandedControlTypeEdit }
                             ) {
                                 TextField(
                                     readOnly = true,
-                                    value = editScale,
+                                    value = editControlType,
                                     onValueChange = { },
-                                    label = { Text("Scale") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                    label = { Text("Control Type") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedControlTypeEdit) },
                                     colors = ExposedDropdownMenuDefaults.textFieldColors(),
                                     modifier = Modifier.menuAnchor()
                                 )
                                 ExposedDropdownMenu(
-                                    expanded = expanded,
-                                    onDismissRequest = { expanded = false }
+                                    expanded = expandedControlTypeEdit,
+                                    onDismissRequest = { expandedControlTypeEdit = false }
                                 ) {
-                                    when (val state = scalesState) {
-                                        is AppState.Loading -> Text("Loading scales...")
-                                        is AppState.Success -> state.data.forEach { scale ->
+                                    controlTypeOptions.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = {
+                                                editControlType = option
+                                                expandedControlTypeEdit = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            if (editControlType == "ComboBox" || editControlType == "ListBox") {
+                                ExposedDropdownMenuBox(
+                                    expanded = expandedScaleEdit,
+                                    onExpandedChange = { expandedScaleEdit = !expandedScaleEdit }
+                                ) {
+                                    TextField(
+                                        readOnly = true,
+                                        value = editScale,
+                                        onValueChange = { },
+                                        label = { Text("Scale") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScaleEdit) },
+                                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                        modifier = Modifier.menuAnchor()
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = expandedScaleEdit,
+                                        onDismissRequest = { expandedScaleEdit = false }
+                                    ) {
+                                        when (val state = scalesState) {
+                                            is AppState.Loading -> Text("Loading scales...")
+                                            is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { scale ->
+                                                DropdownMenuItem(
+                                                    text = { Text(scale.scaleName) },
+                                                    onClick = {
+                                                        editScale = scale.scaleName
+                                                        expandedScaleEdit = false
+                                                    }
+                                                )
+                                            }
+                                            is AppState.Error -> Text("Error: ${state.message}")
+                                        }
+                                    }
+                                }
+                            }
+                            ExposedDropdownMenuBox(
+                                expanded = expandedTaskEdit,
+                                onExpandedChange = { expandedTaskEdit = !expandedTaskEdit }
+                            ) {
+                                TextField(
+                                    readOnly = true,
+                                    value = tasksState.let { state ->
+                                        if (state is AppState.Success) {
+                                            state.data.sortedBy { it.task.name }.find { it.task.id == editTaskId }?.task?.name ?: ""
+                                        } else ""
+                                    },
+                                    onValueChange = { },
+                                    label = { Text("Assign to Task") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTaskEdit) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedTaskEdit,
+                                    onDismissRequest = { expandedTaskEdit = false }
+                                ) {
+                                    when (val state = tasksState) {
+                                        is AppState.Loading -> Text("Loading tasks...")
+                                        is AppState.Success -> state.data.sortedBy { it.task.name }.forEach { taskWithPois ->
                                             DropdownMenuItem(
-                                                text = { Text(scale.scaleName) },
+                                                text = { Text(taskWithPois.task.name) },
                                                 onClick = {
-                                                    editScale = scale.scaleName
-                                                    expanded = false
+                                                    editTaskId = taskWithPois.task.id
+                                                    expandedTaskEdit = false
                                                 }
                                             )
                                         }
@@ -770,25 +936,53 @@ fun PeclScreen(navController: NavController) {
                                     }
                                 }
                             }
-                            TextField(
-                                value = editCriticalTask,
-                                onValueChange = { editCriticalTask = it },
-                                label = { Text("Critical Task") }
-                            )
+                            ExposedDropdownMenuBox(
+                                expanded = expandedCriticalTaskEdit,
+                                onExpandedChange = { expandedCriticalTaskEdit = !expandedCriticalTaskEdit }
+                            ) {
+                                TextField(
+                                    readOnly = true,
+                                    value = editCriticalTask,
+                                    onValueChange = { },
+                                    label = { Text("Critical Task") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCriticalTaskEdit) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedCriticalTaskEdit,
+                                    onDismissRequest = { expandedCriticalTaskEdit = false }
+                                ) {
+                                    criticalTaskOptions.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = {
+                                                editCriticalTask = option
+                                                expandedCriticalTaskEdit = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     },
                     confirmButton = {
                         Button(
                             onClick = {
-                                if (editSubTask.isNotBlank()) {
-                                    viewModel.updateQuestion(question.copy(subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), 0L)
-                                    showEditQuestionDialog = null
-                                    editSubTask = ""
-                                    editControlType = ""
-                                    editScale = ""
-                                    editCriticalTask = ""
-                                } else {
-                                    // Handle error
+                                editTaskId?.let { taskId ->
+                                    if (editSubTask.isNotBlank()) {
+                                        viewModel.updateQuestion(question.copy(task_id = taskId, subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), taskId)
+                                        showEditQuestionDialog = null
+                                        editSubTask = ""
+                                        editControlType = ""
+                                        editScale = ""
+                                        editCriticalTask = ""
+                                        editTaskId = null
+                                    } else {
+                                        // Handle error (e.g., required fields)
+                                    }
+                                } ?: run {
+                                    // Handle null taskId error
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
@@ -855,19 +1049,20 @@ fun PeclScreen(navController: NavController) {
 
     selectedTaskToDelete?.let { task ->
         AlertDialog(
-            onDismissRequest = { selectedTaskToDelete = null },
+            onDismissRequest = { showDialog = false },
             title = { Text("Confirm Delete") },
             text = { Text("Delete this task?") },
             confirmButton = {
                 Button(onClick = {
                     viewModel.deleteTask(task)
+                    showDialog = false
                     selectedTaskToDelete = null
                 }) {
                     Text("Yes")
                 }
             },
             dismissButton = {
-                Button(onClick = { selectedTaskToDelete = null }) {
+                Button(onClick = { showDialog = false }) {
                     Text("No")
                 }
             }
@@ -881,7 +1076,7 @@ fun PeclScreen(navController: NavController) {
             text = { Text("Delete this question?") },
             confirmButton = {
                 Button(onClick = {
-                    viewModel.deleteQuestion(question, 0L)
+                    viewModel.deleteQuestion(question)
                     selectedQuestionToDelete = null
                 }) {
                     Text("Yes")
@@ -904,8 +1099,7 @@ fun PeclModuleNavButton(text: String, isSelected: Boolean, onClick: () -> Unit) 
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) Color(0xFFE57373) else Color.Transparent,
             contentColor = if (isSelected) Color.White else Color.Black
-        ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, focusedElevation = 0.dp, hoveredElevation = 0.dp, disabledElevation = 0.dp)
+        )
     ) {
         Text(text)
     }

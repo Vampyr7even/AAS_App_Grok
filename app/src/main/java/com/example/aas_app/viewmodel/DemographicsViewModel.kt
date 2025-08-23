@@ -4,9 +4,10 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
+import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.UserEntity
+import com.example.aas_app.data.entity.PeclProgramEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
@@ -23,6 +24,9 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
 
     private val _students = MutableLiveData<List<UserEntity>>()
     val students: LiveData<List<UserEntity>> get() = _students
+
+    private val _programs = MutableLiveData<List<PeclProgramEntity>>()
+    val programs: LiveData<List<PeclProgramEntity>> get() = _programs
 
     // Load methods
     fun loadUsers() {
@@ -52,6 +56,16 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
                 _students.value = repository.getUsersByRole("student").first()
             } catch (e: Exception) {
                 _students.value = emptyList()
+            }
+        }
+    }
+
+    fun loadPrograms() {
+        viewModelScope.launch {
+            try {
+                _programs.value = repository.getAllPrograms().first()
+            } catch (e: Exception) {
+                _programs.value = emptyList()
             }
         }
     }

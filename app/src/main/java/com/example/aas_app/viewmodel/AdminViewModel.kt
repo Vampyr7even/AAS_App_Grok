@@ -290,7 +290,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         viewModelScope.launch {
             val result = repository.insertQuestionWithAssignment(question, taskId)
             when (result) {
-                is AppResult.Success -> loadQuestionsForTask(taskId)
+                is AppResult.Success -> loadAllQuestions() // Or loadQuestionsForTask(taskId) if scoped
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
         }
@@ -301,18 +301,18 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         viewModelScope.launch {
             val result = repository.updateQuestion(question)
             when (result) {
-                is AppResult.Success -> loadQuestionsForTask(taskId)
+                is AppResult.Success -> loadAllQuestions() // Or loadQuestionsForTask(taskId)
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
         }
     }
 
-    fun deleteQuestion(question: PeclQuestionEntity, taskId: Long) {
+    fun deleteQuestion(question: PeclQuestionEntity) { // Removed taskId as not used in repo
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
             val result = repository.deleteQuestion(question)
             when (result) {
-                is AppResult.Success -> loadQuestionsForTask(taskId)
+                is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
         }

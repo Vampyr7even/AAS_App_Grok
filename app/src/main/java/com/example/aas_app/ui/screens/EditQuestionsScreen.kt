@@ -125,11 +125,11 @@ fun EditQuestionsScreen(navController: NavController, taskId: Long) {
             ) {
                 when (val state = scalesState) {
                     is AppState.Loading -> Text("Loading scales...")
-                    is AppState.Success -> state.data.forEach { scale ->
+                    is AppState.Success -> state.data.forEach { peclScale ->
                         DropdownMenuItem(
-                            text = { Text(scale.scaleName) },
+                            text = { Text(peclScale.scaleName) },
                             onClick = {
-                                newScale = scale.scaleName
+                                newScale = peclScale.scaleName
                                 expanded = false
                             }
                         )
@@ -209,7 +209,7 @@ fun EditQuestionsScreen(navController: NavController, taskId: Long) {
             text = { Text("Delete this question?") },
             confirmButton = {
                 Button(onClick = {
-                    selectedQuestion?.let { viewModel.deleteQuestion(it, taskId) }
+                    selectedQuestion?.let { viewModel.deleteQuestion(it) }
                     showDialog = false
                 }) {
                     Text("Yes")

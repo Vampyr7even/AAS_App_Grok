@@ -56,7 +56,7 @@ import com.example.aas_app.data.entity.UserEntity
         PoiProgramAssignmentEntity::class,
         TaskPoiAssignmentEntity::class
     ],
-    version = 17,
+    version = 19,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -88,7 +88,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aas_database"
                 )
-                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
+                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
                     .build()
                 INSTANCE = instance
                 instance
@@ -192,6 +192,22 @@ abstract class AppDatabase : RoomDatabase() {
                 }
                 db.execSQL("CREATE TABLE pecl_questions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, task_id INTEGER NOT NULL DEFAULT 0, sub_task TEXT NOT NULL, control_type TEXT NOT NULL, scale TEXT NOT NULL, critical_task TEXT NOT NULL, FOREIGN KEY(task_id) REFERENCES pecl_tasks(id) ON UPDATE NO ACTION ON DELETE RESTRICT )")
                 db.execSQL("INSERT INTO pecl_questions_new (id, task_id, sub_task, control_type, scale, critical_task) SELECT id, 0, sub_task, control_type, scale, critical_task FROM pecl_questions")
+                db.execSQL("DROP TABLE pecl_questions")
+                db.execSQL("ALTER TABLE pecl_questions_new RENAME TO pecl_questions")
+                db.execSQL("CREATE INDEX index_pecl_questions_task_id ON pecl_questions (task_id)")
+            }
+        }
+
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Empty migration to force schema validation and refresh
+            }
+        }
+
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE pecl_questions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, task_id INTEGER, sub_task TEXT NOT NULL, control_type TEXT NOT NULL, scale TEXT NOT NULL, critical_task TEXT NOT NULL, FOREIGN KEY(task_id) REFERENCES pecl_tasks(id) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+                db.execSQL("INSERT INTO pecl_questions_new (id, task_id, sub_task, control_type, scale, critical_task) SELECT id, task_id, sub_task, control_type, scale, critical_task FROM pecl_questions")
                 db.execSQL("DROP TABLE pecl_questions")
                 db.execSQL("ALTER TABLE pecl_questions_new RENAME TO pecl_questions")
                 db.execSQL("CREATE INDEX index_pecl_questions_task_id ON pecl_questions (task_id)")
