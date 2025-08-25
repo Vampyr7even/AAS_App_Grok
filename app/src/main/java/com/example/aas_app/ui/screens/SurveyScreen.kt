@@ -27,8 +27,8 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
-import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PoiWithPrograms
@@ -36,10 +36,10 @@ import com.example.aas_app.viewmodel.PoiWithPrograms
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SurveyScreen(navController: NavController) {
-    val viewModel: AdminViewModel = hiltViewModel() // Adjust to appropriate ViewModel if needed
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PoiWithPrograms>>)
-    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading as AppState<List<UserEntity>>)
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
+    val viewModel = hiltViewModel<AdminViewModel>()
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading)
+    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading)
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading)
 
     var selectedPoi by remember { mutableStateOf<PoiWithPrograms?>(null) }
     var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }
@@ -58,7 +58,7 @@ fun SurveyScreen(navController: NavController) {
                 readOnly = true,
                 value = selectedPoi?.poi?.name ?: "",
                 onValueChange = { },
-                label = { Text("Select POI") },
+                label = { Text(text = "Select POI") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPoi) },
                 colors = ExposedDropdownMenuDefaults.textFieldColors(),
                 modifier = Modifier.menuAnchor()
@@ -68,18 +68,20 @@ fun SurveyScreen(navController: NavController) {
                 onDismissRequest = { expandedPoi = false }
             ) {
                 when (val state = poisState) {
-                    is AppState.Loading -> Text("Loading...")
-                    is AppState.Success -> state.data.forEach { poiWithPrograms ->
-                        DropdownMenuItem(
-                            text = { Text(poiWithPrograms.poi.name) },
-                            onClick = {
-                                selectedPoi = poiWithPrograms
-                                expandedPoi = false
-                                viewModel.loadQuestionsForPoi(poiWithPrograms.poi.id) // Adjust to load questions for POI
-                            }
-                        )
+                    AppState.Loading -> Text(text = "Loading...")
+                    is AppState.Success -> {
+                        (state as AppState.Success<List<PoiWithPrograms>>).data.forEach { poiWithPrograms ->
+                            DropdownMenuItem(
+                                text = { Text(text = poiWithPrograms.poi.name) },
+                                onClick = {
+                                    selectedPoi = poiWithPrograms
+                                    expandedPoi = false
+                                    viewModel.loadQuestionsForPoi(poiWithPrograms.poi.id)
+                                }
+                            )
+                        }
                     }
-                    is AppState.Error -> Text("Error: ${state.message}")
+                    is AppState.Error -> Text(text = "Error: ${state.message}")
                 }
             }
         }
@@ -92,7 +94,7 @@ fun SurveyScreen(navController: NavController) {
                 readOnly = true,
                 value = selectedStudent?.fullName ?: "",
                 onValueChange = { },
-                label = { Text("Select Student") },
+                label = { Text(text = "Select Student") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStudent) },
                 colors = ExposedDropdownMenuDefaults.textFieldColors(),
                 modifier = Modifier.menuAnchor()
@@ -102,39 +104,41 @@ fun SurveyScreen(navController: NavController) {
                 onDismissRequest = { expandedStudent = false }
             ) {
                 when (val state = studentsState) {
-                    is AppState.Loading -> Text("Loading...")
-                    is AppState.Success -> state.data.forEach { student ->
-                        DropdownMenuItem(
-                            text = { Text(student.fullName) },
-                            onClick = {
-                                selectedStudent = student
-                                expandedStudent = false
-                            }
-                        )
+                    AppState.Loading -> Text(text = "Loading...")
+                    is AppState.Success -> {
+                        (state as AppState.Success<List<UserEntity>>).data.forEach { student ->
+                            DropdownMenuItem(
+                                text = { Text(text = student.fullName) },
+                                onClick = {
+                                    selectedStudent = student
+                                    expandedStudent = false
+                                }
+                            )
+                        }
                     }
-                    is AppState.Error -> Text("Error: ${state.message}")
+                    is AppState.Error -> Text(text = "Error: ${state.message}")
                 }
             }
         }
 
         when (val state = questionsState) {
-            is AppState.Loading -> Text("Loading questions...")
+            AppState.Loading -> Text(text = "Loading questions...")
             is AppState.Success -> {
                 LazyColumn {
-                    items(state.data) { question ->
+                    items((state as AppState.Success<List<PeclQuestionEntity>>).data) { question ->
                         // Render dynamic control based on question.controlType
-                        Text(question.subTask)
+                        Text(text = question.subTask)
                         // Add input field based on type
                     }
                 }
             }
-            is AppState.Error -> Text("Error: ${state.message}")
+            is AppState.Error -> Text(text = "Error: ${state.message}")
         }
 
         Button(
             onClick = {
                 // Collect responses and insert
-                val result = PeclEvaluationResultEntity(0L, 0L, 0L, 0L, 0.0, "comment", System.currentTimeMillis())
+                val result = PeclEvaluationResultEntity(student_id = selectedStudent?.id ?: 0L, instructor_id = 0L, question_id = 0L, score = 0.0, comment = "comment", timestamp = System.currentTimeMillis())
                 viewModel.insertEvaluationResult(result)
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),

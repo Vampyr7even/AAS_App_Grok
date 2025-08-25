@@ -4,16 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -32,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,13 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
-import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.DemographicsViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,8 +88,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
     var selectedStudentsForEdit by remember { mutableStateOf(setOf<Long>()) }
     var selectedProgramForEdit by remember { mutableStateOf<Long?>(null) }
     var expandedProgramEdit by remember { mutableStateOf(false) }
-
-    val repository: AppRepository = hiltViewModel<DemographicsViewModel>().repository // Incorrect, use injection
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(editUser) {
         editUser?.let { user ->
@@ -102,9 +98,11 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
             editPin = user.pin
             editRole = user.role ?: ""
             if (role == "instructor") {
-                val assignments = repository.getAssignmentsForInstructor(user.id).first()
-                selectedStudentsForEdit = assignments.map { it.student_id }.toSet()
-                selectedProgramForEdit = assignments.firstOrNull()?.program_id // Assume single program for simplicity
+                coroutineScope.launch {
+                    val assignments = viewModel.getAssignmentsForInstructor(user.id).value ?: emptyList()
+                    selectedStudentsForEdit = assignments.map { it.student_id }.toSet()
+                    selectedProgramForEdit = assignments.firstOrNull()?.program_id
+                }
             }
         }
     }
@@ -127,7 +125,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = { showAddInstructorDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Instructor")
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Instructor")
                 }
                 Text("Add Instructor", modifier = Modifier.padding(start = 4.dp))
             }
@@ -143,12 +141,12 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                         Text(text = user.fullName, modifier = Modifier.weight(1f))
                         IconButton(onClick = {
                             editUser = user
-                            showEditInstructorDialog = (role == "instructor")
+                            if (role == "instructor") showEditInstructorDialog = true
                         }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                            Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
                         }
                         IconButton(onClick = { selectedUser = user; showDialog = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
                         }
                     }
                 }
@@ -186,7 +184,8 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
             Button(
                 onClick = {
                     val fullName = "$newLastName, $newFirstName"
-                    viewModel.insertUser(UserEntity(firstName = newFirstName, lastName = newLastName, grade = newGrade, pin = newPin, fullName = fullName, role = newRole))
+                    val newUser = UserEntity(firstName = newFirstName, lastName = newLastName, grade = newGrade, pin = newPin, fullName = fullName, role = newRole)
+                    viewModel.insertUser(newUser)
                     newFirstName = ""
                     newLastName = ""
                     newGrade = ""
@@ -257,12 +256,12 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                 },
                 confirmButton = {
                     Button(onClick = {
-                        if (newInstructorName.isNotBlank() && selectedStudentsForAdd.isNotEmpty() && selectedProgramForAdd != null) {
-                            val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = newInstructorName, assignedProject = null, role = "instructor")
-                            viewModel.insertUser(newUser)
-                            val instructorId = newUser.id // Note: Insert is suspend, but for simplicity assume synchronous or use flow
+                        coroutineScope.launch {
+                            val fullName = newInstructorName
+                            val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
+                            val instructorId = viewModel.insertUserSync(newUser)
                             selectedStudentsForAdd.forEach { studentId ->
-                                repository.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAdd))
+                                viewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAdd))
                             }
                             showAddInstructorDialog = false
                             newInstructorName = ""
@@ -338,14 +337,16 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                 },
                 confirmButton = {
                     Button(onClick = {
-                        editUser?.let { user ->
-                            val updatedUser = user.copy(fullName = editInstructorName)
-                            viewModel.updateUser(updatedUser)
-                            repository.deleteAssignmentsForInstructor(user.id)
-                            selectedStudentsForEdit.forEach { studentId ->
-                                repository.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = user.id, student_id = studentId, program_id = selectedProgramForEdit))
+                        coroutineScope.launch {
+                            editUser?.let { user ->
+                                val updatedUser = user.copy(fullName = editInstructorName)
+                                viewModel.updateUser(updatedUser)
+                                viewModel.deleteAssignmentsForInstructor(user.id)
+                                selectedStudentsForEdit.forEach { studentId ->
+                                    viewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = user.id, student_id = studentId, program_id = selectedProgramForEdit))
+                                }
+                                showEditInstructorDialog = false
                             }
-                            showEditInstructorDialog = false
                         }
                     }) {
                         Text("Save")

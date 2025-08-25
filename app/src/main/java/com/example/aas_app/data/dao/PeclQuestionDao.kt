@@ -51,4 +51,7 @@ interface PeclQuestionDao {
         WHERE tp.poi_id = :poiId
     """)
     fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>>
+
+    @Query("SELECT * FROM pecl_questions WHERE sub_task = :subTask")
+    suspend fun getQuestionBySubTask(subTask: String): PeclQuestionEntity?
 }

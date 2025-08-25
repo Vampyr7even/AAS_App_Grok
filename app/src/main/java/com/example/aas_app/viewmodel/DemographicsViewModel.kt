@@ -3,14 +3,15 @@ package com.example.aas_app.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.AppRepository
-import com.example.aas_app.data.entity.UserEntity
+import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,13 +29,12 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     private val _programs = MutableLiveData<List<PeclProgramEntity>>()
     val programs: LiveData<List<PeclProgramEntity>> get() = _programs
 
-    // Load methods
     fun loadUsers() {
         viewModelScope.launch {
             try {
-                _users.value = repository.getAllUsers().first()
+                val data = repository.getAllUsers().first()
+                _users.value = data
             } catch (e: Exception) {
-                // Handle error, e.g., log or post empty list
                 _users.value = emptyList()
             }
         }
@@ -43,7 +43,8 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     fun loadInstructors() {
         viewModelScope.launch {
             try {
-                _instructors.value = repository.getUsersByRole("instructor").first()
+                val data = repository.getUsersByRole("instructor").first()
+                _instructors.value = data
             } catch (e: Exception) {
                 _instructors.value = emptyList()
             }
@@ -53,7 +54,8 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     fun loadStudents() {
         viewModelScope.launch {
             try {
-                _students.value = repository.getUsersByRole("student").first()
+                val data = repository.getUsersByRole("student").first()
+                _students.value = data
             } catch (e: Exception) {
                 _students.value = emptyList()
             }
@@ -63,41 +65,52 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     fun loadPrograms() {
         viewModelScope.launch {
             try {
-                _programs.value = repository.getAllPrograms().first()
+                val data = repository.getAllPrograms().first()
+                _programs.value = data
             } catch (e: Exception) {
                 _programs.value = emptyList()
             }
         }
     }
 
-    // CRUD for users
     fun insertUser(user: UserEntity) {
         viewModelScope.launch {
-            val result = repository.insertUser(user)
-            when (result) {
-                is AppResult.Success -> loadUsers()
-                is AppResult.Error -> { /* Handle error */ }
-            }
+            repository.insertUser(user)
+            loadUsers()
         }
+    }
+
+    suspend fun insertUserSync(user: UserEntity): Long {
+        return repository.insertUser(user)
     }
 
     fun updateUser(user: UserEntity) {
         viewModelScope.launch {
-            val result = repository.updateUser(user)
-            when (result) {
-                is AppResult.Success -> loadUsers()
-                is AppResult.Error -> { /* Handle error */ }
-            }
+            repository.updateUser(user)
+            loadUsers()
         }
     }
 
     fun deleteUser(user: UserEntity) {
         viewModelScope.launch {
-            val result = repository.deleteUser(user)
-            when (result) {
-                is AppResult.Success -> loadUsers()
-                is AppResult.Error -> { /* Handle error */ }
-            }
+            repository.deleteUser(user)
+            loadUsers()
         }
+    }
+
+    fun insertAssignment(assignment: InstructorStudentAssignmentEntity) {
+        viewModelScope.launch {
+            repository.insertAssignment(assignment)
+        }
+    }
+
+    fun deleteAssignmentsForInstructor(instructorId: Long) {
+        viewModelScope.launch {
+            repository.deleteAssignmentsForInstructor(instructorId)
+        }
+    }
+
+    fun getAssignmentsForInstructor(instructorId: Long): LiveData<List<InstructorStudentAssignmentEntity>> {
+        return repository.getAssignmentsForInstructor(instructorId).asLiveData()
     }
 }
