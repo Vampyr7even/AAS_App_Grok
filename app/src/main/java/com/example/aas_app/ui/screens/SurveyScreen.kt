@@ -16,6 +16,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,24 +28,29 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
+import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.UserEntity
-import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
-import com.example.aas_app.viewmodel.PoiWithPrograms
+import com.example.aas_app.viewmodel.PeclViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SurveyScreen(navController: NavController) {
-    val viewModel = hiltViewModel<AdminViewModel>()
-    val poisState by viewModel.poisState.observeAsState(AppState.Loading)
-    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading)
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading)
+    val viewModel = hiltViewModel<PeclViewModel>()
+    val poisState by viewModel.poisState.observeAsState(AppState.Loading as AppState<List<PeclPoiEntity>>)
+    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading as AppState<List<UserEntity>>)
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
 
-    var selectedPoi by remember { mutableStateOf<PoiWithPrograms?>(null) }
+    var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
     var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }
     var expandedPoi by remember { mutableStateOf(false) }
     var expandedStudent by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadPois()
+        viewModel.loadStudents()
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -56,7 +62,7 @@ fun SurveyScreen(navController: NavController) {
         ) {
             TextField(
                 readOnly = true,
-                value = selectedPoi?.poi?.name ?: "",
+                value = selectedPoi?.name ?: "",
                 onValueChange = { },
                 label = { Text(text = "Select POI") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPoi) },
@@ -70,13 +76,13 @@ fun SurveyScreen(navController: NavController) {
                 when (val state = poisState) {
                     AppState.Loading -> Text(text = "Loading...")
                     is AppState.Success -> {
-                        (state as AppState.Success<List<PoiWithPrograms>>).data.forEach { poiWithPrograms ->
+                        (state as AppState.Success<List<PeclPoiEntity>>).data.forEach { poi ->
                             DropdownMenuItem(
-                                text = { Text(text = poiWithPrograms.poi.name) },
+                                text = { Text(text = poi.name) },
                                 onClick = {
-                                    selectedPoi = poiWithPrograms
+                                    selectedPoi = poi
                                     expandedPoi = false
-                                    viewModel.loadQuestionsForPoi(poiWithPrograms.poi.id)
+                                    viewModel.loadQuestionsForPoi(poi.id)
                                 }
                             )
                         }
@@ -137,8 +143,15 @@ fun SurveyScreen(navController: NavController) {
 
         Button(
             onClick = {
-                // Collect responses and insert
-                val result = PeclEvaluationResultEntity(student_id = selectedStudent?.id ?: 0L, instructor_id = 0L, question_id = 0L, score = 0.0, comment = "comment", timestamp = System.currentTimeMillis())
+                // Collect responses and insert (placeholder; implement collection logic)
+                val result = PeclEvaluationResultEntity(
+                    student_id = selectedStudent?.id ?: 0L,
+                    instructor_id = 0L, // Replace with actual instructor ID
+                    question_id = 0L, // Replace with actual question ID
+                    score = 0.0, // Collect actual score
+                    comment = "comment", // Collect actual comment
+                    timestamp = System.currentTimeMillis()
+                )
                 viewModel.insertEvaluationResult(result)
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),

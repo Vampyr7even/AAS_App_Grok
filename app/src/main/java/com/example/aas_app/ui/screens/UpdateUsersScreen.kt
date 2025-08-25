@@ -41,6 +41,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
+import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.DemographicsViewModel
 import kotlinx.coroutines.launch
@@ -50,6 +51,7 @@ import kotlinx.coroutines.launch
 fun UpdateUsersScreen(navController: NavController, role: String? = null) {
     val viewModel = hiltViewModel<DemographicsViewModel>()
     val users by viewModel.users.observeAsState(emptyList())
+    val instructors by viewModel.instructors.observeAsState(emptyList())
     val students by viewModel.students.observeAsState(emptyList())
     val programs by viewModel.programs.observeAsState(emptyList())
 
@@ -127,33 +129,53 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                 IconButton(onClick = { showAddInstructorDialog = true }) {
                     Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Instructor")
                 }
-                Text("Add Instructor", modifier = Modifier.padding(start = 4.dp))
+                Text("Add Instructors", modifier = Modifier.padding(start = 4.dp))
             }
-        }
 
-        if (users.isEmpty()) {
-            Text("Database is empty")
-        } else {
-            val sortedUsers = users.sortedBy { it.fullName }
-            LazyColumn {
-                items(sortedUsers) { user ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = user.fullName, modifier = Modifier.weight(1f))
-                        IconButton(onClick = {
-                            editUser = user
-                            if (role == "instructor") showEditInstructorDialog = true
-                        }) {
-                            Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
-                        }
-                        IconButton(onClick = { selectedUser = user; showDialog = true }) {
-                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+            val sortedInstructors = instructors.sortedBy { it.fullName }
+            if (sortedInstructors.isEmpty()) {
+                Text("No Instructors have been entered in the database. Add Instructors to begin.")
+            } else {
+                LazyColumn {
+                    items(sortedInstructors) { instructor ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = instructor.fullName, modifier = Modifier.weight(1f))
+                            IconButton(onClick = {
+                                editUser = instructor
+                                editInstructorName = instructor.fullName
+                                showEditInstructorDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                            }
+                            IconButton(onClick = { selectedUser = instructor; showDialog = true }) {
+                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                            }
                         }
                     }
                 }
             }
-        }
+        } else {
+            if (users.isEmpty()) {
+                Text("Database is empty")
+            } else {
+                val sortedUsers = users.sortedBy { it.fullName }
+                LazyColumn {
+                    items(sortedUsers) { user ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = user.fullName, modifier = Modifier.weight(1f))
+                            IconButton(onClick = {
+                                editUser = user
+                            }) {
+                                Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                            }
+                            IconButton(onClick = { selectedUser = user; showDialog = true }) {
+                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                            }
+                        }
+                    }
+                }
+            }
 
-        if (role != "instructor") {
             TextField(
                 value = newFirstName,
                 onValueChange = { newFirstName = it },
@@ -255,25 +277,33 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
-                        coroutineScope.launch {
-                            val fullName = newInstructorName
-                            val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
-                            val instructorId = viewModel.insertUserSync(newUser)
-                            selectedStudentsForAdd.forEach { studentId ->
-                                viewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAdd))
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                val fullName = newInstructorName
+                                val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
+                                val instructorId = viewModel.insertUserSync(newUser)
+                                selectedStudentsForAdd.forEach { studentId ->
+                                    viewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAdd))
+                                }
+                                showAddInstructorDialog = false
+                                newInstructorName = ""
+                                selectedStudentsForAdd = emptySet()
+                                selectedProgramForAdd = null
                             }
-                            showAddInstructorDialog = false
-                            newInstructorName = ""
-                            selectedStudentsForAdd = emptySet()
-                            selectedProgramForAdd = null
-                        }
-                    }) {
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
                         Text("Save")
                     }
                 },
                 dismissButton = {
-                    Button(onClick = { showAddInstructorDialog = false }) {
+                    Button(
+                        onClick = { showAddInstructorDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
                         Text("Cancel")
                     }
                 }
@@ -336,24 +366,32 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
-                        coroutineScope.launch {
-                            editUser?.let { user ->
-                                val updatedUser = user.copy(fullName = editInstructorName)
-                                viewModel.updateUser(updatedUser)
-                                viewModel.deleteAssignmentsForInstructor(user.id)
-                                selectedStudentsForEdit.forEach { studentId ->
-                                    viewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = user.id, student_id = studentId, program_id = selectedProgramForEdit))
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                editUser?.let { user ->
+                                    val updatedUser = user.copy(fullName = editInstructorName)
+                                    viewModel.updateUser(updatedUser)
+                                    viewModel.deleteAssignmentsForInstructor(user.id)
+                                    selectedStudentsForEdit.forEach { studentId ->
+                                        viewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = user.id, student_id = studentId, program_id = selectedProgramForEdit))
+                                    }
+                                    showEditInstructorDialog = false
                                 }
-                                showEditInstructorDialog = false
                             }
-                        }
-                    }) {
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
                         Text("Save")
                     }
                 },
                 dismissButton = {
-                    Button(onClick = { showEditInstructorDialog = false }) {
+                    Button(
+                        onClick = { showEditInstructorDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
                         Text("Cancel")
                     }
                 }
@@ -397,16 +435,24 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                         }
                     },
                     confirmButton = {
-                        Button(onClick = {
-                            val fullName = "$editLastName, $editFirstName"
-                            viewModel.updateUser(user.copy(firstName = editFirstName, lastName = editLastName, grade = editGrade, pin = editPin, fullName = fullName, role = editRole))
-                            editUser = null
-                        }) {
+                        Button(
+                            onClick = {
+                                val fullName = "$editLastName, $editFirstName"
+                                viewModel.updateUser(user.copy(firstName = editFirstName, lastName = editLastName, grade = editGrade, pin = editPin, fullName = fullName, role = editRole))
+                                editUser = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
                             Text("Save")
                         }
                     },
                     dismissButton = {
-                        Button(onClick = { editUser = null }) {
+                        Button(
+                            onClick = { editUser = null },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
                             Text("Cancel")
                         }
                     }
@@ -421,15 +467,23 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
             title = { Text("Confirm Delete") },
             text = { Text("Delete this user?") },
             confirmButton = {
-                Button(onClick = {
-                    selectedUser?.let { viewModel.deleteUser(it) }
-                    showDialog = false
-                }) {
+                Button(
+                    onClick = {
+                        selectedUser?.let { viewModel.deleteUser(it) }
+                        showDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
                     Text("Yes")
                 }
             },
             dismissButton = {
-                Button(onClick = { showDialog = false }) {
+                Button(
+                    onClick = { showDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
                     Text("No")
                 }
             }

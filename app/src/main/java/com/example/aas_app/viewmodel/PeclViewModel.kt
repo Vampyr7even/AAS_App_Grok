@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
+import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.UserEntity
@@ -32,6 +33,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
 
     private val _studentsState = MutableLiveData<AppState<List<UserEntity>>>()
     val studentsState: LiveData<AppState<List<UserEntity>>> = _studentsState
+
+    private val _poisState = MutableLiveData<AppState<List<PeclPoiEntity>>>()
+    val poisState: LiveData<AppState<List<PeclPoiEntity>>> = _poisState
 
     fun loadTasksForPoi(poiId: Long) {
         _tasksState.value = AppState.Loading
@@ -122,6 +126,32 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         viewModelScope.launch {
             try {
                 val data = repository.getStudentsForProgram(programId).first()
+                _studentsState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error loading students: ${e.message}", e)
+                _studentsState.postValue(AppState.Error(e.message ?: "Error loading students"))
+            }
+        }
+    }
+
+    fun loadPois() {
+        _poisState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getAllPois().first()
+                _poisState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error loading POIs: ${e.message}", e)
+                _poisState.postValue(AppState.Error(e.message ?: "Error loading POIs"))
+            }
+        }
+    }
+
+    fun loadStudents() {
+        _studentsState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getUsersByRole("student").first()
                 _studentsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error loading students: ${e.message}", e)

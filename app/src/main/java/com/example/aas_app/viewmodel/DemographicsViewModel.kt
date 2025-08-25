@@ -1,9 +1,9 @@
 package com.example.aas_app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
@@ -18,24 +18,30 @@ import javax.inject.Inject
 class DemographicsViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
 
     private val _users = MutableLiveData<List<UserEntity>>()
-    val users: LiveData<List<UserEntity>> get() = _users
+    val users: LiveData<List<UserEntity>> = _users
 
     private val _instructors = MutableLiveData<List<UserEntity>>()
-    val instructors: LiveData<List<UserEntity>> get() = _instructors
+    val instructors: LiveData<List<UserEntity>> = _instructors
+
+    private val _instructorsWithPrograms = MutableLiveData<List<InstructorWithProgram>>()
+    val instructorsWithPrograms: LiveData<List<InstructorWithProgram>> = _instructorsWithPrograms
 
     private val _students = MutableLiveData<List<UserEntity>>()
-    val students: LiveData<List<UserEntity>> get() = _students
+    val students: LiveData<List<UserEntity>> = _students
 
     private val _programs = MutableLiveData<List<PeclProgramEntity>>()
-    val programs: LiveData<List<PeclProgramEntity>> get() = _programs
+    val programs: LiveData<List<PeclProgramEntity>> = _programs
+
+    private val _assignments = MutableLiveData<List<InstructorStudentAssignmentEntity>>()
+    val assignments: LiveData<List<InstructorStudentAssignmentEntity>> = _assignments
 
     fun loadUsers() {
         viewModelScope.launch {
             try {
-                val data = repository.getAllUsers().first()
-                _users.value = data
+                val userList = repository.getAllUsers().first()
+                _users.postValue(userList)
             } catch (e: Exception) {
-                _users.value = emptyList()
+                Log.e("DemographicsViewModel", "Error loading users: ${e.message}", e)
             }
         }
     }
@@ -43,10 +49,19 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     fun loadInstructors() {
         viewModelScope.launch {
             try {
-                val data = repository.getUsersByRole("instructor").first()
-                _instructors.value = data
+                val instructorList = repository.getUsersByRole("instructor").first()
+                _instructors.postValue(instructorList)
+                // Load instructors with programs
+                val instructorsWithPrograms = instructorList.map { instructor ->
+                    val assignment = repository.getAssignmentsForInstructor(instructor.id).first().firstOrNull()
+                    val programName = assignment?.program_id?.let { programId ->
+                        repository.getProgramById(programId).first()?.name
+                    }
+                    InstructorWithProgram(instructor, programName)
+                }
+                _instructorsWithPrograms.postValue(instructorsWithPrograms)
             } catch (e: Exception) {
-                _instructors.value = emptyList()
+                Log.e("DemographicsViewModel", "Error loading instructors: ${e.message}", e)
             }
         }
     }
@@ -54,10 +69,10 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     fun loadStudents() {
         viewModelScope.launch {
             try {
-                val data = repository.getUsersByRole("student").first()
-                _students.value = data
+                val studentList = repository.getUsersByRole("student").first()
+                _students.postValue(studentList)
             } catch (e: Exception) {
-                _students.value = emptyList()
+                Log.e("DemographicsViewModel", "Error loading students: ${e.message}", e)
             }
         }
     }
@@ -65,52 +80,107 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     fun loadPrograms() {
         viewModelScope.launch {
             try {
-                val data = repository.getAllPrograms().first()
-                _programs.value = data
+                val programList = repository.getAllPrograms().first()
+                _programs.postValue(programList)
             } catch (e: Exception) {
-                _programs.value = emptyList()
+                Log.e("DemographicsViewModel", "Error loading programs: ${e.message}", e)
             }
         }
     }
 
     fun insertUser(user: UserEntity) {
         viewModelScope.launch {
-            repository.insertUser(user)
-            loadUsers()
+            try {
+                repository.insertUser(user)
+                if (user.role == "instructor") {
+                    loadInstructors()
+                } else if (user.role == "student") {
+                    loadStudents()
+                }
+                loadUsers()
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error inserting user: ${e.message}", e)
+            }
         }
     }
 
     suspend fun insertUserSync(user: UserEntity): Long {
-        return repository.insertUser(user)
+        return try {
+            repository.insertUser(user)
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error inserting user sync: ${e.message}", e)
+            0L
+        }
     }
 
     fun updateUser(user: UserEntity) {
         viewModelScope.launch {
-            repository.updateUser(user)
-            loadUsers()
+            try {
+                repository.updateUser(user)
+                if (user.role == "instructor") {
+                    loadInstructors()
+                } else if (user.role == "student") {
+                    loadStudents()
+                }
+                loadUsers()
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error updating user: ${e.message}", e)
+            }
         }
     }
 
     fun deleteUser(user: UserEntity) {
         viewModelScope.launch {
-            repository.deleteUser(user)
-            loadUsers()
+            try {
+                repository.deleteUser(user)
+                if (user.role == "instructor") {
+                    loadInstructors()
+                } else if (user.role == "student") {
+                    loadStudents()
+                }
+                loadUsers()
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error deleting user: ${e.message}", e)
+            }
         }
     }
 
     fun insertAssignment(assignment: InstructorStudentAssignmentEntity) {
         viewModelScope.launch {
-            repository.insertAssignment(assignment)
+            try {
+                repository.insertAssignment(assignment)
+                loadInstructors() // Refresh to update program assignments
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error inserting assignment: ${e.message}", e)
+            }
         }
     }
 
     fun deleteAssignmentsForInstructor(instructorId: Long) {
         viewModelScope.launch {
-            repository.deleteAssignmentsForInstructor(instructorId)
+            try {
+                repository.deleteAssignmentsForInstructor(instructorId)
+                loadInstructors()
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error deleting assignments: ${e.message}", e)
+            }
         }
     }
 
     fun getAssignmentsForInstructor(instructorId: Long): LiveData<List<InstructorStudentAssignmentEntity>> {
-        return repository.getAssignmentsForInstructor(instructorId).asLiveData()
+        viewModelScope.launch {
+            try {
+                val assignmentList = repository.getAssignmentsForInstructor(instructorId).first()
+                _assignments.postValue(assignmentList)
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error loading assignments: ${e.message}", e)
+            }
+        }
+        return _assignments
     }
 }
+
+data class InstructorWithProgram(
+    val instructor: UserEntity,
+    val programName: String?
+)
