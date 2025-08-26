@@ -9,6 +9,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.aas_app.data.dao.DemoTemplatesDao
 import com.example.aas_app.data.dao.EvaluationResultDao
+import com.example.aas_app.data.dao.InstructorProgramAssignmentDao
 import com.example.aas_app.data.dao.InstructorStudentAssignmentDao
 import com.example.aas_app.data.dao.PeclPoiDao
 import com.example.aas_app.data.dao.PeclProgramDao
@@ -23,6 +24,7 @@ import com.example.aas_app.data.dao.ScaleDao
 import com.example.aas_app.data.dao.TaskPoiAssignmentDao
 import com.example.aas_app.data.dao.UserDao
 import com.example.aas_app.data.entity.DemoTemplatesEntity
+import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
@@ -47,6 +49,7 @@ import com.example.aas_app.data.entity.UserEntity
         PeclQuestionEntity::class,
         QuestionAssignmentEntity::class,
         InstructorStudentAssignmentEntity::class,
+        InstructorProgramAssignmentEntity::class,
         PeclEvaluationResultEntity::class,
         ScaleEntity::class,
         DemoTemplatesEntity::class,
@@ -56,7 +59,7 @@ import com.example.aas_app.data.entity.UserEntity
         PoiProgramAssignmentEntity::class,
         TaskPoiAssignmentEntity::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -68,6 +71,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun peclQuestionDao(): PeclQuestionDao
     abstract fun questionAssignmentDao(): QuestionAssignmentDao
     abstract fun instructorStudentAssignmentDao(): InstructorStudentAssignmentDao
+    abstract fun instructorProgramAssignmentDao(): InstructorProgramAssignmentDao
     abstract fun evaluationResultDao(): EvaluationResultDao
     abstract fun scaleDao(): ScaleDao
     abstract fun demoTemplatesDao(): DemoTemplatesDao
@@ -88,7 +92,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aas_database"
                 )
-                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
                     .build()
                 INSTANCE = instance
                 instance
@@ -211,6 +215,14 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE pecl_questions")
                 db.execSQL("ALTER TABLE pecl_questions_new RENAME TO pecl_questions")
                 db.execSQL("CREATE INDEX index_pecl_questions_task_id ON pecl_questions (task_id)")
+            }
+        }
+
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `instructor_program_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `program_id` INTEGER NOT NULL, FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_instructor_program_assignments_instructor_id_program_id` ON `instructor_program_assignments` (`instructor_id`, `program_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_program_assignments_program_id` ON `instructor_program_assignments` (`program_id`)")
             }
         }
     }

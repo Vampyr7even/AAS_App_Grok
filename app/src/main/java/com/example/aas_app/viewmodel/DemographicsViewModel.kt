@@ -7,10 +7,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
+import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -53,11 +57,8 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
                 _instructors.postValue(instructorList)
                 // Load instructors with programs
                 val instructorsWithPrograms = instructorList.map { instructor ->
-                    val assignment = repository.getAssignmentsForInstructor(instructor.id).first().firstOrNull()
-                    val programName = assignment?.program_id?.let { programId ->
-                        repository.getProgramById(programId).first()?.name
-                    }
-                    InstructorWithProgram(instructor, programName)
+                    val programNames = repository.getProgramsForInstructor(instructor.id).first().joinToString(", ")
+                    InstructorWithProgram(instructor, if (programNames.isEmpty()) null else programNames)
                 }
                 _instructorsWithPrograms.postValue(instructorsWithPrograms)
             } catch (e: Exception) {
@@ -104,14 +105,7 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 
-    suspend fun insertUserSync(user: UserEntity): Long {
-        return try {
-            repository.insertUser(user)
-        } catch (e: Exception) {
-            Log.e("DemographicsViewModel", "Error inserting user sync: ${e.message}", e)
-            0L
-        }
-    }
+    suspend fun insertUserSync(user: UserEntity): Long = repository.insertUser(user)
 
     fun updateUser(user: UserEntity) {
         viewModelScope.launch {
@@ -177,6 +171,36 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
             }
         }
         return _assignments
+    }
+
+    fun insertInstructorProgramAssignment(assignment: InstructorProgramAssignmentEntity) {
+        viewModelScope.launch {
+            try {
+                repository.insertInstructorProgramAssignment(assignment)
+                loadInstructors()
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error inserting instructor program assignment: ${e.message}", e)
+            }
+        }
+    }
+
+    fun deleteInstructorProgramAssignmentsForInstructor(instructorId: Long) {
+        viewModelScope.launch {
+            try {
+                repository.deleteInstructorProgramAssignmentsForInstructor(instructorId)
+                loadInstructors()
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error deleting instructor program assignments: ${e.message}", e)
+            }
+        }
+    }
+
+    fun canDeleteInstructor(instructorId: Long): Flow<Boolean> {
+        val studentAssignments = repository.getAssignmentsForInstructor(instructorId).map { it.size == 0 }
+        val programAssignments = repository.getProgramsForInstructor(instructorId).map { it.size == 0 }
+        return combine(studentAssignments, programAssignments) { noStudents, noPrograms ->
+            noStudents && noPrograms
+        }
     }
 }
 

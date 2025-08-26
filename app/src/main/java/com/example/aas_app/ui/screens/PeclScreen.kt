@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
@@ -127,6 +128,8 @@ fun PeclScreen(navController: NavController) {
     var expandedProgramEditInstructor by remember { mutableStateOf(false) }
     var selectedInstructorToDelete by remember { mutableStateOf<UserEntity?>(null) }
     var editInstructor by remember { mutableStateOf<UserEntity?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showDeleteErrorDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     val controlTypeOptions = listOf("CheckBox", "ComboBox", "Comment", "ListBox", "OptionButton", "ScoreBox", "TextBox")
@@ -231,6 +234,10 @@ fun PeclScreen(navController: NavController) {
             PeclModuleNavButton("Students", selectedTab == "Students") { navController.navigate("pecl/students"); selectedTab = "Students" }
         }
 
+        errorMessage?.let {
+            Text(text = it, color = Color.Red, modifier = Modifier.padding(bottom = 8.dp))
+        }
+
         if (selectedTab == "Programs") {
             Row(
                 modifier = Modifier
@@ -303,9 +310,13 @@ fun PeclScreen(navController: NavController) {
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = {
-                        adminViewModel.insertProgram(PeclProgramEntity(0L, newProgramName))
-                        newProgramName = ""
-                        showAddProgram = false
+                        if (newProgramName.isNotBlank()) {
+                            adminViewModel.insertProgram(PeclProgramEntity(0L, newProgramName))
+                            newProgramName = ""
+                            showAddProgram = false
+                        } else {
+                            errorMessage = "Program name cannot be blank"
+                        }
                     }) {
                         Icon(imageVector = Icons.Filled.Save, contentDescription = "Save New Program")
                     }
@@ -394,11 +405,12 @@ fun PeclScreen(navController: NavController) {
                                     newPoiName = ""
                                     selectedProgramsForAdd = emptySet()
                                 } else {
-                                    // Handle error
+                                    errorMessage = "POI name and at least one program are required"
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp),
+                            enabled = newPoiName.isNotBlank() && selectedProgramsForAdd.isNotEmpty()
                         ) {
                             Text("Save")
                         }
@@ -406,7 +418,7 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showAddPoiDialog = false },
-                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Cancel")
@@ -457,11 +469,12 @@ fun PeclScreen(navController: NavController) {
                                     editPoiName = ""
                                     selectedProgramsForEdit = emptySet()
                                 } else {
-                                    // Handle error
+                                    errorMessage = "POI name and at least one program are required"
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp),
+                            enabled = editPoiName.isNotBlank() && selectedProgramsForEdit.isNotEmpty()
                         ) {
                             Text("Save")
                         }
@@ -469,7 +482,7 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showEditPoiDialog = null },
-                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Cancel")
@@ -561,11 +574,12 @@ fun PeclScreen(navController: NavController) {
                                     newTaskName = ""
                                     selectedPoisForAdd = emptySet()
                                 } else {
-                                    // Handle error
+                                    errorMessage = "Task name and at least one POI are required"
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp),
+                            enabled = newTaskName.isNotBlank() && selectedPoisForAdd.isNotEmpty()
                         ) {
                             Text("Save")
                         }
@@ -573,7 +587,7 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showAddTaskDialog = false },
-                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Cancel")
@@ -622,11 +636,12 @@ fun PeclScreen(navController: NavController) {
                                     editTaskName = ""
                                     selectedPoisForEdit = emptySet()
                                 } else {
-                                    // Handle error
+                                    errorMessage = "Task name and at least one POI are required"
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp),
+                            enabled = editTaskName.isNotBlank() && selectedPoisForEdit.isNotEmpty()
                         ) {
                             Text("Save")
                         }
@@ -634,7 +649,7 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showEditTaskDialog = null },
-                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Cancel")
@@ -832,9 +847,10 @@ fun PeclScreen(navController: NavController) {
                     confirmButton = {
                         Button(
                             onClick = {
-                                newTaskId?.let { taskId ->
+                                val taskIdValue = newTaskId
+                                if (taskIdValue != null) {
                                     if (newSubTask.isNotBlank()) {
-                                        adminViewModel.insertQuestion(PeclQuestionEntity(task_id = taskId, subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), taskId)
+                                        adminViewModel.insertQuestion(PeclQuestionEntity(task_id = taskIdValue, subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), taskIdValue)
                                         showAddQuestionDialog = false
                                         newSubTask = ""
                                         newControlType = ""
@@ -842,14 +858,15 @@ fun PeclScreen(navController: NavController) {
                                         newCriticalTask = ""
                                         newTaskId = null
                                     } else {
-                                        // Handle error (e.g., required fields)
+                                        errorMessage = "Sub task is required"
                                     }
-                                } ?: run {
-                                    // Handle null taskId error
+                                } else {
+                                    errorMessage = "Task assignment is required"
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp),
+                            enabled = newSubTask.isNotBlank() && newTaskId != null
                         ) {
                             Text("Save")
                         }
@@ -857,7 +874,7 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showAddQuestionDialog = false },
-                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Cancel")
@@ -1008,9 +1025,10 @@ fun PeclScreen(navController: NavController) {
                     confirmButton = {
                         Button(
                             onClick = {
-                                editTaskId?.let { taskId ->
+                                val taskIdValue = editTaskId
+                                if (taskIdValue != null) {
                                     if (editSubTask.isNotBlank()) {
-                                        adminViewModel.updateQuestion(question.copy(task_id = taskId, subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), taskId)
+                                        adminViewModel.updateQuestion(question.copy(task_id = taskIdValue, subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), taskIdValue)
                                         showEditQuestionDialog = null
                                         editSubTask = ""
                                         editControlType = ""
@@ -1018,14 +1036,15 @@ fun PeclScreen(navController: NavController) {
                                         editCriticalTask = ""
                                         editTaskId = null
                                     } else {
-                                        // Handle error (e.g., required fields)
+                                        errorMessage = "Sub task is required"
                                     }
-                                } ?: run {
-                                    // Handle null taskId error
+                                } else {
+                                    errorMessage = "Task assignment is required"
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp),
+                            enabled = editSubTask.isNotBlank() && editTaskId != null
                         ) {
                             Text("Save")
                         }
@@ -1033,7 +1052,7 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showEditQuestionDialog = null },
-                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Cancel")
@@ -1068,7 +1087,7 @@ fun PeclScreen(navController: NavController) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = instructorWithProgram.instructor.fullName)
-                                Text(text = "Program: ${instructorWithProgram.programName ?: "None"}", style = MaterialTheme.typography.bodySmall)
+                                Text(text = "Programs: ${instructorWithProgram.programName ?: "None"}", style = MaterialTheme.typography.bodySmall)
                             }
                             IconButton(onClick = {
                                 editInstructor = instructorWithProgram.instructor
@@ -1102,7 +1121,11 @@ fun PeclScreen(navController: NavController) {
                                         Checkbox(
                                             checked = selectedStudentsForAddInstructor.contains(student.id),
                                             onCheckedChange = { checked ->
-                                                selectedStudentsForAddInstructor = if (checked) selectedStudentsForAddInstructor + student.id else selectedStudentsForAddInstructor - student.id
+                                                selectedStudentsForAddInstructor = if (checked) {
+                                                    selectedStudentsForAddInstructor + student.id
+                                                } else {
+                                                    selectedStudentsForAddInstructor - student.id
+                                                }
                                             }
                                         )
                                         Text(text = student.fullName)
@@ -1148,6 +1171,9 @@ fun PeclScreen(navController: NavController) {
                                         if (fullName.isNotBlank()) {
                                             val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
                                             val instructorId = demographicsViewModel.insertUserSync(newUser)
+                                            if (selectedProgramForAddInstructor != null) {
+                                                demographicsViewModel.insertInstructorProgramAssignment(InstructorProgramAssignmentEntity(instructor_id = instructorId, program_id = selectedProgramForAddInstructor!!))
+                                            }
                                             selectedStudentsForAddInstructor.forEach { studentId ->
                                                 demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAddInstructor))
                                             }
@@ -1157,15 +1183,16 @@ fun PeclScreen(navController: NavController) {
                                             selectedStudentsForAddInstructor = emptySet()
                                             selectedProgramForAddInstructor = null
                                         } else {
-                                            // Handle error (e.g., toast for empty name)
+                                            errorMessage = "Instructor name is required"
                                         }
                                     } catch (e: Exception) {
-                                        // Handle error (e.g., toast for database failure)
+                                        errorMessage = "Error adding instructor: ${e.message}"
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp),
+                            enabled = newInstructorName.isNotBlank()
                         ) {
                             Text("Save")
                         }
@@ -1173,7 +1200,7 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showAddInstructorDialog = false },
-                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Cancel")
@@ -1245,7 +1272,11 @@ fun PeclScreen(navController: NavController) {
                                         editInstructor?.let { instructor ->
                                             val updatedUser = instructor.copy(fullName = editInstructorName)
                                             demographicsViewModel.updateUser(updatedUser)
+                                            demographicsViewModel.deleteInstructorProgramAssignmentsForInstructor(updatedUser.id)
                                             demographicsViewModel.deleteAssignmentsForInstructor(updatedUser.id)
+                                            if (selectedProgramForEditInstructor != null) {
+                                                demographicsViewModel.insertInstructorProgramAssignment(InstructorProgramAssignmentEntity(instructor_id = updatedUser.id, program_id = selectedProgramForEditInstructor!!))
+                                            }
                                             selectedStudentsForEditInstructor.forEach { studentId ->
                                                 demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = updatedUser.id, student_id = studentId, program_id = selectedProgramForEditInstructor))
                                             }
@@ -1257,12 +1288,13 @@ fun PeclScreen(navController: NavController) {
                                             selectedProgramForEditInstructor = null
                                         }
                                     } catch (e: Exception) {
-                                        // Handle error (e.g., toast for database failure)
+                                        errorMessage = "Error updating instructor: ${e.message}"
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(4.dp),
+                            enabled = editInstructorName.isNotBlank()
                         ) {
                             Text("Save")
                         }
@@ -1270,7 +1302,7 @@ fun PeclScreen(navController: NavController) {
                     dismissButton = {
                         Button(
                             onClick = { showEditInstructorDialog = false; editInstructor = null },
-                            colors = ButtonDefaults.buttonColors(Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Cancel")
@@ -1292,7 +1324,7 @@ fun PeclScreen(navController: NavController) {
                         adminViewModel.deleteProgram(program)
                         selectedProgramToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("Yes")
@@ -1301,7 +1333,7 @@ fun PeclScreen(navController: NavController) {
             dismissButton = {
                 Button(
                     onClick = { selectedProgramToDelete = null },
-                    colors = ButtonDefaults.buttonColors(Color.Gray),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("No")
@@ -1321,7 +1353,7 @@ fun PeclScreen(navController: NavController) {
                         adminViewModel.deletePoi(poi)
                         selectedPoiToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("Yes")
@@ -1330,7 +1362,7 @@ fun PeclScreen(navController: NavController) {
             dismissButton = {
                 Button(
                     onClick = { selectedPoiToDelete = null },
-                    colors = ButtonDefaults.buttonColors(Color.Gray),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("No")
@@ -1351,7 +1383,7 @@ fun PeclScreen(navController: NavController) {
                         showDialog = false
                         selectedTaskToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("Yes")
@@ -1360,7 +1392,7 @@ fun PeclScreen(navController: NavController) {
             dismissButton = {
                 Button(
                     onClick = { showDialog = false },
-                    colors = ButtonDefaults.buttonColors(Color.Gray),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("No")
@@ -1380,7 +1412,7 @@ fun PeclScreen(navController: NavController) {
                         adminViewModel.deleteQuestion(question)
                         selectedQuestionToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("Yes")
@@ -1389,7 +1421,7 @@ fun PeclScreen(navController: NavController) {
             dismissButton = {
                 Button(
                     onClick = { selectedQuestionToDelete = null },
-                    colors = ButtonDefaults.buttonColors(Color.Gray),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("No")
@@ -1406,10 +1438,21 @@ fun PeclScreen(navController: NavController) {
             confirmButton = {
                 Button(
                     onClick = {
-                        demographicsViewModel.deleteUser(instructor)
-                        selectedInstructorToDelete = null
+                        coroutineScope.launch {
+                            try {
+                                val canDelete = demographicsViewModel.canDeleteInstructor(instructor.id).first()
+                                if (canDelete) {
+                                    demographicsViewModel.deleteUser(instructor)
+                                    selectedInstructorToDelete = null
+                                } else {
+                                    showDeleteErrorDialog = true
+                                }
+                            } catch (e: Exception) {
+                                errorMessage = "Error checking assignments: ${e.message}"
+                            }
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(Color(0xFFE57373)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("Yes")
@@ -1418,10 +1461,27 @@ fun PeclScreen(navController: NavController) {
             dismissButton = {
                 Button(
                     onClick = { selectedInstructorToDelete = null },
-                    colors = ButtonDefaults.buttonColors(Color.Gray),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("No")
+                }
+            }
+        )
+    }
+
+    if (showDeleteErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteErrorDialog = false },
+            title = { Text("Deletion Restricted") },
+            text = { Text("Cannot delete instructor with assigned students or programs. Please remove assignments first.") },
+            confirmButton = {
+                Button(
+                    onClick = { showDeleteErrorDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("OK")
                 }
             }
         )

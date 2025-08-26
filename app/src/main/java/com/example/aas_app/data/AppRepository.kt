@@ -3,6 +3,7 @@ package com.example.aas_app.data
 import android.util.Log
 import androidx.room.withTransaction
 import com.example.aas_app.data.dao.EvaluationResultDao
+import com.example.aas_app.data.dao.InstructorProgramAssignmentDao
 import com.example.aas_app.data.dao.InstructorStudentAssignmentDao
 import com.example.aas_app.data.dao.PeclPoiDao
 import com.example.aas_app.data.dao.PeclProgramDao
@@ -13,6 +14,7 @@ import com.example.aas_app.data.dao.QuestionAssignmentDao
 import com.example.aas_app.data.dao.ScaleDao
 import com.example.aas_app.data.dao.TaskPoiAssignmentDao
 import com.example.aas_app.data.dao.UserDao
+import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
@@ -43,6 +45,7 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
     private val peclQuestionDao = db.peclQuestionDao()
     private val questionAssignmentDao = db.questionAssignmentDao()
     private val instructorStudentAssignmentDao = db.instructorStudentAssignmentDao()
+    private val instructorProgramAssignmentDao = db.instructorProgramAssignmentDao()
     private val evaluationResultDao = db.evaluationResultDao()
     private val scaleDao = db.scaleDao()
     private val poiProgramAssignmentDao = db.poiProgramAssignmentDao()
@@ -778,6 +781,26 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
             AppResult.Error("Error deleting assignments: ${e.message}", e)
         }
     }
+
+    suspend fun insertInstructorProgramAssignment(assignment: InstructorProgramAssignmentEntity): AppResult<Long> {
+        return try {
+            val id = instructorProgramAssignmentDao.insertAssignment(assignment)
+            AppResult.Success(id)
+        } catch (e: Exception) {
+            AppResult.Error("Error inserting instructor program assignment: ${e.message}", e)
+        }
+    }
+
+    suspend fun deleteInstructorProgramAssignmentsForInstructor(instructorId: Long): AppResult<Unit> {
+        return try {
+            instructorProgramAssignmentDao.deleteAssignmentsForInstructor(instructorId)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            AppResult.Error("Error deleting instructor program assignments: ${e.message}", e)
+        }
+    }
+
+    fun getProgramsForInstructor(instructorId: Long): Flow<List<String>> = instructorProgramAssignmentDao.getProgramsForInstructor(instructorId)
 
     fun getEvaluationResultsForStudent(studentId: Long): Flow<List<PeclEvaluationResultEntity>> = evaluationResultDao.getEvaluationResultsForStudent(studentId)
 
