@@ -9,9 +9,10 @@ import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
-import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,8 +32,8 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     private val _commentsState = MutableLiveData<AppState<List<String>>>()
     val commentsState: LiveData<AppState<List<String>>> = _commentsState
 
-    private val _studentsState = MutableLiveData<AppState<List<UserEntity>>>()
-    val studentsState: LiveData<AppState<List<UserEntity>>> = _studentsState
+    private val _studentsState = MutableLiveData<AppState<List<PeclStudentEntity>>>()
+    val studentsState: LiveData<AppState<List<PeclStudentEntity>>> = _studentsState
 
     private val _poisState = MutableLiveData<AppState<List<PeclPoiEntity>>>()
     val poisState: LiveData<AppState<List<PeclPoiEntity>>> = _poisState
@@ -109,16 +110,13 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         }
     }
 
-    fun getAverageScoreForStudent(studentId: Long, poiId: Long): Float {
-        viewModelScope.launch {
-            try {
-                val average = repository.getAverageScoreForStudent(studentId, poiId)
-                // Post to state if needed
-            } catch (e: Exception) {
-                // Handle error
-            }
+    suspend fun getAverageScoreForStudent(studentId: Long, poiId: Long): Double {
+        return try {
+            repository.getAverageScoreForStudent(studentId, poiId)
+        } catch (e: Exception) {
+            Log.e("PeclViewModel", "Error getting average score: ${e.message}", e)
+            0.0
         }
-        return 0f // Placeholder, make async if needed
     }
 
     fun loadStudentsForProgram(programId: Long) {
@@ -151,11 +149,44 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         _studentsState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getUsersByRole("student").first()
+                val data = repository.getAllPeclStudents().first()
                 _studentsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error loading students: ${e.message}", e)
                 _studentsState.postValue(AppState.Error(e.message ?: "Error loading students"))
+            }
+        }
+    }
+
+    fun insertPeclStudent(student: PeclStudentEntity) {
+        viewModelScope.launch {
+            try {
+                repository.insertPeclStudent(student)
+                loadStudents()
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error inserting student: ${e.message}", e)
+            }
+        }
+    }
+
+    fun updatePeclStudent(student: PeclStudentEntity) {
+        viewModelScope.launch {
+            try {
+                repository.updatePeclStudent(student)
+                loadStudents()
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error updating student: ${e.message}", e)
+            }
+        }
+    }
+
+    fun deletePeclStudent(student: PeclStudentEntity) {
+        viewModelScope.launch {
+            try {
+                repository.deletePeclStudent(student)
+                loadStudents()
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error deleting student: ${e.message}", e)
             }
         }
     }

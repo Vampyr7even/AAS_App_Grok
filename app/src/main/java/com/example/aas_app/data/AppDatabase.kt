@@ -14,6 +14,7 @@ import com.example.aas_app.data.dao.InstructorStudentAssignmentDao
 import com.example.aas_app.data.dao.PeclPoiDao
 import com.example.aas_app.data.dao.PeclProgramDao
 import com.example.aas_app.data.dao.PeclQuestionDao
+import com.example.aas_app.data.dao.PeclStudentDao
 import com.example.aas_app.data.dao.PeclTaskDao
 import com.example.aas_app.data.dao.PoiProgramAssignmentDao
 import com.example.aas_app.data.dao.ProjectDao
@@ -30,6 +31,7 @@ import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.PoiProgramAssignmentEntity
 import com.example.aas_app.data.entity.ProjectEntity
@@ -57,9 +59,10 @@ import com.example.aas_app.data.entity.UserEntity
         ResponseEntity::class,
         ProjectEntity::class,
         PoiProgramAssignmentEntity::class,
-        TaskPoiAssignmentEntity::class
+        TaskPoiAssignmentEntity::class,
+        PeclStudentEntity::class
     ],
-    version = 20,
+    version = 21,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -80,6 +83,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun projectDao(): ProjectDao
     abstract fun poiProgramAssignmentDao(): PoiProgramAssignmentDao
     abstract fun taskPoiAssignmentDao(): TaskPoiAssignmentDao
+    abstract fun peclStudentDao(): PeclStudentDao
 
     companion object {
         @Volatile
@@ -92,7 +96,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aas_database"
                 )
-                    .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
+                    .addMigrations(
+                        MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
+                        MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21
+                    )
                     .build()
                 INSTANCE = instance
                 instance
@@ -223,6 +230,20 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `instructor_program_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `program_id` INTEGER NOT NULL, FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_instructor_program_assignments_instructor_id_program_id` ON `instructor_program_assignments` (`instructor_id`, `program_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_program_assignments_program_id` ON `instructor_program_assignments` (`program_id`)")
+            }
+        }
+
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `pecl_students` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `firstName` TEXT NOT NULL, `lastName` TEXT NOT NULL, `grade` TEXT NOT NULL, `pin` INTEGER, `fullName` TEXT NOT NULL)")
+                // Update FK in instructor_student_assignments to reference pecl_students
+                db.execSQL("CREATE TABLE IF NOT EXISTS `instructor_student_assignments_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `student_id` INTEGER NOT NULL, `program_id` INTEGER, FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`student_id`) REFERENCES `pecl_students`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `instructor_student_assignments_new` (`instructor_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `instructor_student_assignments_new` (`student_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_program_id` ON `instructor_student_assignments_new` (`program_id`)")
+                // Migrate data if needed (assuming starting fresh, no insert; adjust if data exists)
+                db.execSQL("DROP TABLE `instructor_student_assignments`")
+                db.execSQL("ALTER TABLE `instructor_student_assignments_new` RENAME TO `instructor_student_assignments`")
             }
         }
     }

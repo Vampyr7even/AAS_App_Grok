@@ -6,15 +6,14 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
-import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
+import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,14 +29,11 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     private val _instructorsWithPrograms = MutableLiveData<List<InstructorWithProgram>>()
     val instructorsWithPrograms: LiveData<List<InstructorWithProgram>> = _instructorsWithPrograms
 
-    private val _students = MutableLiveData<List<UserEntity>>()
-    val students: LiveData<List<UserEntity>> = _students
+    private val _studentsState = MutableLiveData<AppState<List<PeclStudentEntity>>>()
+    val studentsState: LiveData<AppState<List<PeclStudentEntity>>> = _studentsState
 
     private val _programs = MutableLiveData<List<PeclProgramEntity>>()
     val programs: LiveData<List<PeclProgramEntity>> = _programs
-
-    private val _assignments = MutableLiveData<List<InstructorStudentAssignmentEntity>>()
-    val assignments: LiveData<List<InstructorStudentAssignmentEntity>> = _assignments
 
     fun loadUsers() {
         viewModelScope.launch {
@@ -68,12 +64,14 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     }
 
     fun loadStudents() {
+        _studentsState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val studentList = repository.getUsersByRole("student").first()
-                _students.postValue(studentList)
+                val data = repository.getAllPeclStudents().first()
+                _studentsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("DemographicsViewModel", "Error loading students: ${e.message}", e)
+                _studentsState.postValue(AppState.Error(e.message ?: "Error loading students"))
             }
         }
     }
@@ -162,15 +160,16 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     }
 
     fun getAssignmentsForInstructor(instructorId: Long): LiveData<List<InstructorStudentAssignmentEntity>> {
+        val assignmentsLiveData = MutableLiveData<List<InstructorStudentAssignmentEntity>>()
         viewModelScope.launch {
             try {
                 val assignmentList = repository.getAssignmentsForInstructor(instructorId).first()
-                _assignments.postValue(assignmentList)
+                assignmentsLiveData.postValue(assignmentList)
             } catch (e: Exception) {
                 Log.e("DemographicsViewModel", "Error loading assignments: ${e.message}", e)
             }
         }
-        return _assignments
+        return assignmentsLiveData
     }
 
     fun insertInstructorProgramAssignment(assignment: InstructorProgramAssignmentEntity) {
@@ -196,8 +195,8 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     }
 
     fun canDeleteInstructor(instructorId: Long): Flow<Boolean> {
-        val studentAssignments = repository.getAssignmentsForInstructor(instructorId).map { it.size == 0 }
-        val programAssignments = repository.getProgramsForInstructor(instructorId).map { it.size == 0 }
+        val studentAssignments = repository.getAssignmentsForInstructor(instructorId).map { it.isEmpty() }
+        val programAssignments = repository.getProgramsForInstructor(instructorId).map { it.isEmpty() }
         return combine(studentAssignments, programAssignments) { noStudents, noPrograms ->
             noStudents && noPrograms
         }

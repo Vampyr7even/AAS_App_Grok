@@ -15,7 +15,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.RESTRICT
         ),
         ForeignKey(
-            entity = UserEntity::class,
+            entity = PeclStudentEntity::class,
             parentColumns = ["id"],
             childColumns = ["student_id"],
             onDelete = ForeignKey.RESTRICT

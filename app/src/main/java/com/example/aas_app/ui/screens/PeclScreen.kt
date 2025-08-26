@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +43,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,28 +54,33 @@ import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.DemographicsViewModel
+import com.example.aas_app.viewmodel.PeclViewModel
 import com.example.aas_app.viewmodel.PoiWithPrograms
 import com.example.aas_app.viewmodel.TaskWithPois
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeclScreen(navController: NavController) {
     val adminViewModel: AdminViewModel = hiltViewModel()
     val demographicsViewModel: DemographicsViewModel = hiltViewModel()
+    val peclViewModel: PeclViewModel = hiltViewModel()
+    val context = LocalContext.current
     val programsState by adminViewModel.programsState.observeAsState(AppState.Loading as AppState<List<PeclProgramEntity>>)
     val poisState by adminViewModel.poisState.observeAsState(AppState.Loading as AppState<List<PoiWithPrograms>>)
     val tasksState by adminViewModel.tasksState.observeAsState(AppState.Loading as AppState<List<TaskWithPois>>)
     val questionsState by adminViewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
     val scalesState by adminViewModel.scalesState.observeAsState(AppState.Loading as AppState<List<ScaleEntity>>)
     val instructors by demographicsViewModel.instructorsWithPrograms.observeAsState(emptyList())
-    val students by demographicsViewModel.students.observeAsState(emptyList())
+    val studentsState by peclViewModel.studentsState.observeAsState(AppState.Loading as AppState<List<PeclStudentEntity>>)
     val programs by demographicsViewModel.programs.observeAsState(emptyList())
     val poisSimple by adminViewModel.poisSimple.observeAsState(emptyList())
     var selectedTab by remember { mutableStateOf<String?>(null) }
@@ -150,10 +157,10 @@ fun PeclScreen(navController: NavController) {
             adminViewModel.loadAllTasksWithPois()
         } else if (selectedTab == "Instructors") {
             demographicsViewModel.loadInstructors()
-            demographicsViewModel.loadStudents()
             demographicsViewModel.loadPrograms()
+            peclViewModel.loadStudents()
         } else if (selectedTab == "Students") {
-            navController.navigate("pecl/students")
+            peclViewModel.loadStudents()
         }
     }
 
@@ -231,7 +238,7 @@ fun PeclScreen(navController: NavController) {
             PeclModuleNavButton("Tasks", selectedTab == "Tasks") { selectedTab = "Tasks" }
             PeclModuleNavButton("Sub Tasks", selectedTab == "Sub Tasks") { selectedTab = "Sub Tasks" }
             PeclModuleNavButton("Instructors", selectedTab == "Instructors") { selectedTab = "Instructors" }
-            PeclModuleNavButton("Students", selectedTab == "Students") { navController.navigate("pecl/students"); selectedTab = "Students" }
+            PeclModuleNavButton("Students", selectedTab == "Students") { selectedTab = "Students" }
         }
 
         errorMessage?.let {
@@ -314,6 +321,7 @@ fun PeclScreen(navController: NavController) {
                             adminViewModel.insertProgram(PeclProgramEntity(0L, newProgramName))
                             newProgramName = ""
                             showAddProgram = false
+                            Toast.makeText(context, "Program added successfully", Toast.LENGTH_SHORT).show()
                         } else {
                             errorMessage = "Program name cannot be blank"
                         }
@@ -404,6 +412,7 @@ fun PeclScreen(navController: NavController) {
                                     showAddPoiDialog = false
                                     newPoiName = ""
                                     selectedProgramsForAdd = emptySet()
+                                    Toast.makeText(context, "POI added successfully", Toast.LENGTH_SHORT).show()
                                 } else {
                                     errorMessage = "POI name and at least one program are required"
                                 }
@@ -468,6 +477,7 @@ fun PeclScreen(navController: NavController) {
                                     showEditPoiDialog = null
                                     editPoiName = ""
                                     selectedProgramsForEdit = emptySet()
+                                    Toast.makeText(context, "POI updated successfully", Toast.LENGTH_SHORT).show()
                                 } else {
                                     errorMessage = "POI name and at least one program are required"
                                 }
@@ -573,6 +583,7 @@ fun PeclScreen(navController: NavController) {
                                     showAddTaskDialog = false
                                     newTaskName = ""
                                     selectedPoisForAdd = emptySet()
+                                    Toast.makeText(context, "Task added successfully", Toast.LENGTH_SHORT).show()
                                 } else {
                                     errorMessage = "Task name and at least one POI are required"
                                 }
@@ -635,6 +646,7 @@ fun PeclScreen(navController: NavController) {
                                     showEditTaskDialog = null
                                     editTaskName = ""
                                     selectedPoisForEdit = emptySet()
+                                    Toast.makeText(context, "Task updated successfully", Toast.LENGTH_SHORT).show()
                                 } else {
                                     errorMessage = "Task name and at least one POI are required"
                                 }
@@ -857,6 +869,7 @@ fun PeclScreen(navController: NavController) {
                                         newScale = ""
                                         newCriticalTask = ""
                                         newTaskId = null
+                                        Toast.makeText(context, "Question added successfully", Toast.LENGTH_SHORT).show()
                                     } else {
                                         errorMessage = "Sub task is required"
                                     }
@@ -1035,6 +1048,7 @@ fun PeclScreen(navController: NavController) {
                                         editScale = ""
                                         editCriticalTask = ""
                                         editTaskId = null
+                                        Toast.makeText(context, "Question updated successfully", Toast.LENGTH_SHORT).show()
                                     } else {
                                         errorMessage = "Sub task is required"
                                     }
@@ -1115,22 +1129,28 @@ fun PeclScreen(navController: NavController) {
                                 label = { Text("Instructor Name") }
                             )
                             Text(text = "Select Students:")
-                            LazyColumn {
-                                items(students) { student: UserEntity ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Checkbox(
-                                            checked = selectedStudentsForAddInstructor.contains(student.id),
-                                            onCheckedChange = { checked ->
-                                                selectedStudentsForAddInstructor = if (checked) {
-                                                    selectedStudentsForAddInstructor + student.id
-                                                } else {
-                                                    selectedStudentsForAddInstructor - student.id
-                                                }
+                            when (val state = studentsState) {
+                                is AppState.Loading -> Text("Loading...")
+                                is AppState.Success -> {
+                                    LazyColumn {
+                                        items(state.data) { student: PeclStudentEntity ->
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Checkbox(
+                                                    checked = selectedStudentsForAddInstructor.contains(student.id),
+                                                    onCheckedChange = { checked ->
+                                                        selectedStudentsForAddInstructor = if (checked) {
+                                                            selectedStudentsForAddInstructor + student.id
+                                                        } else {
+                                                            selectedStudentsForAddInstructor - student.id
+                                                        }
+                                                    }
+                                                )
+                                                Text(text = student.fullName)
                                             }
-                                        )
-                                        Text(text = student.fullName)
+                                        }
                                     }
                                 }
+                                is AppState.Error -> Text("Error: ${state.message}")
                             }
                             ExposedDropdownMenuBox(
                                 expanded = expandedProgramAddInstructor,
@@ -1182,11 +1202,13 @@ fun PeclScreen(navController: NavController) {
                                             newInstructorName = ""
                                             selectedStudentsForAddInstructor = emptySet()
                                             selectedProgramForAddInstructor = null
+                                            Toast.makeText(context, "Instructor added successfully", Toast.LENGTH_SHORT).show()
                                         } else {
                                             errorMessage = "Instructor name is required"
                                         }
                                     } catch (e: Exception) {
                                         errorMessage = "Error adding instructor: ${e.message}"
+                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
@@ -1221,18 +1243,28 @@ fun PeclScreen(navController: NavController) {
                                 label = { Text("Instructor Name") }
                             )
                             Text(text = "Select Students:")
-                            LazyColumn {
-                                items(students) { student: UserEntity ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Checkbox(
-                                            checked = selectedStudentsForEditInstructor.contains(student.id),
-                                            onCheckedChange = { checked ->
-                                                selectedStudentsForEditInstructor = if (checked) selectedStudentsForEditInstructor + student.id else selectedStudentsForEditInstructor - student.id
+                            when (val state = studentsState) {
+                                is AppState.Loading -> Text("Loading...")
+                                is AppState.Success -> {
+                                    LazyColumn {
+                                        items(state.data) { student: PeclStudentEntity ->
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Checkbox(
+                                                    checked = selectedStudentsForEditInstructor.contains(student.id),
+                                                    onCheckedChange = { checked ->
+                                                        selectedStudentsForEditInstructor = if (checked) {
+                                                            selectedStudentsForEditInstructor + student.id
+                                                        } else {
+                                                            selectedStudentsForEditInstructor - student.id
+                                                        }
+                                                    }
+                                                )
+                                                Text(text = student.fullName)
                                             }
-                                        )
-                                        Text(text = student.fullName)
+                                        }
                                     }
                                 }
+                                is AppState.Error -> Text("Error: ${state.message}")
                             }
                             ExposedDropdownMenuBox(
                                 expanded = expandedProgramEditInstructor,
@@ -1283,12 +1315,11 @@ fun PeclScreen(navController: NavController) {
                                             demographicsViewModel.loadInstructors() // Refresh list
                                             showEditInstructorDialog = false
                                             editInstructor = null
-                                            editInstructorName = ""
-                                            selectedStudentsForEditInstructor = emptySet()
-                                            selectedProgramForEditInstructor = null
+                                            Toast.makeText(context, "Instructor updated successfully", Toast.LENGTH_SHORT).show()
                                         }
                                     } catch (e: Exception) {
                                         errorMessage = "Error updating instructor: ${e.message}"
+                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
@@ -1323,6 +1354,7 @@ fun PeclScreen(navController: NavController) {
                     onClick = {
                         adminViewModel.deleteProgram(program)
                         selectedProgramToDelete = null
+                        Toast.makeText(context, "Program deleted successfully", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
@@ -1352,6 +1384,7 @@ fun PeclScreen(navController: NavController) {
                     onClick = {
                         adminViewModel.deletePoi(poi)
                         selectedPoiToDelete = null
+                        Toast.makeText(context, "POI deleted successfully", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
@@ -1382,6 +1415,7 @@ fun PeclScreen(navController: NavController) {
                         adminViewModel.deleteTask(task)
                         showDialog = false
                         selectedTaskToDelete = null
+                        Toast.makeText(context, "Task deleted successfully", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
@@ -1411,6 +1445,7 @@ fun PeclScreen(navController: NavController) {
                     onClick = {
                         adminViewModel.deleteQuestion(question)
                         selectedQuestionToDelete = null
+                        Toast.makeText(context, "Question deleted successfully", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
@@ -1444,11 +1479,13 @@ fun PeclScreen(navController: NavController) {
                                 if (canDelete) {
                                     demographicsViewModel.deleteUser(instructor)
                                     selectedInstructorToDelete = null
+                                    Toast.makeText(context, "Instructor deleted successfully", Toast.LENGTH_SHORT).show()
                                 } else {
                                     showDeleteErrorDialog = true
                                 }
                             } catch (e: Exception) {
                                 errorMessage = "Error checking assignments: ${e.message}"
+                                Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                             }
                         }
                     },

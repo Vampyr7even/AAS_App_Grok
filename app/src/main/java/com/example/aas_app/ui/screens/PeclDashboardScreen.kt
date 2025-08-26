@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -17,30 +18,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
-import com.example.aas_app.data.entity.UserEntity
-import com.example.aas_app.viewmodel.PeclViewModel
+import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.PeclViewModel
 
 @Composable
 fun PeclDashboardScreen(navController: NavController, poiId: Long) {
-    val viewModel: PeclViewModel = hiltViewModel()
-    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading as AppState<List<UserEntity>>)
+    val viewModel = hiltViewModel<PeclViewModel>()
+    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading as AppState<List<PeclStudentEntity>>)
     val resultsState by viewModel.evaluationResultsState.observeAsState(AppState.Loading as AppState<List<PeclEvaluationResultEntity>>)
     val commentsState by viewModel.commentsState.observeAsState(AppState.Loading as AppState<List<String>>)
 
-    var selectedStudent by remember { mutableStateOf<UserEntity?>(null) }
+    var selectedStudent by remember { mutableStateOf<PeclStudentEntity?>(null) }
     var showComments by remember { mutableStateOf(false) }
 
     LaunchedEffect(poiId) {
-        viewModel.loadStudentsForProgram(poiId) // Assume added to ViewModel
+        viewModel.loadStudentsForProgram(poiId)
     }
 
     Column(
@@ -52,9 +53,13 @@ fun PeclDashboardScreen(navController: NavController, poiId: Long) {
             is AppState.Success -> {
                 LazyColumn {
                     items(state.data) { student ->
-                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        var average by remember { mutableStateOf(0.0) }
+                        LaunchedEffect(student.id) {
+                            average = viewModel.getAverageScoreForStudent(student.id, poiId)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(student.fullName, modifier = Modifier.weight(1f))
-                            Text("Progress: ${viewModel.getAverageScoreForStudent(student.id, poiId)}%") // From state
+                            Text("Progress: $average%")
                             Button(
                                 onClick = { selectedStudent = student; viewModel.loadEvaluationResultsForStudent(student.id) },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
@@ -63,7 +68,7 @@ fun PeclDashboardScreen(navController: NavController, poiId: Long) {
                                 Text("Grade")
                             }
                             Button(
-                                onClick = { selectedStudent = student; showComments = true; viewModel.loadCommentsForStudent(student.id) }, // Assume added
+                                onClick = { selectedStudent = student; showComments = true; viewModel.loadCommentsForStudent(student.id) },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                                 shape = RoundedCornerShape(4.dp)
                             ) {

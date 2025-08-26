@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,39 +34,33 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.UserEntity
+import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.DemographicsViewModel
+import com.example.aas_app.viewmodel.PeclViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UpdateUsersScreen(navController: NavController, role: String? = null) {
-    val viewModel = hiltViewModel<DemographicsViewModel>()
-    val users by viewModel.users.observeAsState(emptyList())
-    val instructors by viewModel.instructors.observeAsState(emptyList())
-    val students by viewModel.students.observeAsState(emptyList())
-    val programs by viewModel.programs.observeAsState(emptyList())
-
-    LaunchedEffect(role) {
-        if (role == "instructor") {
-            viewModel.loadInstructors()
-            viewModel.loadStudents()
-            viewModel.loadPrograms()
-        } else if (role == "student") {
-            viewModel.loadStudents()
-        } else {
-            viewModel.loadUsers()
-        }
-    }
+    val context = LocalContext.current
+    val demographicsViewModel = hiltViewModel<DemographicsViewModel>()
+    val peclViewModel = hiltViewModel<PeclViewModel>()
+    val users by demographicsViewModel.users.observeAsState(emptyList())
+    val instructors by demographicsViewModel.instructorsWithPrograms.observeAsState(emptyList())
+    val programs by demographicsViewModel.programs.observeAsState(emptyList())
+    val studentsState by peclViewModel.studentsState.observeAsState(AppState.Loading as AppState<List<PeclStudentEntity>>)
 
     var showDialog by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<UserEntity?>(null) }
@@ -90,7 +85,31 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
     var selectedStudentsForEdit by remember { mutableStateOf(setOf<Long>()) }
     var selectedProgramForEdit by remember { mutableStateOf<Long?>(null) }
     var expandedProgramEdit by remember { mutableStateOf(false) }
+    var selectedStudent by remember { mutableStateOf<PeclStudentEntity?>(null) }
+    var editStudent by remember { mutableStateOf<PeclStudentEntity?>(null) }
+    var editStudentFirstName by remember { mutableStateOf("") }
+    var editStudentLastName by remember { mutableStateOf("") }
+    var editStudentGrade by remember { mutableStateOf("") }
+    var editStudentPin by remember { mutableStateOf<Int?>(null) }
+    var newStudentFirstName by remember { mutableStateOf("") }
+    var newStudentLastName by remember { mutableStateOf("") }
+    var newStudentGrade by remember { mutableStateOf("") }
+    var newStudentPin by remember { mutableStateOf<Int?>(null) }
+    var showAddStudentDialog by remember { mutableStateOf(false) }
+    var showEditStudentDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(role) {
+        if (role == "instructor") {
+            demographicsViewModel.loadInstructors()
+            demographicsViewModel.loadPrograms()
+            peclViewModel.loadStudents()
+        } else if (role == "student") {
+            peclViewModel.loadStudents()
+        } else {
+            demographicsViewModel.loadUsers()
+        }
+    }
 
     LaunchedEffect(editUser) {
         editUser?.let { user ->
@@ -101,11 +120,20 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
             editRole = user.role ?: ""
             if (role == "instructor") {
                 coroutineScope.launch {
-                    val assignments = viewModel.getAssignmentsForInstructor(user.id).value ?: emptyList()
+                    val assignments = demographicsViewModel.getAssignmentsForInstructor(user.id).value ?: emptyList()
                     selectedStudentsForEdit = assignments.map { it.student_id }.toSet()
                     selectedProgramForEdit = assignments.firstOrNull()?.program_id
                 }
             }
+        }
+    }
+
+    LaunchedEffect(editStudent) {
+        editStudent?.let { student ->
+            editStudentFirstName = student.firstName
+            editStudentLastName = student.lastName
+            editStudentGrade = student.grade
+            editStudentPin = student.pin
         }
     }
 
@@ -132,27 +160,70 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                 Text("Add Instructors", modifier = Modifier.padding(start = 4.dp))
             }
 
-            val sortedInstructors = instructors.sortedBy { it.fullName }
+            val sortedInstructors = instructors.sortedBy { it.instructor.fullName }
             if (sortedInstructors.isEmpty()) {
                 Text("No Instructors have been entered in the database. Add Instructors to begin.")
             } else {
                 LazyColumn {
-                    items(sortedInstructors) { instructor ->
+                    items(sortedInstructors) { instructorWithProgram ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = instructor.fullName, modifier = Modifier.weight(1f))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = instructorWithProgram.instructor.fullName)
+                                Text(text = "Programs: ${instructorWithProgram.programName ?: "None"}", style = MaterialTheme.typography.bodySmall)
+                            }
                             IconButton(onClick = {
-                                editUser = instructor
-                                editInstructorName = instructor.fullName
+                                editUser = instructorWithProgram.instructor
                                 showEditInstructorDialog = true
                             }) {
                                 Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
                             }
-                            IconButton(onClick = { selectedUser = instructor; showDialog = true }) {
+                            IconButton(onClick = { selectedUser = instructorWithProgram.instructor; showDialog = true }) {
                                 Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
                             }
                         }
                     }
                 }
+            }
+        } else if (role == "student") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "PECL Students",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showAddStudentDialog = true }) {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Student")
+                }
+                Text("Add Student", modifier = Modifier.padding(start = 4.dp))
+            }
+
+            when (val state = studentsState) {
+                is AppState.Loading -> Text("Loading...")
+                is AppState.Success -> {
+                    val sortedStudents = state.data.sortedBy { it.fullName }
+                    LazyColumn {
+                        items(sortedStudents) { student ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = student.fullName, modifier = Modifier.weight(1f))
+                                IconButton(onClick = {
+                                    editStudent = student
+                                    showEditStudentDialog = true
+                                }) {
+                                    Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                                }
+                                IconButton(onClick = { selectedStudent = student; showDialog = true }) {
+                                    Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                                }
+                            }
+                        }
+                    }
+                }
+                is AppState.Error -> Text("Error: ${state.message}")
             }
         } else {
             if (users.isEmpty()) {
@@ -207,7 +278,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                 onClick = {
                     val fullName = "$newLastName, $newFirstName"
                     val newUser = UserEntity(firstName = newFirstName, lastName = newLastName, grade = newGrade, pin = newPin, fullName = fullName, role = newRole)
-                    viewModel.insertUser(newUser)
+                    demographicsViewModel.insertUser(newUser)
                     newFirstName = ""
                     newLastName = ""
                     newGrade = ""
@@ -233,18 +304,24 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                             label = { Text("Instructor Name") }
                         )
                         Text("Select Students:")
-                        LazyColumn {
-                            items(students) { student ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(
-                                        checked = selectedStudentsForAdd.contains(student.id),
-                                        onCheckedChange = { checked ->
-                                            selectedStudentsForAdd = if (checked) selectedStudentsForAdd + student.id else selectedStudentsForAdd - student.id
+                        when (val state = studentsState) {
+                            is AppState.Loading -> Text("Loading...")
+                            is AppState.Success -> {
+                                LazyColumn {
+                                    items(state.data) { student: PeclStudentEntity ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = selectedStudentsForAdd.contains(student.id),
+                                                onCheckedChange = { checked ->
+                                                    selectedStudentsForAdd = if (checked) selectedStudentsForAdd + student.id else selectedStudentsForAdd - student.id
+                                                }
+                                            )
+                                            Text(student.fullName)
                                         }
-                                    )
-                                    Text(student.fullName)
+                                    }
                                 }
                             }
+                            is AppState.Error -> Text("Error: ${state.message}")
                         }
                         ExposedDropdownMenuBox(
                             expanded = expandedProgramAdd,
@@ -282,9 +359,9 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                             coroutineScope.launch {
                                 val fullName = newInstructorName
                                 val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
-                                val instructorId = viewModel.insertUserSync(newUser)
+                                val instructorId = demographicsViewModel.insertUserSync(newUser)
                                 selectedStudentsForAdd.forEach { studentId ->
-                                    viewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAdd))
+                                    demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAdd))
                                 }
                                 showAddInstructorDialog = false
                                 newInstructorName = ""
@@ -321,19 +398,25 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                             onValueChange = { editInstructorName = it },
                             label = { Text("Instructor Name") }
                         )
-                        Text("Select Students:")
-                        LazyColumn {
-                            items(students) { student ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(
-                                        checked = selectedStudentsForEdit.contains(student.id),
-                                        onCheckedChange = { checked ->
-                                            selectedStudentsForEdit = if (checked) selectedStudentsForEdit + student.id else selectedStudentsForEdit - student.id
+                        Text(text = "Select Students:")
+                        when (val state = studentsState) {
+                            is AppState.Loading -> Text("Loading...")
+                            is AppState.Success -> {
+                                LazyColumn {
+                                    items(state.data) { student: PeclStudentEntity ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = selectedStudentsForEdit.contains(student.id),
+                                                onCheckedChange = { checked ->
+                                                    selectedStudentsForEdit = if (checked) selectedStudentsForEdit + student.id else selectedStudentsForEdit - student.id
+                                                }
+                                            )
+                                            Text(student.fullName)
                                         }
-                                    )
-                                    Text(student.fullName)
+                                    }
                                 }
                             }
+                            is AppState.Error -> Text("Error: ${state.message}")
                         }
                         ExposedDropdownMenuBox(
                             expanded = expandedProgramEdit,
@@ -371,10 +454,10 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                             coroutineScope.launch {
                                 editUser?.let { user ->
                                     val updatedUser = user.copy(fullName = editInstructorName)
-                                    viewModel.updateUser(updatedUser)
-                                    viewModel.deleteAssignmentsForInstructor(user.id)
+                                    demographicsViewModel.updateUser(updatedUser)
+                                    demographicsViewModel.deleteAssignmentsForInstructor(user.id)
                                     selectedStudentsForEdit.forEach { studentId ->
-                                        viewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = user.id, student_id = studentId, program_id = selectedProgramForEdit))
+                                        demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = user.id, student_id = studentId, program_id = selectedProgramForEdit))
                                     }
                                     showEditInstructorDialog = false
                                 }
@@ -389,6 +472,128 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                 dismissButton = {
                     Button(
                         onClick = { showEditInstructorDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (showAddStudentDialog) {
+            AlertDialog(
+                onDismissRequest = { showAddStudentDialog = false },
+                title = { Text("Add Student") },
+                text = {
+                    Column {
+                        TextField(
+                            value = newStudentFirstName,
+                            onValueChange = { newStudentFirstName = it },
+                            label = { Text("First Name") }
+                        )
+                        TextField(
+                            value = newStudentLastName,
+                            onValueChange = { newStudentLastName = it },
+                            label = { Text("Last Name") }
+                        )
+                        TextField(
+                            value = newStudentGrade,
+                            onValueChange = { newStudentGrade = it },
+                            label = { Text("Grade") }
+                        )
+                        TextField(
+                            value = newStudentPin?.toString() ?: "",
+                            onValueChange = { newStudentPin = it.toIntOrNull() },
+                            label = { Text("PIN") }
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val fullName = "$newStudentLastName, $newStudentFirstName"
+                            if (fullName.isNotBlank()) {
+                                val newStudent = PeclStudentEntity(firstName = newStudentFirstName, lastName = newStudentLastName, grade = newStudentGrade, pin = newStudentPin, fullName = fullName)
+                                peclViewModel.insertPeclStudent(newStudent)
+                                showAddStudentDialog = false
+                                newStudentFirstName = ""
+                                newStudentLastName = ""
+                                newStudentGrade = ""
+                                newStudentPin = null
+                                Toast.makeText(context, "Student added successfully", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        shape = RoundedCornerShape(4.dp),
+                        enabled = newStudentFirstName.isNotBlank() || newStudentLastName.isNotBlank()
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = { showAddStudentDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (showEditStudentDialog) {
+            AlertDialog(
+                onDismissRequest = { showEditStudentDialog = false },
+                title = { Text("Edit Student") },
+                text = {
+                    Column {
+                        TextField(
+                            value = editStudentFirstName,
+                            onValueChange = { editStudentFirstName = it },
+                            label = { Text("First Name") }
+                        )
+                        TextField(
+                            value = editStudentLastName,
+                            onValueChange = { editStudentLastName = it },
+                            label = { Text("Last Name") }
+                        )
+                        TextField(
+                            value = editStudentGrade,
+                            onValueChange = { editStudentGrade = it },
+                            label = { Text("Grade") }
+                        )
+                        TextField(
+                            value = editStudentPin?.toString() ?: "",
+                            onValueChange = { editStudentPin = it.toIntOrNull() },
+                            label = { Text("PIN") }
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val fullName = "$editStudentLastName, $editStudentFirstName"
+                            if (fullName.isNotBlank()) {
+                                editStudent?.let { student ->
+                                    val updatedStudent = student.copy(firstName = editStudentFirstName, lastName = editStudentLastName, grade = editStudentGrade, pin = editStudentPin, fullName = fullName)
+                                    peclViewModel.updatePeclStudent(updatedStudent)
+                                    showEditStudentDialog = false
+                                    Toast.makeText(context, "Student updated successfully", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        shape = RoundedCornerShape(4.dp),
+                        enabled = editStudentFirstName.isNotBlank() || editStudentLastName.isNotBlank()
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = { showEditStudentDialog = false },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                         shape = RoundedCornerShape(4.dp)
                     ) {
@@ -438,7 +643,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                         Button(
                             onClick = {
                                 val fullName = "$editLastName, $editFirstName"
-                                viewModel.updateUser(user.copy(firstName = editFirstName, lastName = editLastName, grade = editGrade, pin = editPin, fullName = fullName, role = editRole))
+                                demographicsViewModel.updateUser(user.copy(firstName = editFirstName, lastName = editLastName, grade = editGrade, pin = editPin, fullName = fullName, role = editRole))
                                 editUser = null
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
@@ -469,7 +674,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
             confirmButton = {
                 Button(
                     onClick = {
-                        selectedUser?.let { viewModel.deleteUser(it) }
+                        selectedUser?.let { demographicsViewModel.deleteUser(it) }
                         showDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
