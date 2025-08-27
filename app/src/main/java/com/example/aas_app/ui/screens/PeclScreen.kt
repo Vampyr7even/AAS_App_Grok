@@ -56,7 +56,6 @@ import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclStudentEntity
-import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -65,7 +64,9 @@ import com.example.aas_app.viewmodel.DemographicsViewModel
 import com.example.aas_app.viewmodel.PeclViewModel
 import com.example.aas_app.viewmodel.PoiWithPrograms
 import com.example.aas_app.viewmodel.TaskWithPois
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.collections.emptyList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,13 +75,13 @@ fun PeclScreen(navController: NavController) {
     val demographicsViewModel: DemographicsViewModel = hiltViewModel()
     val peclViewModel: PeclViewModel = hiltViewModel()
     val context = LocalContext.current
-    val programsState by adminViewModel.programsState.observeAsState(AppState.Loading as AppState<List<PeclProgramEntity>>)
-    val poisState by adminViewModel.poisState.observeAsState(AppState.Loading as AppState<List<PoiWithPrograms>>)
-    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Loading as AppState<List<TaskWithPois>>)
-    val questionsState by adminViewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
-    val scalesState by adminViewModel.scalesState.observeAsState(AppState.Loading as AppState<List<ScaleEntity>>)
+    val programsState by adminViewModel.programsState.observeAsState(AppState.Success(emptyList<PeclProgramEntity>()) as AppState<List<PeclProgramEntity>>)
+    val poisState by adminViewModel.poisState.observeAsState(AppState.Success(emptyList<PoiWithPrograms>()) as AppState<List<PoiWithPrograms>>)
+    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Success(emptyList<TaskWithPois>()) as AppState<List<TaskWithPois>>)
+    val questionsState by adminViewModel.questionsState.observeAsState(AppState.Success(emptyList<PeclQuestionEntity>()) as AppState<List<PeclQuestionEntity>>)
+    val scalesState by adminViewModel.scalesState.observeAsState(AppState.Success(emptyList<ScaleEntity>()) as AppState<List<ScaleEntity>>)
     val instructors by demographicsViewModel.instructorsWithPrograms.observeAsState(emptyList())
-    val studentsState by peclViewModel.studentsState.observeAsState(AppState.Loading as AppState<List<PeclStudentEntity>>)
+    val studentsState by peclViewModel.studentsState.observeAsState(AppState.Success(emptyList<PeclStudentEntity>()) as AppState<List<PeclStudentEntity>>)
     val programs by demographicsViewModel.programs.observeAsState(emptyList())
     val poisSimple by adminViewModel.poisSimple.observeAsState(emptyList())
     var selectedTab by remember { mutableStateOf<String?>(null) }
@@ -151,6 +152,11 @@ fun PeclScreen(navController: NavController) {
     var editStudentPin by remember { mutableStateOf<Int?>(null) }
     var selectedStudentToDelete by remember { mutableStateOf<PeclStudentEntity?>(null) }
     var showStudentDeleteDialog by remember { mutableStateOf(false) } // Separate state for student delete
+    var showAssignDialog by remember { mutableStateOf(false) }
+    var selectedInstructorForAssign by remember { mutableStateOf<UserEntity?>(null) }
+    var expandedProgramAssign by remember { mutableStateOf(false) }
+    var selectedStudentsForAssign by remember { mutableStateOf(setOf<Long>()) }
+    var selectedProgramForAssign by remember { mutableStateOf<Long?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     val controlTypeOptions = listOf("CheckBox", "ComboBox", "Comment", "ListBox", "OptionButton", "ScoreBox", "TextBox")
@@ -188,11 +194,9 @@ fun PeclScreen(navController: NavController) {
         showEditPoiDialog?.let { poiWithPrograms ->
             editPoiName = poiWithPrograms.poi.name
             selectedProgramsForEdit = poiWithPrograms.programs.mapNotNull { programName ->
-                programsState.let { state ->
-                    if (state is AppState.Success) {
-                        state.data.find { it.name == programName }?.id
-                    } else null
-                }
+                if (programsState is AppState.Success) {
+                    (programsState as AppState.Success).data.find { it.name == programName }?.id
+                } else null
             }.toSet()
         }
     }
@@ -221,8 +225,22 @@ fun PeclScreen(navController: NavController) {
             editInstructorName = instructor.fullName
             coroutineScope.launch {
                 val assignments = demographicsViewModel.getAssignmentsForInstructor(instructor.id).value ?: emptyList()
-                selectedStudentsForEditInstructor = assignments.map { it.student_id }.toSet()
+                selectedStudentsForEditInstructor = assignments.map { assignment ->
+                    assignment.student_id
+                }.toSet()
                 selectedProgramForEditInstructor = assignments.firstOrNull()?.program_id
+            }
+        }
+    }
+
+    LaunchedEffect(selectedInstructorForAssign) {
+        selectedInstructorForAssign?.let { instructor ->
+            coroutineScope.launch {
+                val assignments = demographicsViewModel.getAssignmentsForInstructor(instructor.id).value ?: emptyList()
+                selectedStudentsForAssign = assignments.map { assignment ->
+                    assignment.student_id
+                }.toSet()
+                selectedProgramForAssign = assignments.firstOrNull()?.program_id
             }
         }
     }
@@ -404,9 +422,7 @@ fun PeclScreen(navController: NavController) {
                             )
                             Text(text = "Select Programs:")
                             LazyColumn {
-                                items(programsState.let { state ->
-                                    if (state is AppState.Success) state.data else emptyList()
-                                }) { program: PeclProgramEntity ->
+                                items(if (programsState is AppState.Success) (programsState as AppState.Success).data else emptyList()) { program: PeclProgramEntity ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedProgramsForAdd.contains(program.id),
@@ -456,7 +472,7 @@ fun PeclScreen(navController: NavController) {
                 )
             }
 
-            showEditPoiDialog?.let { poiWithPrograms ->
+            showEditPoiDialog?.let { poiWithPrograms: PoiWithPrograms ->
                 AlertDialog(
                     onDismissRequest = { showEditPoiDialog = null },
                     title = { Text("Edit POI") },
@@ -469,9 +485,7 @@ fun PeclScreen(navController: NavController) {
                             )
                             Text(text = "Select Programs:")
                             LazyColumn {
-                                items(programsState.let { state ->
-                                    if (state is AppState.Success) state.data else emptyList()
-                                }) { program: PeclProgramEntity ->
+                                items(if (programsState is AppState.Success) (programsState as AppState.Success).data else emptyList()) { program: PeclProgramEntity ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedProgramsForEdit.contains(program.id),
@@ -539,7 +553,7 @@ fun PeclScreen(navController: NavController) {
             }
 
             when (val state = tasksState) {
-                is AppState.Loading -> Text(text = "Loading...")
+                is AppState.Loading -> Text("Loading...")
                 is AppState.Success -> {
                     LazyColumn {
                         items(state.data) { taskWithPois ->
@@ -561,7 +575,7 @@ fun PeclScreen(navController: NavController) {
                         }
                     }
                 }
-                is AppState.Error -> Text(text = "Error: ${state.message}")
+                is AppState.Error -> Text("Error: ${state.message}")
             }
 
             if (showAddTaskDialog) {
@@ -711,11 +725,9 @@ fun PeclScreen(navController: NavController) {
                 is AppState.Loading -> Text("Loading...")
                 is AppState.Success -> {
                     val sortedQuestions = state.data.sortedBy { it.subTask }
-                    val taskMap = tasksState.let { tState ->
-                        if (tState is AppState.Success) {
-                            tState.data.associate { it.task.id to it.task.name }
-                        } else emptyMap()
-                    }
+                    val taskMap = if (tasksState is AppState.Success) {
+                        (tasksState as AppState.Success).data.associate { it.task.id to it.task.name }
+                    } else emptyMap()
                     if (sortedQuestions.isEmpty()) {
                         Text("No questions available")
                     } else {
@@ -754,9 +766,7 @@ fun PeclScreen(navController: NavController) {
                             )
                             ExposedDropdownMenuBox(
                                 expanded = expandedControlTypeAdd,
-                                onExpandedChange = { _ ->
-                                    expandedControlTypeAdd = !expandedControlTypeAdd
-                                }
+                                onExpandedChange = { expandedControlTypeAdd = !expandedControlTypeAdd }
                             ) {
                                 TextField(
                                     readOnly = true,
@@ -773,7 +783,7 @@ fun PeclScreen(navController: NavController) {
                                 ) {
                                     controlTypeOptions.forEach { option ->
                                         DropdownMenuItem(
-                                            text = { Text(text = option) },
+                                            text = { Text(option) },
                                             onClick = {
                                                 newControlType = option
                                                 expandedControlTypeAdd = false
@@ -785,9 +795,7 @@ fun PeclScreen(navController: NavController) {
                             if (newControlType == "ComboBox" || newControlType == "ListBox") {
                                 ExposedDropdownMenuBox(
                                     expanded = expandedScaleAdd,
-                                    onExpandedChange = { _ ->
-                                        expandedScaleAdd = !expandedScaleAdd
-                                    }
+                                    onExpandedChange = { expandedScaleAdd = !expandedScaleAdd }
                                 ) {
                                     TextField(
                                         readOnly = true,
@@ -806,7 +814,7 @@ fun PeclScreen(navController: NavController) {
                                             is AppState.Loading -> Text("Loading scales...")
                                             is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { scale ->
                                                 DropdownMenuItem(
-                                                    text = { Text(text = scale.scaleName) },
+                                                    text = { Text(scale.scaleName) },
                                                     onClick = {
                                                         newScale = scale.scaleName
                                                         expandedScaleAdd = false
@@ -820,17 +828,13 @@ fun PeclScreen(navController: NavController) {
                             }
                             ExposedDropdownMenuBox(
                                 expanded = expandedTaskAdd,
-                                onExpandedChange = { _ ->
-                                    expandedTaskAdd = !expandedTaskAdd
-                                }
+                                onExpandedChange = { expandedTaskAdd = !expandedTaskAdd }
                             ) {
                                 TextField(
                                     readOnly = true,
-                                    value = tasksState.let { state ->
-                                        if (state is AppState.Success) {
-                                            state.data.sortedBy { it.task.name }.find { it.task.id == newTaskId }?.task?.name ?: ""
-                                        } else ""
-                                    },
+                                    value = if (tasksState is AppState.Success) {
+                                        (tasksState as AppState.Success).data.sortedBy { it.task.name }.find { it.task.id == newTaskId }?.task?.name ?: ""
+                                    } else "",
                                     onValueChange = { },
                                     label = { Text("Assign to Task") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTaskAdd) },
@@ -845,7 +849,7 @@ fun PeclScreen(navController: NavController) {
                                         is AppState.Loading -> Text("Loading tasks...")
                                         is AppState.Success -> state.data.sortedBy { it.task.name }.forEach { taskWithPois ->
                                             DropdownMenuItem(
-                                                text = { Text(text = taskWithPois.task.name) },
+                                                text = { Text(taskWithPois.task.name) },
                                                 onClick = {
                                                     newTaskId = taskWithPois.task.id
                                                     expandedTaskAdd = false
@@ -858,9 +862,7 @@ fun PeclScreen(navController: NavController) {
                             }
                             ExposedDropdownMenuBox(
                                 expanded = expandedCriticalTaskAdd,
-                                onExpandedChange = { _ ->
-                                    expandedCriticalTaskAdd = !expandedCriticalTaskAdd
-                                }
+                                onExpandedChange = { expandedCriticalTaskAdd = !expandedCriticalTaskAdd }
                             ) {
                                 TextField(
                                     readOnly = true,
@@ -877,7 +879,7 @@ fun PeclScreen(navController: NavController) {
                                 ) {
                                     criticalTaskOptions.forEach { option ->
                                         DropdownMenuItem(
-                                            text = { Text(text = option) },
+                                            text = { Text(option) },
                                             onClick = {
                                                 newCriticalTask = option
                                                 expandedCriticalTaskAdd = false
@@ -941,9 +943,7 @@ fun PeclScreen(navController: NavController) {
                             )
                             ExposedDropdownMenuBox(
                                 expanded = expandedControlTypeEdit,
-                                onExpandedChange = { _ ->
-                                    expandedControlTypeEdit = !expandedControlTypeEdit
-                                }
+                                onExpandedChange = { expandedControlTypeEdit = !expandedControlTypeEdit }
                             ) {
                                 TextField(
                                     readOnly = true,
@@ -960,7 +960,7 @@ fun PeclScreen(navController: NavController) {
                                 ) {
                                     controlTypeOptions.forEach { option ->
                                         DropdownMenuItem(
-                                            text = { Text(text = option) },
+                                            text = { Text(option) },
                                             onClick = {
                                                 editControlType = option
                                                 expandedControlTypeEdit = false
@@ -972,9 +972,7 @@ fun PeclScreen(navController: NavController) {
                             if (editControlType == "ComboBox" || editControlType == "ListBox") {
                                 ExposedDropdownMenuBox(
                                     expanded = expandedScaleEdit,
-                                    onExpandedChange = { _ ->
-                                        expandedScaleEdit = !expandedScaleEdit
-                                    }
+                                    onExpandedChange = { expandedScaleEdit = !expandedScaleEdit }
                                 ) {
                                     TextField(
                                         readOnly = true,
@@ -993,7 +991,7 @@ fun PeclScreen(navController: NavController) {
                                             is AppState.Loading -> Text("Loading scales...")
                                             is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { scale ->
                                                 DropdownMenuItem(
-                                                    text = { Text(text = scale.scaleName) },
+                                                    text = { Text(scale.scaleName) },
                                                     onClick = {
                                                         editScale = scale.scaleName
                                                         expandedScaleEdit = false
@@ -1007,17 +1005,13 @@ fun PeclScreen(navController: NavController) {
                             }
                             ExposedDropdownMenuBox(
                                 expanded = expandedTaskEdit,
-                                onExpandedChange = { _ ->
-                                    expandedTaskEdit = !expandedTaskEdit
-                                }
+                                onExpandedChange = { expandedTaskEdit = !expandedTaskEdit }
                             ) {
                                 TextField(
                                     readOnly = true,
-                                    value = tasksState.let { state ->
-                                        if (state is AppState.Success) {
-                                            state.data.sortedBy { it.task.name }.find { it.task.id == editTaskId }?.task?.name ?: ""
-                                        } else ""
-                                    },
+                                    value = if (tasksState is AppState.Success) {
+                                        (tasksState as AppState.Success).data.sortedBy { it.task.name }.find { it.task.id == editTaskId }?.task?.name ?: ""
+                                    } else "",
                                     onValueChange = { },
                                     label = { Text("Assign to Task") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTaskEdit) },
@@ -1032,7 +1026,7 @@ fun PeclScreen(navController: NavController) {
                                         is AppState.Loading -> Text("Loading tasks...")
                                         is AppState.Success -> state.data.sortedBy { it.task.name }.forEach { taskWithPois ->
                                             DropdownMenuItem(
-                                                text = { Text(text = taskWithPois.task.name) },
+                                                text = { Text(taskWithPois.task.name) },
                                                 onClick = {
                                                     editTaskId = taskWithPois.task.id
                                                     expandedTaskEdit = false
@@ -1045,9 +1039,7 @@ fun PeclScreen(navController: NavController) {
                             }
                             ExposedDropdownMenuBox(
                                 expanded = expandedCriticalTaskEdit,
-                                onExpandedChange = { _ ->
-                                    expandedCriticalTaskEdit = !expandedCriticalTaskEdit
-                                }
+                                onExpandedChange = { expandedCriticalTaskEdit = !expandedCriticalTaskEdit }
                             ) {
                                 TextField(
                                     readOnly = true,
@@ -1064,7 +1056,7 @@ fun PeclScreen(navController: NavController) {
                                 ) {
                                     criticalTaskOptions.forEach { option ->
                                         DropdownMenuItem(
-                                            text = { Text(text = option) },
+                                            text = { Text(option) },
                                             onClick = {
                                                 editCriticalTask = option
                                                 expandedCriticalTaskEdit = false
@@ -1126,10 +1118,7 @@ fun PeclScreen(navController: NavController) {
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = {
-                    Toast.makeText(context, "Add Instructor clicked", Toast.LENGTH_SHORT).show()
-                    showAddInstructorDialog = true
-                }) {
+                IconButton(onClick = { showAddInstructorDialog = true }) {
                     Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Instructor")
                 }
                 Text("Add Instructors", modifier = Modifier.padding(start = 4.dp))
@@ -1151,6 +1140,12 @@ fun PeclScreen(navController: NavController) {
                                 showEditInstructorDialog = true
                             }) {
                                 Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                            }
+                            IconButton(onClick = {
+                                selectedInstructorForAssign = instructorWithProgram.instructor
+                                showAssignDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Filled.Person, contentDescription = "Assign Students")
                             }
                             IconButton(onClick = { selectedInstructorToDelete = instructorWithProgram.instructor; showInstructorDeleteDialog = true }) {
                                 Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
@@ -1184,10 +1179,7 @@ fun PeclScreen(navController: NavController) {
                     LazyColumn {
                         items(sortedStudents) { student ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = student.fullName)
-                                    Text(text = "PIN: ${student.pin ?: "N/A"} | Grade: ${student.grade}", style = MaterialTheme.typography.bodySmall)
-                                }
+                                Text(text = student.fullName, modifier = Modifier.weight(1f))
                                 IconButton(onClick = {
                                     editStudent = student
                                     editStudentFirstName = student.firstName
@@ -1333,29 +1325,26 @@ fun PeclScreen(navController: NavController) {
         )
     }
 
-    selectedInstructorToDelete?.let { instructor ->
+    if (showInstructorDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { selectedInstructorToDelete = null },
+            onDismissRequest = { showInstructorDeleteDialog = false },
             title = { Text("Confirm Delete") },
             text = { Text("Delete this instructor?") },
             confirmButton = {
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            try {
+                            selectedInstructorToDelete?.let { instructor ->
                                 val canDelete = demographicsViewModel.canDeleteInstructor(instructor.id)
                                 if (canDelete) {
                                     demographicsViewModel.deleteUser(instructor)
-                                    demographicsViewModel.loadInstructors() // Explicit reload after delete
+                                    demographicsViewModel.loadInstructors()
                                     Toast.makeText(context, "Instructor deleted successfully", Toast.LENGTH_SHORT).show()
                                 } else {
                                     showDeleteErrorDialog = true
                                 }
-                                selectedInstructorToDelete = null
-                            } catch (e: Exception) {
-                                errorMessage = "Error checking assignments: ${e.message}"
-                                Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                             }
+                            showInstructorDeleteDialog = false
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
@@ -1366,7 +1355,7 @@ fun PeclScreen(navController: NavController) {
             },
             dismissButton = {
                 Button(
-                    onClick = { selectedInstructorToDelete = null },
+                    onClick = { showInstructorDeleteDialog = false },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {
@@ -1394,7 +1383,6 @@ fun PeclScreen(navController: NavController) {
     }
 
     if (showAddInstructorDialog) {
-        Text("Dialog should be shown")  // Diagnostic text to confirm conditional branch execution
         AlertDialog(
             onDismissRequest = { showAddInstructorDialog = false },
             title = { Text("Add Instructor") },
@@ -1427,9 +1415,7 @@ fun PeclScreen(navController: NavController) {
                     }
                     ExposedDropdownMenuBox(
                         expanded = expandedProgramAddInstructor,
-                        onExpandedChange = { _ ->
-                            expandedProgramAddInstructor = !expandedProgramAddInstructor
-                        }
+                        onExpandedChange = { expandedProgramAddInstructor = !expandedProgramAddInstructor }
                     ) {
                         TextField(
                             readOnly = true,
@@ -1470,7 +1456,7 @@ fun PeclScreen(navController: NavController) {
                             if (selectedProgramForAddInstructor != null) {
                                 demographicsViewModel.insertInstructorProgramAssignment(InstructorProgramAssignmentEntity(instructor_id = instructorId, program_id = selectedProgramForAddInstructor!!))
                             }
-                            demographicsViewModel.loadInstructors() // Explicit reload after insert
+                            demographicsViewModel.loadInstructors()
                             showAddInstructorDialog = false
                             newInstructorName = ""
                             selectedStudentsForAddInstructor = emptySet()
@@ -1526,41 +1512,31 @@ fun PeclScreen(navController: NavController) {
                         }
                         is AppState.Error -> Text("Error: ${state.message}")
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ExposedDropdownMenuBox(
+                    ExposedDropdownMenuBox(
+                        expanded = expandedProgramEditInstructor,
+                        onExpandedChange = { expandedProgramEditInstructor = !expandedProgramEditInstructor }
+                    ) {
+                        TextField(
+                            readOnly = true,
+                            value = programs.find { it.id == selectedProgramForEditInstructor }?.name ?: "",
+                            onValueChange = { },
+                            label = { Text("Select Program") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProgramEditInstructor) },
+                            colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(
                             expanded = expandedProgramEditInstructor,
-                            onExpandedChange = { _ ->
-                                expandedProgramEditInstructor = !expandedProgramEditInstructor
-                            },
-                            modifier = Modifier.weight(1f)
+                            onDismissRequest = { expandedProgramEditInstructor = false }
                         ) {
-                            TextField(
-                                readOnly = true,
-                                value = programs.find { it.id == selectedProgramForEditInstructor }?.name ?: "",
-                                onValueChange = { },
-                                label = { Text("Select Program") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProgramEditInstructor) },
-                                colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                                modifier = Modifier.menuAnchor()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = expandedProgramEditInstructor,
-                                onDismissRequest = { expandedProgramEditInstructor = false }
-                            ) {
-                                programs.forEach { program ->
-                                    DropdownMenuItem(
-                                        text = { Text(program.name) },
-                                        onClick = {
-                                            selectedProgramForEditInstructor = program.id
-                                            expandedProgramEditInstructor = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        if (selectedProgramForEditInstructor != null) {
-                            IconButton(onClick = { selectedProgramForEditInstructor = null }) {
-                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Remove Program")
+                            programs.forEach { program ->
+                                DropdownMenuItem(
+                                    text = { Text(program.name) },
+                                    onClick = {
+                                        selectedProgramForEditInstructor = program.id
+                                        expandedProgramEditInstructor = false
+                                    }
+                                )
                             }
                         }
                     }
@@ -1581,7 +1557,7 @@ fun PeclScreen(navController: NavController) {
                                 if (selectedProgramForEditInstructor != null) {
                                     demographicsViewModel.insertInstructorProgramAssignment(InstructorProgramAssignmentEntity(instructor_id = instructor.id, program_id = selectedProgramForEditInstructor!!))
                                 }
-                                demographicsViewModel.loadInstructors() // Explicit reload after update
+                                demographicsViewModel.loadInstructors()
                                 showEditInstructorDialog = false
                             }
                         }
@@ -1603,6 +1579,70 @@ fun PeclScreen(navController: NavController) {
             }
         )
     }
+
+    if (showAssignDialog) {
+        AlertDialog(
+            onDismissRequest = { showAssignDialog = false },
+            title = { Text("Assign Students to ${selectedInstructorForAssign?.fullName}") },
+            text = {
+                Column {
+                    Text(text = "Select Students:")
+                    when (val state = studentsState) {
+                        is AppState.Loading -> Text("Loading...")
+                        is AppState.Success -> {
+                            LazyColumn {
+                                items(state.data) { student: PeclStudentEntity ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedStudentsForAssign.contains(student.id),
+                                            onCheckedChange = { checked ->
+                                                selectedStudentsForAssign = if (checked) selectedStudentsForAssign + student.id else selectedStudentsForAssign - student.id
+                                            }
+                                        )
+                                        Text(student.fullName)
+                                    }
+                                }
+                            }
+                        }
+                        is AppState.Error -> Text("Error: ${state.message}")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            selectedInstructorForAssign?.let { instructor ->
+                                val programNames = demographicsViewModel.getProgramsForInstructor(instructor.id).first()
+                                val instructorProgramId = programs.firstOrNull { it.name in programNames }?.id
+                                demographicsViewModel.deleteAssignmentsForInstructor(instructor.id)
+                                selectedStudentsForAssign.forEach { studentId ->
+                                    demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructor.id, student_id = studentId, program_id = instructorProgramId))
+                                }
+                                demographicsViewModel.loadInstructors()
+                                showAssignDialog = false
+                                selectedStudentsForAssign = emptySet()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showAssignDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     if (showAddStudentDialog) {
         AlertDialog(
             onDismissRequest = { showAddStudentDialog = false },
@@ -1636,15 +1676,9 @@ fun PeclScreen(navController: NavController) {
                     onClick = {
                         if (newStudentFirstName.isNotBlank() && newStudentLastName.isNotBlank()) {
                             val fullName = "$newStudentLastName, $newStudentFirstName"
-                            val newStudent = PeclStudentEntity(
-                                firstName = newStudentFirstName,
-                                lastName = newStudentLastName,
-                                grade = newStudentGrade,
-                                pin = newStudentPin,
-                                fullName = fullName
-                            )
+                            val newStudent = PeclStudentEntity(firstName = newStudentFirstName, lastName = newStudentLastName, grade = newStudentGrade, pin = newStudentPin, fullName = fullName)
                             peclViewModel.insertPeclStudent(newStudent)
-                            peclViewModel.loadStudents() // Reload list after insert
+                            peclViewModel.loadStudents()
                             showAddStudentDialog = false
                             newStudentFirstName = ""
                             newStudentLastName = ""
@@ -1656,8 +1690,7 @@ fun PeclScreen(navController: NavController) {
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                    shape = RoundedCornerShape(4.dp),
-                    enabled = newStudentFirstName.isNotBlank() && newStudentLastName.isNotBlank()
+                    shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("Save")
                 }
@@ -1705,27 +1738,19 @@ fun PeclScreen(navController: NavController) {
             confirmButton = {
                 Button(
                     onClick = {
-                        if (editStudentFirstName.isNotBlank() && editStudentLastName.isNotBlank()) {
-                            val fullName = "$editStudentLastName, $editStudentFirstName"
-                            val updatedStudent = PeclStudentEntity(
-                                id = editStudent?.id ?: 0L,
-                                firstName = editStudentFirstName,
-                                lastName = editStudentLastName,
-                                grade = editStudentGrade,
-                                pin = editStudentPin,
-                                fullName = fullName
-                            )
-                            peclViewModel.updatePeclStudent(updatedStudent)
-                            peclViewModel.loadStudents() // Reload list after update
-                            showEditStudentDialog = false
-                            Toast.makeText(context, "Student updated successfully", Toast.LENGTH_SHORT).show()
-                        } else {
-                            errorMessage = "First name and last name are required"
+                        val fullName = "$editStudentLastName, $editStudentFirstName"
+                        if (fullName.isNotBlank()) {
+                            editStudent?.let { student ->
+                                val updatedStudent = student.copy(firstName = editStudentFirstName, lastName = editStudentLastName, grade = editStudentGrade, pin = editStudentPin, fullName = fullName)
+                                peclViewModel.updatePeclStudent(updatedStudent)
+                                peclViewModel.loadStudents()
+                                showEditStudentDialog = false
+                                Toast.makeText(context, "Student updated successfully", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                    shape = RoundedCornerShape(4.dp),
-                    enabled = editStudentFirstName.isNotBlank() && editStudentLastName.isNotBlank()
+                    shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("Save")
                 }
@@ -1751,7 +1776,7 @@ fun PeclScreen(navController: NavController) {
                 Button(
                     onClick = {
                         selectedStudentToDelete?.let { peclViewModel.deletePeclStudent(it) }
-                        peclViewModel.loadStudents() // Reload list after delete
+                        peclViewModel.loadStudents()
                         showStudentDeleteDialog = false
                         Toast.makeText(context, "Student deleted successfully", Toast.LENGTH_SHORT).show()
                     },

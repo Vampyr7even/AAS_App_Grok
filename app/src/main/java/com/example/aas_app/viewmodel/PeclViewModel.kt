@@ -110,9 +110,13 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         }
     }
 
-    suspend fun getAverageScoreForStudent(studentId: Long, poiId: Long): Double {
+    suspend fun getAverageScoreForStudent(studentId: Long, taskId: Long): Double {
         return try {
-            repository.getAverageScoreForStudent(studentId, poiId)
+            // New: Per-task average
+            val questions = repository.getQuestionsForTask(taskId).first()
+            val questionIds = questions.map { it.id }
+            val scores = repository.getEvaluationResultsForStudent(studentId).first().filter { it.question_id in questionIds }.map { it.score }
+            if (scores.isNotEmpty()) scores.average() else 0.0
         } catch (e: Exception) {
             Log.e("PeclViewModel", "Error getting average score: ${e.message}", e)
             0.0

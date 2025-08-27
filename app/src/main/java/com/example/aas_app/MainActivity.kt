@@ -29,6 +29,7 @@ import com.example.aas_app.ui.screens.EditProgramsScreen
 import com.example.aas_app.ui.screens.EditTasksScreen
 import com.example.aas_app.ui.screens.EvaluateScreen
 import com.example.aas_app.ui.screens.ExaminationsScreen
+import com.example.aas_app.ui.screens.GradingScreen
 import com.example.aas_app.ui.screens.HomeScreen
 import com.example.aas_app.ui.screens.PeclDashboardScreen
 import com.example.aas_app.ui.screens.PeclScreen
@@ -121,6 +122,19 @@ fun AASAppScaffold() {
             composable("repository") { RepositoryScreen(navController) }
             composable("update_projects") { UpdateProjectsScreen(navController) }
             composable("update_users") { UpdateUsersScreen(navController, null) }
+            composable(
+                "grading/{studentId}/{taskId}",
+                arguments = listOf(
+                    navArgument("studentId") { type = NavType.LongType },
+                    navArgument("taskId") { type = NavType.LongType }
+                )
+            ) { backStackEntry ->
+                GradingScreen(
+                    navController,
+                    backStackEntry.arguments?.getLong("studentId") ?: 0L,
+                    backStackEntry.arguments?.getLong("taskId") ?: 0L
+                )
+            }
             // Add other routes as needed
         }
     }
