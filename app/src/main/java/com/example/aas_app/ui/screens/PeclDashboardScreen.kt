@@ -41,20 +41,24 @@ import com.example.aas_app.viewmodel.PeclViewModel
 @Composable
 fun PeclDashboardScreen(navController: NavController, poiId: Long) {
     val viewModel = hiltViewModel<PeclViewModel>()
-    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading as AppState<List<PeclStudentEntity>>)
-    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading as AppState<List<PeclTaskEntity>>)
-    val resultsState by viewModel.evaluationResultsState.observeAsState(AppState.Loading as AppState<List<PeclEvaluationResultEntity>>)
-    val commentsState by viewModel.commentsState.observeAsState(AppState.Loading as AppState<List<String>>)
+    val studentsState by viewModel.studentsState.observeAsState(AppState.Success(emptyList<PeclStudentEntity>()) as AppState<List<PeclStudentEntity>>)
+    val tasksState by viewModel.tasksState.observeAsState(AppState.Success(emptyList<PeclTaskEntity>()) as AppState<List<PeclTaskEntity>>)
+    val resultsState by viewModel.evaluationResultsState.observeAsState(AppState.Success(emptyList<PeclEvaluationResultEntity>()) as AppState<List<PeclEvaluationResultEntity>>)
+    val commentsState by viewModel.commentsState.observeAsState(AppState.Success(emptyList<String>()) as AppState<List<String>>)
 
     var selectedStudent by remember { mutableStateOf<PeclStudentEntity?>(null) }
     var showComments by remember { mutableStateOf(false) }
-    var selectedTask by remember { mutableStateOf<PeclTaskEntity?>(null) } // for grading
+    var selectedTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
     var expandedInstructor by remember { mutableStateOf(false) }
     var selectedInstructorName by remember { mutableStateOf("") }
 
     LaunchedEffect(poiId) {
-        viewModel.loadStudentsForProgram(poiId)
-        viewModel.loadTasksForPoi(poiId)
+        try {
+            viewModel.loadStudentsForProgram(poiId)
+            viewModel.loadTasksForPoi(poiId)
+        } catch (e: Exception) {
+            // Handle error, e.g., post to state
+        }
     }
 
     Column(
@@ -106,10 +110,10 @@ fun PeclDashboardScreen(navController: NavController, poiId: Long) {
                                 items(tasksState.let { if (it is AppState.Success) it.data else emptyList() }) { task ->
                                     var average by remember { mutableStateOf(0.0) }
                                     LaunchedEffect(student.id, task.id) {
-                                        average = viewModel.getAverageScoreForStudent(student.id, task.id) // Update to per-task average
+                                        average = viewModel.getAverageScoreForStudent(student.id, task.id)
                                     }
                                     Button(
-                                        onClick = { selectedStudent = student; selectedTask = task; /* Navigate to GradingScreen */ navController.navigate("grading/${student.id}/${task.id}") },
+                                        onClick = { selectedStudent = student; selectedTask = task; navController.navigate("grading/${student.id}/${task.id}") },
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                                         shape = RoundedCornerShape(4.dp)
                                     ) {

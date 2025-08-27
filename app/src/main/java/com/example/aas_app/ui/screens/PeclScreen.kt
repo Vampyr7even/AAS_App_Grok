@@ -56,6 +56,7 @@ import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclStudentEntity
+import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.AdminViewModel
@@ -64,9 +65,7 @@ import com.example.aas_app.viewmodel.DemographicsViewModel
 import com.example.aas_app.viewmodel.PeclViewModel
 import com.example.aas_app.viewmodel.PoiWithPrograms
 import com.example.aas_app.viewmodel.TaskWithPois
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.collections.emptyList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +76,7 @@ fun PeclScreen(navController: NavController) {
     val context = LocalContext.current
     val programsState by adminViewModel.programsState.observeAsState(AppState.Success(emptyList<PeclProgramEntity>()) as AppState<List<PeclProgramEntity>>)
     val poisState by adminViewModel.poisState.observeAsState(AppState.Success(emptyList<PoiWithPrograms>()) as AppState<List<PoiWithPrograms>>)
-    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Success(emptyList<TaskWithPois>()) as AppState<List<TaskWithPois>>)
+    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Success(emptyList<TaskWithPois>()))
     val questionsState by adminViewModel.questionsState.observeAsState(AppState.Success(emptyList<PeclQuestionEntity>()) as AppState<List<PeclQuestionEntity>>)
     val scalesState by adminViewModel.scalesState.observeAsState(AppState.Success(emptyList<ScaleEntity>()) as AppState<List<ScaleEntity>>)
     val instructors by demographicsViewModel.instructorsWithPrograms.observeAsState(emptyList())
@@ -164,23 +163,47 @@ fun PeclScreen(navController: NavController) {
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == "Programs") {
-            adminViewModel.loadPrograms()
+            try {
+                adminViewModel.loadPrograms()
+            } catch (e: Exception) {
+                errorMessage = "Error loading programs: ${e.message}"
+            }
         } else if (selectedTab == "POI") {
-            adminViewModel.loadPrograms()
-            adminViewModel.loadAllPoisWithPrograms()
+            try {
+                adminViewModel.loadPrograms()
+                adminViewModel.loadAllPoisWithPrograms()
+            } catch (e: Exception) {
+                errorMessage = "Error loading POI data: ${e.message}"
+            }
         } else if (selectedTab == "Tasks") {
-            adminViewModel.loadAllPois()
-            adminViewModel.loadAllTasksWithPois()
+            try {
+                adminViewModel.loadAllPois()
+                adminViewModel.loadAllTasksWithPois()
+            } catch (e: Exception) {
+                errorMessage = "Error loading tasks: ${e.message}"
+            }
         } else if (selectedTab == "Sub Tasks") {
-            adminViewModel.loadAllQuestions()
-            adminViewModel.loadScales()
-            adminViewModel.loadAllTasksWithPois()
+            try {
+                adminViewModel.loadAllQuestions()
+                adminViewModel.loadScales()
+                adminViewModel.loadAllTasksWithPois()
+            } catch (e: Exception) {
+                errorMessage = "Error loading subtasks: ${e.message}"
+            }
         } else if (selectedTab == "Instructors") {
-            demographicsViewModel.loadInstructors()
-            demographicsViewModel.loadPrograms()
-            peclViewModel.loadStudents()
+            try {
+                demographicsViewModel.loadInstructors()
+                demographicsViewModel.loadPrograms()
+                peclViewModel.loadStudents()
+            } catch (e: Exception) {
+                errorMessage = "Error loading instructors: ${e.message}"
+            }
         } else if (selectedTab == "Students") {
-            peclViewModel.loadStudents()
+            try {
+                peclViewModel.loadStudents()
+            } catch (e: Exception) {
+                errorMessage = "Error loading students: ${e.message}"
+            }
         }
     }
 
@@ -191,27 +214,27 @@ fun PeclScreen(navController: NavController) {
     }
 
     LaunchedEffect(showEditPoiDialog) {
-        showEditPoiDialog?.let { poiWithPrograms ->
+        showEditPoiDialog?.let { poiWithPrograms: PoiWithPrograms ->
             editPoiName = poiWithPrograms.poi.name
-            selectedProgramsForEdit = poiWithPrograms.programs.mapNotNull { programName ->
+            selectedProgramsForEdit = poiWithPrograms.programs.mapNotNull { programName: String ->
                 if (programsState is AppState.Success) {
-                    (programsState as AppState.Success).data.find { it.name == programName }?.id
+                    (programsState as AppState.Success<List<PeclProgramEntity>>).data.find { it.name == programName }?.id
                 } else null
             }.toSet()
         }
     }
 
     LaunchedEffect(showEditTaskDialog) {
-        showEditTaskDialog?.let { taskWithPois ->
+        showEditTaskDialog?.let { taskWithPois: TaskWithPois ->
             editTaskName = taskWithPois.task.name
-            selectedPoisForEdit = taskWithPois.pois.mapNotNull { poiName ->
+            selectedPoisForEdit = taskWithPois.pois.mapNotNull { poiName: String ->
                 poisSimple.find { it.name == poiName }?.id
             }.toSet()
         }
     }
 
     LaunchedEffect(showEditQuestionDialog) {
-        showEditQuestionDialog?.let { question ->
+        showEditQuestionDialog?.let { question: PeclQuestionEntity ->
             editSubTask = question.subTask
             editControlType = question.controlType
             editScale = question.scale
@@ -221,26 +244,34 @@ fun PeclScreen(navController: NavController) {
     }
 
     LaunchedEffect(editInstructor) {
-        editInstructor?.let { instructor ->
+        editInstructor?.let { instructor: UserEntity ->
             editInstructorName = instructor.fullName
             coroutineScope.launch {
-                val assignments = demographicsViewModel.getAssignmentsForInstructor(instructor.id).value ?: emptyList()
-                selectedStudentsForEditInstructor = assignments.map { assignment ->
-                    assignment.student_id
-                }.toSet()
-                selectedProgramForEditInstructor = assignments.firstOrNull()?.program_id
+                try {
+                    val assignments = demographicsViewModel.getAssignmentsForInstructor(instructor.id).value ?: emptyList()
+                    selectedStudentsForEditInstructor = assignments.map { assignment: InstructorStudentAssignmentEntity ->
+                        assignment.student_id
+                    }.toSet()
+                    selectedProgramForEditInstructor = assignments.firstOrNull()?.program_id
+                } catch (e: Exception) {
+                    errorMessage = "Error loading assignments: ${e.message}"
+                }
             }
         }
     }
 
     LaunchedEffect(selectedInstructorForAssign) {
-        selectedInstructorForAssign?.let { instructor ->
+        selectedInstructorForAssign?.let { instructor: UserEntity ->
             coroutineScope.launch {
-                val assignments = demographicsViewModel.getAssignmentsForInstructor(instructor.id).value ?: emptyList()
-                selectedStudentsForAssign = assignments.map { assignment ->
-                    assignment.student_id
-                }.toSet()
-                selectedProgramForAssign = assignments.firstOrNull()?.program_id
+                try {
+                    val assignments = demographicsViewModel.getAssignmentsForInstructor(instructor.id).value ?: emptyList()
+                    selectedStudentsForAssign = assignments.map { assignment: InstructorStudentAssignmentEntity ->
+                        assignment.student_id
+                    }.toSet()
+                    selectedProgramForAssign = assignments.firstOrNull()?.program_id
+                } catch (e: Exception) {
+                    errorMessage = "Error loading assignments: ${e.message}"
+                }
             }
         }
     }
@@ -422,7 +453,7 @@ fun PeclScreen(navController: NavController) {
                             )
                             Text(text = "Select Programs:")
                             LazyColumn {
-                                items(if (programsState is AppState.Success) (programsState as AppState.Success).data else emptyList()) { program: PeclProgramEntity ->
+                                items(if (programsState is AppState.Success) (programsState as AppState.Success<List<PeclProgramEntity>>).data else emptyList()) { program: PeclProgramEntity ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedProgramsForAdd.contains(program.id),
@@ -485,7 +516,7 @@ fun PeclScreen(navController: NavController) {
                             )
                             Text(text = "Select Programs:")
                             LazyColumn {
-                                items(if (programsState is AppState.Success) (programsState as AppState.Success).data else emptyList()) { program: PeclProgramEntity ->
+                                items(if (programsState is AppState.Success) (programsState as AppState.Success<List<PeclProgramEntity>>).data else emptyList()) { program: PeclProgramEntity ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedProgramsForEdit.contains(program.id),
@@ -641,7 +672,7 @@ fun PeclScreen(navController: NavController) {
                 )
             }
 
-            showEditTaskDialog?.let { taskWithPois ->
+            showEditTaskDialog?.let { taskWithPois: TaskWithPois ->
                 AlertDialog(
                     onDismissRequest = { showEditTaskDialog = null },
                     title = { Text("Edit Task") },
@@ -726,7 +757,7 @@ fun PeclScreen(navController: NavController) {
                 is AppState.Success -> {
                     val sortedQuestions = state.data.sortedBy { it.subTask }
                     val taskMap = if (tasksState is AppState.Success) {
-                        (tasksState as AppState.Success).data.associate { it.task.id to it.task.name }
+                        (tasksState as AppState.Success<List<TaskWithPois>>).data.associate { it.task.id to it.task.name }
                     } else emptyMap()
                     if (sortedQuestions.isEmpty()) {
                         Text("No questions available")
@@ -833,7 +864,7 @@ fun PeclScreen(navController: NavController) {
                                 TextField(
                                     readOnly = true,
                                     value = if (tasksState is AppState.Success) {
-                                        (tasksState as AppState.Success).data.sortedBy { it.task.name }.find { it.task.id == newTaskId }?.task?.name ?: ""
+                                        (tasksState as AppState.Success<List<TaskWithPois>>).data.sortedBy { it.task.name }.find { it.task.id == newTaskId }?.task?.name ?: ""
                                     } else "",
                                     onValueChange = { },
                                     label = { Text("Assign to Task") },
@@ -930,7 +961,7 @@ fun PeclScreen(navController: NavController) {
                 )
             }
 
-            showEditQuestionDialog?.let { question ->
+            showEditQuestionDialog?.let { question: PeclQuestionEntity ->
                 AlertDialog(
                     onDismissRequest = { showEditQuestionDialog = null },
                     title = { Text("Edit Question") },
@@ -1010,7 +1041,7 @@ fun PeclScreen(navController: NavController) {
                                 TextField(
                                     readOnly = true,
                                     value = if (tasksState is AppState.Success) {
-                                        (tasksState as AppState.Success).data.sortedBy { it.task.name }.find { it.task.id == editTaskId }?.task?.name ?: ""
+                                        (tasksState as AppState.Success<List<TaskWithPois>>).data.sortedBy { it.task.name }.find { it.task.id == editTaskId }?.task?.name ?: ""
                                     } else "",
                                     onValueChange = { },
                                     label = { Text("Assign to Task") },
@@ -1612,9 +1643,12 @@ fun PeclScreen(navController: NavController) {
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            selectedInstructorForAssign?.let { instructor ->
-                                val programNames = demographicsViewModel.getProgramsForInstructor(instructor.id).first()
-                                val instructorProgramId = programs.firstOrNull { it.name in programNames }?.id
+                            selectedInstructorForAssign?.let { instructor: UserEntity ->
+                                val instructorProgramId = selectedProgramForAssign
+                                if (instructorProgramId == null) {
+                                    Toast.makeText(context, "No program assigned to instructor", Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
                                 demographicsViewModel.deleteAssignmentsForInstructor(instructor.id)
                                 selectedStudentsForAssign.forEach { studentId ->
                                     demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructor.id, student_id = studentId, program_id = instructorProgramId))
@@ -1678,7 +1712,6 @@ fun PeclScreen(navController: NavController) {
                             val fullName = "$newStudentLastName, $newStudentFirstName"
                             val newStudent = PeclStudentEntity(firstName = newStudentFirstName, lastName = newStudentLastName, grade = newStudentGrade, pin = newStudentPin, fullName = fullName)
                             peclViewModel.insertPeclStudent(newStudent)
-                            peclViewModel.loadStudents()
                             showAddStudentDialog = false
                             newStudentFirstName = ""
                             newStudentLastName = ""
@@ -1743,7 +1776,6 @@ fun PeclScreen(navController: NavController) {
                             editStudent?.let { student ->
                                 val updatedStudent = student.copy(firstName = editStudentFirstName, lastName = editStudentLastName, grade = editStudentGrade, pin = editStudentPin, fullName = fullName)
                                 peclViewModel.updatePeclStudent(updatedStudent)
-                                peclViewModel.loadStudents()
                                 showEditStudentDialog = false
                                 Toast.makeText(context, "Student updated successfully", Toast.LENGTH_SHORT).show()
                             }
@@ -1776,7 +1808,6 @@ fun PeclScreen(navController: NavController) {
                 Button(
                     onClick = {
                         selectedStudentToDelete?.let { peclViewModel.deletePeclStudent(it) }
-                        peclViewModel.loadStudents()
                         showStudentDeleteDialog = false
                         Toast.makeText(context, "Student deleted successfully", Toast.LENGTH_SHORT).show()
                     },
