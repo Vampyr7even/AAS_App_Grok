@@ -28,4 +28,8 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE role = :role")
     fun getUsersByRole(role: String): Flow<List<UserEntity>>
+
+    // New method for fetching instructor name by ID
+    @Query("SELECT fullName FROM users WHERE id = :instructorId")
+    suspend fun getInstructorName(instructorId: Long): String?
 }

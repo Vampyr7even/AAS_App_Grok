@@ -50,7 +50,6 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
             try {
                 val instructorList = repository.getUsersByRole("instructor").first()
                 _instructors.postValue(instructorList)
-                // Load instructors with programs
                 val instructorsWithPrograms = instructorList.map { instructor ->
                     val programNames = repository.getProgramsForInstructor(instructor.id).first().joinToString(", ")
                     InstructorWithProgram(instructor, if (programNames.isEmpty()) null else programNames)
@@ -140,7 +139,7 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         viewModelScope.launch {
             try {
                 repository.insertAssignment(assignment)
-                loadInstructors() // Refresh to update program assignments
+                loadInstructors()
             } catch (e: Exception) {
                 Log.e("DemographicsViewModel", "Error inserting assignment: ${e.message}", e)
             }
@@ -194,11 +193,30 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     }
 
     suspend fun canDeleteInstructor(instructorId: Long): Boolean {
-        val noStudents = repository.getAssignmentsForInstructor(instructorId).first().isEmpty()
-        val noPrograms = repository.getProgramsForInstructor(instructorId).first().isEmpty()
-        Log.d("DemographicsViewModel", "canDeleteInstructor: noStudents=$noStudents, noPrograms=$noPrograms for instructorId=$instructorId")
-        return noStudents && noPrograms
+        try {
+            val studentAssignments = repository.getAssignmentsForInstructor(instructorId).first()
+            val programAssignments = repository.getProgramsForInstructor(instructorId).first()
+            val noStudents = studentAssignments.isEmpty()
+            val noPrograms = programAssignments.isEmpty()
+            Log.d("DemographicsViewModel", "canDeleteInstructor: instructorId=$instructorId, studentAssignmentsCount=${studentAssignments.size}, programAssignmentsCount=${programAssignments.size}, noStudents=$noStudents, noPrograms=$noPrograms")
+            if (studentAssignments.isNotEmpty()) {
+                Log.d("DemographicsViewModel", "Student assignments IDs: ${studentAssignments.map { it.id }}")
+            }
+            if (programAssignments.isNotEmpty()) {
+                Log.d("DemographicsViewModel", "Program assignments: $programAssignments")
+            }
+            return noStudents && noPrograms
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error checking if instructor can be deleted: ${e.message}", e)
+            return false
+        }
     }
+
+    // New method to get assignment for a student
+    suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? = repository.getAssignmentForStudent(studentId)
+
+    // New method to get instructor name by ID
+    suspend fun getInstructorName(instructorId: Long): String? = repository.getInstructorName(instructorId)
 }
 
 data class InstructorWithProgram(

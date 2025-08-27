@@ -24,4 +24,8 @@ interface InstructorStudentAssignmentDao {
 
     @Query("DELETE FROM instructor_student_assignments WHERE instructor_id = :instructorId")
     suspend fun deleteAssignmentsForInstructor(instructorId: Long)
+
+    // New method for fetching assignment by student ID
+    @Query("SELECT * FROM instructor_student_assignments WHERE student_id = :studentId LIMIT 1")
+    suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity?
 }

@@ -40,6 +40,7 @@ sealed class AppResult<out T> {
 
 @ViewModelScoped
 class AppRepository @Inject constructor(private val db: AppDatabase) {
+
     private val userDao = db.userDao()
     private val peclProgramDao = db.peclProgramDao()
     private val peclPoiDao = db.peclPoiDao()
@@ -557,4 +558,9 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
     }
 
     fun getPeclStudentById(id: Long): Flow<PeclStudentEntity?> = peclStudentDao.getStudentById(id)
+
+    // New methods for student assignment feature
+    suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? = instructorStudentAssignmentDao.getAssignmentForStudent(studentId)
+
+    suspend fun getInstructorName(instructorId: Long): String? = userDao.getInstructorName(instructorId)
 }
