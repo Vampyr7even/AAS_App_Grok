@@ -62,7 +62,7 @@ import com.example.aas_app.data.entity.UserEntity
         TaskPoiAssignmentEntity::class,
         PeclStudentEntity::class
     ],
-    version = 21,
+    version = 22,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -98,7 +98,8 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
-                        MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21
+                        MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
+                        MIGRATION_21_22
                     )
                     .build()
                 INSTANCE = instance
@@ -244,6 +245,14 @@ abstract class AppDatabase : RoomDatabase() {
                 // Migrate data if needed (assuming starting fresh, no insert; adjust if data exists)
                 db.execSQL("DROP TABLE `instructor_student_assignments`")
                 db.execSQL("ALTER TABLE `instructor_student_assignments_new` RENAME TO `instructor_student_assignments`")
+            }
+        }
+
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `instructor_student_assignments` (`instructor_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `instructor_student_assignments` (`student_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_program_id` ON `instructor_student_assignments` (`program_id`)")
             }
         }
     }

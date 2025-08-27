@@ -12,7 +12,6 @@ import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -194,12 +193,11 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 
-    fun canDeleteInstructor(instructorId: Long): Flow<Boolean> {
-        val studentAssignments = repository.getAssignmentsForInstructor(instructorId).map { it.isEmpty() }
-        val programAssignments = repository.getProgramsForInstructor(instructorId).map { it.isEmpty() }
-        return combine(studentAssignments, programAssignments) { noStudents, noPrograms ->
-            noStudents && noPrograms
-        }
+    suspend fun canDeleteInstructor(instructorId: Long): Boolean {
+        val noStudents = repository.getAssignmentsForInstructor(instructorId).first().isEmpty()
+        val noPrograms = repository.getProgramsForInstructor(instructorId).first().isEmpty()
+        Log.d("DemographicsViewModel", "canDeleteInstructor: noStudents=$noStudents, noPrograms=$noPrograms for instructorId=$instructorId")
+        return noStudents && noPrograms
     }
 }
 
