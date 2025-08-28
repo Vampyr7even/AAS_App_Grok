@@ -28,29 +28,19 @@ interface PeclQuestionDao {
         INNER JOIN question_assignments a ON q.id = a.question_id
         INNER JOIN pecl_tasks t ON a.task_id = t.id
         INNER JOIN task_poi_assignments tp ON t.id = tp.task_id
-        INNER JOIN pecl_pois p ON tp.poi_id = p.id
-        INNER JOIN poi_program_assignments pa ON p.id = pa.poi_id
-        INNER JOIN pecl_programs pr ON pa.program_id = pr.id
-        WHERE pr.name = :program AND p.name = :poi
+        WHERE tp.poi_id = :poiId
     """)
-    fun getQuestionsForPoi(program: String, poi: String): Flow<List<PeclQuestionEntity>>
+    fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>>
 
     @Query("SELECT * FROM pecl_questions WHERE id = :id")
     suspend fun getQuestionById(id: Long): PeclQuestionEntity?
 
     @Query("""
         SELECT q.* FROM pecl_questions q
-        WHERE q.task_id = :taskId
+        INNER JOIN question_assignments a ON q.id = a.question_id
+        WHERE a.task_id = :taskId
     """)
     fun getQuestionsForTask(taskId: Long): Flow<List<PeclQuestionEntity>>
-
-    @Query("""
-        SELECT q.* FROM pecl_questions q
-        INNER JOIN pecl_tasks t ON q.task_id = t.id
-        INNER JOIN task_poi_assignments tp ON t.id = tp.task_id
-        WHERE tp.poi_id = :poiId
-    """)
-    fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>>
 
     @Query("SELECT * FROM pecl_questions WHERE sub_task = :subTask")
     suspend fun getQuestionBySubTask(subTask: String): PeclQuestionEntity?

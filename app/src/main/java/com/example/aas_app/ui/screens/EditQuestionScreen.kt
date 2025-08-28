@@ -68,7 +68,7 @@ fun EditQuestionScreen(navController: NavController, questionId: Long) {
         )
         Button(
             onClick = {
-                val updatedQuestion = PeclQuestionEntity(id = questionId, task_id = 0L, subTask = subTask, controlType = controlType, scale = scale, criticalTask = criticalTask)
+                val updatedQuestion = PeclQuestionEntity(id = questionId, subTask = subTask, controlType = controlType, scale = scale, criticalTask = criticalTask)
                 viewModel.updateQuestion(updatedQuestion, 0L) // Adjust taskId as needed
                 navController.popBackStack()
             },

@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -76,7 +75,7 @@ fun PeclScreen(navController: NavController) {
     val context = LocalContext.current
     val programsState by adminViewModel.programsState.observeAsState(AppState.Success(emptyList<PeclProgramEntity>()) as AppState<List<PeclProgramEntity>>)
     val poisState by adminViewModel.poisState.observeAsState(AppState.Success(emptyList<PoiWithPrograms>()) as AppState<List<PoiWithPrograms>>)
-    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Success(emptyList<TaskWithPois>()))
+    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Success(emptyList<TaskWithPois>()) as AppState<List<TaskWithPois>>)
     val questionsState by adminViewModel.questionsState.observeAsState(AppState.Success(emptyList<PeclQuestionEntity>()) as AppState<List<PeclQuestionEntity>>)
     val scalesState by adminViewModel.scalesState.observeAsState(AppState.Success(emptyList<ScaleEntity>()) as AppState<List<ScaleEntity>>)
     val instructors by demographicsViewModel.instructorsWithPrograms.observeAsState(emptyList())
@@ -239,7 +238,7 @@ fun PeclScreen(navController: NavController) {
             editControlType = question.controlType
             editScale = question.scale
             editCriticalTask = question.criticalTask
-            editTaskId = question.task_id
+            editTaskId = null  // Since task_id removed, select new task
         }
     }
 
@@ -249,9 +248,7 @@ fun PeclScreen(navController: NavController) {
             coroutineScope.launch {
                 try {
                     val assignments = demographicsViewModel.getAssignmentsForInstructor(instructor.id).value ?: emptyList()
-                    selectedStudentsForEditInstructor = assignments.map { assignment: InstructorStudentAssignmentEntity ->
-                        assignment.student_id
-                    }.toSet()
+                    selectedStudentsForEditInstructor = assignments.map { it.student_id }.toSet()
                     selectedProgramForEditInstructor = assignments.firstOrNull()?.program_id
                 } catch (e: Exception) {
                     errorMessage = "Error loading assignments: ${e.message}"
@@ -265,9 +262,7 @@ fun PeclScreen(navController: NavController) {
             coroutineScope.launch {
                 try {
                     val assignments = demographicsViewModel.getAssignmentsForInstructor(instructor.id).value ?: emptyList()
-                    selectedStudentsForAssign = assignments.map { assignment: InstructorStudentAssignmentEntity ->
-                        assignment.student_id
-                    }.toSet()
+                    selectedStudentsForAssign = assignments.map { it.student_id }.toSet()
                     selectedProgramForAssign = assignments.firstOrNull()?.program_id
                 } catch (e: Exception) {
                     errorMessage = "Error loading assignments: ${e.message}"
@@ -654,8 +649,7 @@ fun PeclScreen(navController: NavController) {
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp),
-                            enabled = newTaskName.isNotBlank() && selectedPoisForAdd.isNotEmpty()
+                            shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Save")
                         }
@@ -717,8 +711,7 @@ fun PeclScreen(navController: NavController) {
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp),
-                            enabled = editTaskName.isNotBlank() && selectedPoisForEdit.isNotEmpty()
+                            shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("Save")
                         }
@@ -764,7 +757,7 @@ fun PeclScreen(navController: NavController) {
                     } else {
                         LazyColumn {
                             items(sortedQuestions) { question ->
-                                val taskName = question.task_id?.let { taskMap[it] } ?: "Unassigned"
+                                val taskName = "Unassigned" // Placeholder; derive via JOIN if needed
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(text = question.subTask)
@@ -927,7 +920,7 @@ fun PeclScreen(navController: NavController) {
                                 val taskIdValue = newTaskId
                                 if (taskIdValue != null) {
                                     if (newSubTask.isNotBlank()) {
-                                        adminViewModel.insertQuestion(PeclQuestionEntity(task_id = taskIdValue, subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), taskIdValue)
+                                        adminViewModel.insertQuestion(PeclQuestionEntity(subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), taskIdValue)
                                         showAddQuestionDialog = false
                                         newSubTask = ""
                                         newControlType = ""
@@ -1104,7 +1097,7 @@ fun PeclScreen(navController: NavController) {
                                 val taskIdValue = editTaskId
                                 if (taskIdValue != null) {
                                     if (editSubTask.isNotBlank()) {
-                                        adminViewModel.updateQuestion(question.copy(task_id = taskIdValue, subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), taskIdValue)
+                                        adminViewModel.updateQuestion(question.copy(subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), taskIdValue)
                                         showEditQuestionDialog = null
                                         editSubTask = ""
                                         editControlType = ""
@@ -1171,12 +1164,6 @@ fun PeclScreen(navController: NavController) {
                                 showEditInstructorDialog = true
                             }) {
                                 Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
-                            }
-                            IconButton(onClick = {
-                                selectedInstructorForAssign = instructorWithProgram.instructor
-                                showAssignDialog = true
-                            }) {
-                                Icon(imageVector = Icons.Filled.Person, contentDescription = "Assign Students")
                             }
                             IconButton(onClick = { selectedInstructorToDelete = instructorWithProgram.instructor; showInstructorDeleteDialog = true }) {
                                 Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")

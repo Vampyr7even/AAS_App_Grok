@@ -212,10 +212,10 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 
-    // New method to get assignment for a student
+    // New method for fetching assignment by student ID
     suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? = repository.getAssignmentForStudent(studentId)
 
-    // New method to get instructor name by ID
+    // New method for fetching instructor name by ID
     suspend fun getInstructorName(instructorId: Long): String? = repository.getInstructorName(instructorId)
 }
 

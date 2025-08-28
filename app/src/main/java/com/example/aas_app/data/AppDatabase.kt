@@ -1,6 +1,7 @@
 package com.example.aas_app.data
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
@@ -250,9 +251,39 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_21_22 = object : Migration(21, 22) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `instructor_student_assignments` (`instructor_id`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `instructor_student_assignments` (`student_id`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_program_id` ON `instructor_student_assignments` (`program_id`)")
+                db.beginTransaction()
+                try {
+                    // Migrate single task_id to question_assignments junction
+                    val cursor = db.query("SELECT id, task_id FROM pecl_questions WHERE task_id IS NOT NULL AND task_id != 0")
+                    while (cursor.moveToNext()) {
+                        val questionId = cursor.getLong(cursor.getColumnIndexOrThrow("id"))
+                        val taskId = cursor.getLong(cursor.getColumnIndexOrThrow("task_id"))
+                        val values = android.content.ContentValues().apply {
+                            put("question_id", questionId)
+                            put("task_id", taskId)
+                        }
+                        db.insert("question_assignments", SQLiteDatabase.CONFLICT_IGNORE, values)
+                    }
+                    cursor.close()
+
+                    // Drop task_id from pecl_questions
+                    db.execSQL("CREATE TABLE pecl_questions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, sub_task TEXT NOT NULL, control_type TEXT NOT NULL, scale TEXT NOT NULL, critical_task TEXT NOT NULL)")
+                    db.execSQL("INSERT INTO pecl_questions_new (id, sub_task, control_type, scale, critical_task) SELECT id, sub_task, control_type, scale, critical_task FROM pecl_questions")
+                    db.execSQL("DROP TABLE pecl_questions")
+                    db.execSQL("ALTER TABLE pecl_questions_new RENAME TO pecl_questions")
+
+                    // Add indices if not present
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `instructor_student_assignments` (`instructor_id`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `instructor_student_assignments` (`student_id`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_program_id` ON `instructor_student_assignments` (`program_id`)")
+
+                    db.setTransactionSuccessful()
+                } catch (e: Exception) {
+                    Log.e("Migration21_22", "Migration failed: ${e.message}", e)
+                    throw e  // Rollback on error
+                } finally {
+                    db.endTransaction()
+                }
             }
         }
     }

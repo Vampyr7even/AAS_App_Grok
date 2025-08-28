@@ -48,8 +48,7 @@ fun RepositoryScreen(navController: NavController) {
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.Center
     ) {
         when (val state = questionsState) {
             is AppState.Loading -> Text("Loading...")
@@ -73,7 +72,7 @@ fun RepositoryScreen(navController: NavController) {
 
         Button(
             onClick = {
-                viewModel.insertQuestion(PeclQuestionEntity(task_id = 0L, subTask = "New Question", controlType = "Text", scale = "Scale", criticalTask = "No"), 0L)
+                viewModel.insertQuestion(PeclQuestionEntity(subTask = "New Question", controlType = "Text", scale = "Scale", criticalTask = "No"), 0L)
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
