@@ -28,6 +28,7 @@ import com.example.aas_app.data.entity.QuestionAssignmentEntity
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.TaskPoiAssignmentEntity
 import com.example.aas_app.data.entity.UserEntity
+import com.example.aas_app.viewmodel.QuestionWithTask
 import dagger.hilt.android.scopes.ViewModelScoped
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -182,8 +183,44 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
                 // Questions - Use the list without task_id in entity
                 val questionData = listOf(
                     PeclQuestionEntity(subTask = "Instructor Name", controlType = "ComboBox", scale = "Scale_Instructors", criticalTask = "NO") to "Overview",
-                    // ... (all other questions as per your code, omitting task_id in constructor)
-                    // Last one:
+                    PeclQuestionEntity(subTask = "Student Name", controlType = "ComboBox", scale = "Scale_Students", criticalTask = "NO") to "Overview",
+                    PeclQuestionEntity(subTask = "Class", controlType = "TextBox", scale = "Scale_Comment", criticalTask = "NO") to "Overview",
+                    PeclQuestionEntity(subTask = "Date", controlType = "DatePicker", scale = "Scale_Comment", criticalTask = "NO") to "Overview",
+                    PeclQuestionEntity(subTask = "Launch", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Launch",
+                    PeclQuestionEntity(subTask = "Moor", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Moor",
+                    PeclQuestionEntity(subTask = "Radar-Nav-FLIR", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Radar-Nav-FLIR",
+                    PeclQuestionEntity(subTask = "Plotting", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Plotting",
+                    PeclQuestionEntity(subTask = "Radio", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Radio",
+                    PeclQuestionEntity(subTask = "Depart Dock", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Depart Dock",
+                    PeclQuestionEntity(subTask = "Maneuvering the AASB", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Maneuvering the AASB",
+                    PeclQuestionEntity(subTask = "M-O-B", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "M-O-B",
+                    PeclQuestionEntity(subTask = "Maintain Station", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Maintain Station",
+                    PeclQuestionEntity(subTask = "Recover AASB", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Recover AASB",
+                    PeclQuestionEntity(subTask = "Comments", controlType = "Comment", scale = "Scale_Comment", criticalTask = "NO") to "Comments",
+                    PeclQuestionEntity(subTask = "Confirmation Brief", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Confirmation Brief",
+                    PeclQuestionEntity(subTask = "Issue a Warning Order", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Issue a Warning Order",
+                    PeclQuestionEntity(subTask = "Mission Analysis/IPB", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Mission Analysis/IPB",
+                    PeclQuestionEntity(subTask = "Conduct Mission Analysis Brief", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Conduct Mission Analysis Brief",
+                    PeclQuestionEntity(subTask = "Develop Teams Course of Action", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Develop Teams Course of Action",
+                    PeclQuestionEntity(subTask = "Issue an Operations Order", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Issue an Operations Order",
+                    PeclQuestionEntity(subTask = "Conduct Rehearsals", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Conduct Rehearsals",
+                    PeclQuestionEntity(subTask = "Conduct Backbrief", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Conduct Backbrief",
+                    PeclQuestionEntity(subTask = "Evaluation Data", controlType = "TextBox", scale = "Scale_Comment", criticalTask = "NO") to "Evaluation Data",
+                    PeclQuestionEntity(subTask = "Leadership", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Leadership",
+                    PeclQuestionEntity(subTask = "Conduct Initial Inspections", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Conduct Initial Inspections",
+                    PeclQuestionEntity(subTask = "Prepare for Mission", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Prepare for Mission",
+                    PeclQuestionEntity(subTask = "Prepare and Issue an OPORD", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Prepare and Issue an OPORD",
+                    PeclQuestionEntity(subTask = "Issues 4 Para OPORD", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Issues 4 Para OPORD",
+                    PeclQuestionEntity(subTask = "Conduct Final Inspection", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Conduct Final Inspection",
+                    PeclQuestionEntity(subTask = "Prepare for OPORD and Operations", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Prepare for OPORD and Operations",
+                    PeclQuestionEntity(subTask = "Issue 5 para OPORD", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Issue 5 para OPORD",
+                    PeclQuestionEntity(subTask = "Preexecution", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Preexecution",
+                    PeclQuestionEntity(subTask = "Call for Fire", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Call for Fire",
+                    PeclQuestionEntity(subTask = "Spottings/Corrections", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "Spottings/Corrections",
+                    PeclQuestionEntity(subTask = "RREMS", controlType = "ScoreBox", scale = "Scale_PECL", criticalTask = "YES") to "RREMS",
+                    PeclQuestionEntity(subTask = "Individual Data", controlType = "TextBox", scale = "Scale_Comment", criticalTask = "NO") to "Idividual Data",
+                    PeclQuestionEntity(subTask = "PFT Performance Data", controlType = "TextBox", scale = "Scale_Comment", criticalTask = "NO") to "PFT Performance Data",
+                    PeclQuestionEntity(subTask = "CFT Performance Data", controlType = "TextBox", scale = "Scale_Comment", criticalTask = "NO") to "CFT Performance Data",
                     PeclQuestionEntity(subTask = "Pass/Fail", controlType = "TextBox", scale = "Scale_Comment", criticalTask = "NO") to "CFT Performance Data"
                 )
                 questionData.forEach { (question, taskName) ->
@@ -527,4 +564,8 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
     suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? = instructorStudentAssignmentDao.getAssignmentForStudent(studentId)
 
     suspend fun getInstructorName(instructorId: Long): String? = userDao.getInstructorName(instructorId)
+
+    fun getProgramIdsForInstructor(instructorId: Long): Flow<List<Long>> = instructorProgramAssignmentDao.getProgramIdsForInstructor(instructorId)
+
+    fun getAllQuestionsWithTasks(): Flow<List<QuestionWithTask>> = peclQuestionDao.getAllQuestionsWithTasks()
 }

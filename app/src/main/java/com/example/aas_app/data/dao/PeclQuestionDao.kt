@@ -6,7 +6,9 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.RewriteQueriesToDropUnusedColumns
 import com.example.aas_app.data.entity.PeclQuestionEntity
+import com.example.aas_app.viewmodel.QuestionWithTask
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -44,4 +46,19 @@ interface PeclQuestionDao {
 
     @Query("SELECT * FROM pecl_questions WHERE sub_task = :subTask")
     suspend fun getQuestionBySubTask(subTask: String): PeclQuestionEntity?
+
+    @Query("""
+        SELECT 
+            q.id AS question_id, 
+            q.sub_task AS question_sub_task, 
+            q.control_type AS question_control_type, 
+            q.scale AS question_scale, 
+            q.critical_task AS question_critical_task, 
+            t.name AS taskName 
+        FROM pecl_questions q
+        INNER JOIN question_assignments a ON q.id = a.question_id
+        INNER JOIN pecl_tasks t ON a.task_id = t.id
+    """)
+    @RewriteQueriesToDropUnusedColumns
+    fun getAllQuestionsWithTasks(): Flow<List<QuestionWithTask>>
 }

@@ -32,6 +32,9 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     private val _questionsState = MutableLiveData<AppState<List<PeclQuestionEntity>>>()
     val questionsState: LiveData<AppState<List<PeclQuestionEntity>>> = _questionsState
 
+    private val _questionsWithTasksState = MutableLiveData<AppState<List<QuestionWithTask>>>()
+    val questionsWithTasksState: LiveData<AppState<List<QuestionWithTask>>> = _questionsWithTasksState
+
     private val _scalesState = MutableLiveData<AppState<List<ScaleEntity>>>()
     val scalesState: LiveData<AppState<List<ScaleEntity>>> = _scalesState
 
@@ -87,7 +90,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
                 val tasksWithPois = tasks.map { task ->
                     val pois = repository.getPoisForTask(task.id).first()
                     TaskWithPois(task, pois)
-                }
+                }.sortedBy { it.task.name }  // Alphabetize by task name
                 _tasksState.postValue(AppState.Success(tasksWithPois))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading tasks with POIs: ${e.message}", e)
@@ -144,6 +147,19 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading all questions: ${e.message}", e)
                 _questionsState.postValue(AppState.Error(e.message ?: "Error loading all questions"))
+            }
+        }
+    }
+
+    fun loadAllQuestionsWithTasks() {
+        _questionsWithTasksState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getAllQuestionsWithTasks().first().sortedBy { it.question.subTask }  // Alphabetize by subTask
+                _questionsWithTasksState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading questions with tasks: ${e.message}", e)
+                _questionsWithTasksState.postValue(AppState.Error(e.message ?: "Error loading questions with tasks"))
             }
         }
     }
@@ -354,4 +370,9 @@ data class PoiWithPrograms(
 data class TaskWithPois(
     val task: PeclTaskEntity,
     val pois: List<String>
+)
+
+data class QuestionWithTask(
+    @androidx.room.Embedded(prefix = "question_") val question: PeclQuestionEntity,
+    val taskName: String
 )

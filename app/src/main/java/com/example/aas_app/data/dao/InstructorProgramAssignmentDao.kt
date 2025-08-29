@@ -16,4 +16,7 @@ interface InstructorProgramAssignmentDao {
 
     @Query("SELECT name FROM pecl_programs WHERE id IN (SELECT program_id FROM instructor_program_assignments WHERE instructor_id = :instructorId)")
     fun getProgramsForInstructor(instructorId: Long): Flow<List<String>>
+
+    @Query("SELECT program_id FROM instructor_program_assignments WHERE instructor_id = :instructorId")
+    fun getProgramIdsForInstructor(instructorId: Long): Flow<List<Long>>
 }

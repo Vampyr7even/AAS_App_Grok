@@ -22,14 +22,8 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     private val _users = MutableLiveData<List<UserEntity>>()
     val users: LiveData<List<UserEntity>> = _users
 
-    private val _instructors = MutableLiveData<List<UserEntity>>()
-    val instructors: LiveData<List<UserEntity>> = _instructors
-
     private val _instructorsWithPrograms = MutableLiveData<List<InstructorWithProgram>>()
     val instructorsWithPrograms: LiveData<List<InstructorWithProgram>> = _instructorsWithPrograms
-
-    private val _studentsState = MutableLiveData<AppState<List<PeclStudentEntity>>>()
-    val studentsState: LiveData<AppState<List<PeclStudentEntity>>> = _studentsState
 
     private val _programs = MutableLiveData<List<PeclProgramEntity>>()
     val programs: LiveData<List<PeclProgramEntity>> = _programs
@@ -49,7 +43,6 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         viewModelScope.launch {
             try {
                 val instructorList = repository.getUsersByRole("instructor").first()
-                _instructors.postValue(instructorList)
                 val instructorsWithPrograms = instructorList.map { instructor ->
                     val programNames = repository.getProgramsForInstructor(instructor.id).first().joinToString(", ")
                     InstructorWithProgram(instructor, if (programNames.isEmpty()) null else programNames)
@@ -57,19 +50,6 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
                 _instructorsWithPrograms.postValue(instructorsWithPrograms)
             } catch (e: Exception) {
                 Log.e("DemographicsViewModel", "Error loading instructors: ${e.message}", e)
-            }
-        }
-    }
-
-    fun loadStudents() {
-        _studentsState.value = AppState.Loading
-        viewModelScope.launch {
-            try {
-                val data = repository.getAllPeclStudents().first()
-                _studentsState.postValue(AppState.Success(data))
-            } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error loading students: ${e.message}", e)
-                _studentsState.postValue(AppState.Error(e.message ?: "Error loading students"))
             }
         }
     }
@@ -91,8 +71,6 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
                 repository.insertUser(user)
                 if (user.role == "instructor") {
                     loadInstructors()
-                } else if (user.role == "student") {
-                    loadStudents()
                 }
                 loadUsers()
             } catch (e: Exception) {
@@ -109,8 +87,6 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
                 repository.updateUser(user)
                 if (user.role == "instructor") {
                     loadInstructors()
-                } else if (user.role == "student") {
-                    loadStudents()
                 }
                 loadUsers()
             } catch (e: Exception) {
@@ -125,8 +101,6 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
                 repository.deleteUser(user)
                 if (user.role == "instructor") {
                     loadInstructors()
-                } else if (user.role == "student") {
-                    loadStudents()
                 }
                 loadUsers()
             } catch (e: Exception) {
@@ -168,6 +142,15 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
             }
         }
         return assignmentsLiveData
+    }
+
+    suspend fun getAssignmentsForInstructorSync(instructorId: Long): List<InstructorStudentAssignmentEntity> {
+        return try {
+            repository.getAssignmentsForInstructor(instructorId).first()
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error loading assignments sync: ${e.message}", e)
+            emptyList()
+        }
     }
 
     fun insertInstructorProgramAssignment(assignment: InstructorProgramAssignmentEntity) {
@@ -217,6 +200,29 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
 
     // New method for fetching instructor name by ID
     suspend fun getInstructorName(instructorId: Long): String? = repository.getInstructorName(instructorId)
+
+    // New method for fetching program IDs for instructor
+    fun getProgramIdsForInstructor(instructorId: Long): LiveData<List<Long>> {
+        val liveData = MutableLiveData<List<Long>>()
+        viewModelScope.launch {
+            try {
+                val programIds = repository.getProgramIdsForInstructor(instructorId).first()
+                liveData.postValue(programIds)
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error loading program IDs: ${e.message}", e)
+            }
+        }
+        return liveData
+    }
+
+    suspend fun getProgramIdsForInstructorSync(instructorId: Long): List<Long> {
+        return try {
+            repository.getProgramIdsForInstructor(instructorId).first()
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error loading program IDs sync: ${e.message}", e)
+            emptyList()
+        }
+    }
 }
 
 data class InstructorWithProgram(
