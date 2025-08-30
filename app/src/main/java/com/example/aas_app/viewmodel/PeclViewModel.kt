@@ -7,14 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
-import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
-import com.example.aas_app.data.entity.PeclEvaluationResultEntity
-import com.example.aas_app.data.entity.PeclPoiEntity
-import com.example.aas_app.data.entity.PeclProgramEntity
-import com.example.aas_app.data.entity.PeclQuestionEntity
-import com.example.aas_app.data.entity.PeclStudentEntity
-import com.example.aas_app.data.entity.PeclTaskEntity
-import com.example.aas_app.data.entity.UserEntity
+import com.example.aas_app.data.entity.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -65,7 +58,6 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         }
     }
 
-    // New: Load all tasks
     fun loadAllTasks() {
         _tasksState.value = AppState.Loading
         viewModelScope.launch {
@@ -358,7 +350,6 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         }
     }
 
-    // New: Get task for a question
     fun getTaskForQuestion(questionId: Long, onResult: (PeclTaskEntity?) -> Unit) {
         viewModelScope.launch {
             try {
@@ -367,6 +358,18 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
                 onResult(task)
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error getting task for question $questionId: ${e.message}", e)
+                onResult(null)
+            }
+        }
+    }
+
+    fun getInstructorById(instructorId: Long, onResult: (UserEntity?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val instructor = repository.getUserById(instructorId).first()
+                onResult(instructor)
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error getting instructor $instructorId: ${e.message}", e)
                 onResult(null)
             }
         }

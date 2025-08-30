@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.room)
     id("com.google.dagger.hilt.android")
-    id("com.google.devtools.ksp") // For Hilt KSP
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -13,8 +13,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.aas_app"
-        minSdk = 24
-        targetSdk = 34
+        minSdk = 25
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -70,7 +70,7 @@ dependencies {
     ksp(libs.room.compiler)
 
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler) // Switched to KSP for Kotlin 2.0+ support
+    ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
     implementation(libs.androidx.navigation.compose)
