@@ -1,23 +1,13 @@
 package com.example.aas_app.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,36 +18,36 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.aas_app.data.entity.PeclEvaluationResultEntity
-import com.example.aas_app.data.entity.PeclStudentEntity
-import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.*
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PeclViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PeclDashboardScreen(navController: NavController, poiId: Long) {
+fun PeclDashboardScreen(navController: NavController, programId: Long, poiId: Long) {
     val viewModel = hiltViewModel<PeclViewModel>()
-    val studentsState by viewModel.studentsState.observeAsState(AppState.Success(emptyList<PeclStudentEntity>()) as AppState<List<PeclStudentEntity>>)
-    val tasksState by viewModel.tasksState.observeAsState(AppState.Success(emptyList<PeclTaskEntity>()) as AppState<List<PeclTaskEntity>>)
-    val resultsState by viewModel.evaluationResultsState.observeAsState(AppState.Success(emptyList<PeclEvaluationResultEntity>()) as AppState<List<PeclEvaluationResultEntity>>)
-    val commentsState by viewModel.commentsState.observeAsState(AppState.Success(emptyList<String>()) as AppState<List<String>>)
+    val instructorsState by viewModel.instructorsState.observeAsState(AppState.Loading)
+    val studentsState by viewModel.studentsForInstructorAndProgramState.observeAsState(AppState.Loading)
+    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading)
+    val commentsState by viewModel.commentsState.observeAsState(AppState.Loading)
 
-    var selectedStudent by remember { mutableStateOf<PeclStudentEntity?>(null) }
+    var selectedInstructor by remember { mutableStateOf<UserEntity?>(null) }
+    var selectedStudentForComments by remember { mutableStateOf<PeclStudentEntity?>(null) }
     var showComments by remember { mutableStateOf(false) }
-    var selectedTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
     var expandedInstructor by remember { mutableStateOf(false) }
-    var selectedInstructorName by remember { mutableStateOf("") }
 
     LaunchedEffect(poiId) {
-        try {
-            viewModel.loadStudentsForProgram(poiId)
-            viewModel.loadTasksForPoi(poiId)
-        } catch (e: Exception) {
-            // Handle error, e.g., post to state
+        viewModel.loadInstructors()
+        viewModel.loadTasksForPoi(poiId)
+    }
+
+    LaunchedEffect(selectedInstructor) {
+        selectedInstructor?.let {
+            viewModel.loadStudentsForInstructorAndProgram(it.id, programId)
         }
     }
 
@@ -65,13 +55,14 @@ fun PeclDashboardScreen(navController: NavController, poiId: Long) {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.Center
     ) {
+        // Instructor Dropdown
         ExposedDropdownMenuBox(
             expanded = expandedInstructor,
             onExpandedChange = { expandedInstructor = !expandedInstructor }
         ) {
             TextField(
                 readOnly = true,
-                value = selectedInstructorName,
+                value = selectedInstructor?.fullName ?: "",
                 onValueChange = { },
                 label = { Text("Select Instructor") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedInstructor) },
@@ -82,74 +73,120 @@ fun PeclDashboardScreen(navController: NavController, poiId: Long) {
                 expanded = expandedInstructor,
                 onDismissRequest = { expandedInstructor = false }
             ) {
-                // Load instructors from DemographicsViewModel if integrated, or placeholder
-                DropdownMenuItem(
-                    text = { Text("Instructor 1") },
-                    onClick = { selectedInstructorName = "Instructor 1"; expandedInstructor = false }
-                )
-                // Add more instructors
+                when (val state = instructorsState) {
+                    is AppState.Loading -> DropdownMenuItem(text = { Text("Loading...") }, onClick = {})
+                    is AppState.Success -> state.data.forEach { instructor ->
+                        DropdownMenuItem(
+                            text = { Text(instructor.fullName) },
+                            onClick = {
+                                selectedInstructor = instructor
+                                expandedInstructor = false
+                            }
+                        )
+                    }
+                    is AppState.Error -> DropdownMenuItem(text = { Text("Error: ${state.message}") }, onClick = {})
+                }
             }
         }
 
-        when (val state = studentsState) {
-            is AppState.Loading -> Text("Loading students...")
-            is AppState.Success -> {
-                LazyRow {
-                    item {
-                        Text("Tasks / Students", modifier = Modifier.padding(end = 8.dp))
+        if (selectedInstructor != null) {
+            when (val students = studentsState) {
+                is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                is AppState.Success -> {
+                    // Header Row: Tasks
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        Text(
+                            text = "Students / Tasks",
+                            modifier = Modifier
+                                .width(150.dp)
+                                .padding(end = 8.dp)
+                        )
+                        when (val tasks = tasksState) {
+                            is AppState.Success -> tasks.data.forEach { task ->
+                                Text(
+                                    text = task.name,
+                                    modifier = Modifier
+                                        .width(100.dp)
+                                        .padding(end = 8.dp)
+                                )
+                            }
+                            else -> {}
+                        }
                     }
-                    items(tasksState.let { if (it is AppState.Success) it.data else emptyList() }) { task ->
-                        Text(task.name, modifier = Modifier.padding(end = 8.dp))
-                    }
-                }
-                LazyColumn {
-                    items(state.data) { student ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(student.fullName, modifier = Modifier.weight(1f))
-                            LazyRow {
-                                items(tasksState.let { if (it is AppState.Success) it.data else emptyList() }) { task ->
-                                    var average by remember { mutableStateOf(0.0) }
-                                    LaunchedEffect(student.id, task.id) {
-                                        average = viewModel.getAverageScoreForStudent(student.id, task.id)
-                                    }
-                                    Button(
-                                        onClick = { selectedStudent = student; selectedTask = task; navController.navigate("grading/${student.id}/${task.id}") },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                                        shape = RoundedCornerShape(4.dp)
-                                    ) {
-                                        Text("$average%")
+
+                    // Student Rows
+                    LazyColumn {
+                        items(students.data) { student ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = student.fullName,
+                                    modifier = Modifier
+                                        .width(150.dp)
+                                        .padding(end = 8.dp)
+                                )
+                                LazyRow {
+                                    when (val tasks = tasksState) {
+                                        is AppState.Success -> items(tasks.data) { task ->
+                                            Button(
+                                                onClick = { navController.navigate("grading/${student.id}/${task.id}") },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                                                shape = RoundedCornerShape(4.dp),
+                                                modifier = Modifier
+                                                    .width(100.dp)
+                                                    .padding(end = 8.dp)
+                                            ) {
+                                                Text("Grade")
+                                            }
+                                        }
+                                        else -> {}
                                     }
                                 }
-                            }
-                            Button(
-                                onClick = { selectedStudent = student; showComments = true; viewModel.loadCommentsForStudent(student.id) },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                                shape = RoundedCornerShape(4.dp)
-                            ) {
-                                Text("Comments")
+                                Button(
+                                    onClick = {
+                                        selectedStudentForComments = student
+                                        showComments = true
+                                        viewModel.loadCommentsForStudent(student.id)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text("Comments")
+                                }
                             }
                         }
                     }
                 }
+                is AppState.Error -> Text("Error: ${students.message}", textAlign = TextAlign.Center)
             }
-            is AppState.Error -> Text("Error loading students: ${state.message}")
         }
 
         if (showComments) {
             AlertDialog(
                 onDismissRequest = { showComments = false },
-                title = { Text("Comments for ${selectedStudent?.fullName}") },
+                title = { Text("Comments for ${selectedStudentForComments?.fullName}") },
                 text = {
                     when (val state = commentsState) {
-                        is AppState.Loading -> Text("Loading comments...")
-                        is AppState.Success -> state.data.forEach { comment ->
-                            Text(comment)
+                        is AppState.Loading -> CircularProgressIndicator()
+                        is AppState.Success -> LazyColumn {
+                            items(state.data) { comment ->
+                                Text(comment)
+                            }
                         }
                         is AppState.Error -> Text("Error: ${state.message}")
                     }
                 },
                 confirmButton = {
-                    Button(onClick = { showComments = false }) {
+                    Button(
+                        onClick = { showComments = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
                         Text("Close")
                     }
                 }

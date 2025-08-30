@@ -19,6 +19,9 @@ interface InstructorStudentAssignmentDao {
     @Query("SELECT s.* FROM pecl_students s JOIN instructor_student_assignments a ON s.id = a.student_id WHERE a.program_id = :programId")
     fun getStudentsForProgram(programId: Long): Flow<List<PeclStudentEntity>>
 
+    @Query("SELECT s.* FROM pecl_students s JOIN instructor_student_assignments a ON s.id = a.student_id WHERE a.instructor_id = :instructorId AND a.program_id = :programId")
+    fun getStudentsForInstructorAndProgram(instructorId: Long, programId: Long): Flow<List<PeclStudentEntity>>
+
     @Query("SELECT * FROM instructor_student_assignments WHERE instructor_id = :instructorId")
     fun getAssignmentsForInstructor(instructorId: Long): Flow<List<InstructorStudentAssignmentEntity>>
 

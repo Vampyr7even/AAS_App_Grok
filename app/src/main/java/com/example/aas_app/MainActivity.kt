@@ -94,8 +94,17 @@ fun AASAppScaffold() {
                 )
             }
             composable("admin/questions") { AddQuestionScreen(navController) }
-            composable("pecl/dashboard/{poiId}") { backStackEntry ->
-                PeclDashboardScreen(navController, backStackEntry.arguments?.getLong("poiId") ?: 0L)
+            composable("pecl/dashboard/{programId}/{poiId}",
+                arguments = listOf(
+                    navArgument("programId") { type = NavType.LongType },
+                    navArgument("poiId") { type = NavType.LongType }
+                )
+            ) { backStackEntry ->
+                PeclDashboardScreen(
+                    navController,
+                    backStackEntry.arguments?.getLong("programId") ?: 0L,
+                    backStackEntry.arguments?.getLong("poiId") ?: 0L
+                )
             }
             composable(
                 "pecl/pois/{programId}",
