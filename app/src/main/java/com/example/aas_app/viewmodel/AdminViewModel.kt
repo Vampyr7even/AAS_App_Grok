@@ -16,6 +16,22 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import kotlin.collections.sortedBy
+
+data class PoiWithPrograms(
+    val poi: PeclPoiEntity,
+    val programs: List<String>
+)
+
+data class TaskWithPois(
+    val task: PeclTaskEntity,
+    val pois: List<String>
+)
+
+data class QuestionWithTask(
+    @androidx.room.Embedded(prefix = "question_") val question: PeclQuestionEntity,
+    val taskName: String
+)
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
@@ -90,7 +106,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
                 val tasksWithPois = tasks.map { task ->
                     val pois = repository.getPoisForTask(task.id).first()
                     TaskWithPois(task, pois)
-                }.sortedBy { it.task.name }  // Alphabetize by task name
+                }.sortedBy { it.task.name }
                 _tasksState.postValue(AppState.Success(tasksWithPois))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading tasks with POIs: ${e.message}", e)
@@ -155,7 +171,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         _questionsWithTasksState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getAllQuestionsWithTasks().first().sortedBy { it.question.subTask }  // Alphabetize by subTask
+                val data = repository.getAllQuestionsWithTasks().first().sortedBy { it.question.subTask }
                 _questionsWithTasksState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading questions with tasks: ${e.message}", e)
@@ -361,18 +377,3 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 }
-
-data class PoiWithPrograms(
-    val poi: PeclPoiEntity,
-    val programs: List<String>
-)
-
-data class TaskWithPois(
-    val task: PeclTaskEntity,
-    val pois: List<String>
-)
-
-data class QuestionWithTask(
-    @androidx.room.Embedded(prefix = "question_") val question: PeclQuestionEntity,
-    val taskName: String
-)

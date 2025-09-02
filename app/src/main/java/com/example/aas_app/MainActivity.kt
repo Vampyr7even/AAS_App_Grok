@@ -9,15 +9,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.aas_app.ui.screens.*
-import com.example.aas_app.ui.theme.AASAppTheme
+import com.example.aas_app.ui.theme.AAS_AppTheme
+import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AASAppTheme {
+            AAS_AppTheme {
                 AASApp()
             }
         }
@@ -32,7 +34,7 @@ fun AASApp() {
             HomeScreen(navController = navController)
         }
         composable("admin") {
-            AdminScreen(navController = navController)
+            AdministrationScreen(adminViewModel = hiltViewModel(), navController = navController)
         }
         composable("demographics") {
             DemographicsScreen(navController = navController)
@@ -88,10 +90,10 @@ fun AASApp() {
             UpdateUsersScreen(navController = navController)
         }
         composable("userSurveys") {
-            UserSurveysScreen(navController = navController)
+            UserSurveysScreen(navController = navController, moduleName = "User Surveys")
         }
         composable("placeholder") {
-            PlaceholderScreen(navController = navController)
+            PlaceholderScreen(navController = navController, moduleName = "Placeholder")
         }
     }
 }

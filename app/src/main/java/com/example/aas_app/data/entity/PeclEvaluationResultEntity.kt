@@ -40,5 +40,6 @@ data class PeclEvaluationResultEntity(
     val question_id: Long,
     val score: Double,
     val comment: String = "",
-    val timestamp: Long
+    val timestamp: Long,
+    val task_id: Long = 0L
 )

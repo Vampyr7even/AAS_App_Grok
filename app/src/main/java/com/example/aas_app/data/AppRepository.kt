@@ -26,6 +26,7 @@ import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.PoiProgramAssignmentEntity
 import com.example.aas_app.data.entity.QuestionAssignmentEntity
 import com.example.aas_app.data.entity.ScaleEntity
+import com.example.aas_app.data.entity.TaskPoiAssignmentEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.QuestionWithTask
 import dagger.hilt.android.scopes.ViewModelScoped
@@ -61,203 +62,149 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
             db.withTransaction {
                 // Programs
                 val programMap = mutableMapOf<String, Long>()
-                val programs = listOf("AASB", "RSLC", "USMC Fires", "USMC PFT_CFT")
-                programs.forEach { name ->
-                    val program = peclProgramDao.getProgramByName(name)
-                    if (program == null) {
-                        val id = peclProgramDao.insertProgram(PeclProgramEntity(name = name))
-                        programMap[name] = id
-                        Log.d("AppRepository", "Inserted program: $name with ID: $id")
-                    } else {
-                        programMap[name] = program.id
-                        Log.d("AppRepository", "Existing program: $name with ID: ${program.id}")
+                for (name in ProgramData.programData) {
+                    try {
+                        val program = peclProgramDao.getProgramByName(name)
+                        if (program == null) {
+                            val id = peclProgramDao.insertProgram(PeclProgramEntity(name = name))
+                            programMap[name] = id
+                            Log.d("AppRepository", "Inserted program: $name with ID: $id")
+                        } else {
+                            programMap[name] = program.id
+                            Log.d("AppRepository", "Existing program: $name with ID: ${program.id}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("AppRepository", "Error processing program $name: ${e.message}", e)
                     }
                 }
 
                 // POIs
                 val poiMap = mutableMapOf<String, Long>()
-                val poiAssignments = listOf(
-                    "Boat Operations" to listOf(programMap["AASB"]!!),
-                    "Team Leader Planning" to listOf(programMap["RSLC"]!!),
-                    "ATL Planning" to listOf(programMap["RSLC"]!!),
-                    "RTO Planning" to listOf(programMap["RSLC"]!!),
-                    "Fire Support Marine Artillery" to listOf(programMap["USMC Fires"]!!),
-                    "PFTCFT" to listOf(programMap["USMC PFT_CFT"]!!)
-                )
-                poiAssignments.forEach { (name, programIds) ->
-                    val poi = peclPoiDao.getPoiByName(name)
-                    val poiId = if (poi == null) {
-                        val id = peclPoiDao.insertPoi(PeclPoiEntity(name = name))
-                        programIds.forEach { programId ->
-                            poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = id, program_id = programId))
-                            Log.d("AppRepository", "Assigned POI: $name to program ID: $programId")
+                for ((name, programNames) in PoiData.poiData) {
+                    val programIds = programNames.mapNotNull { programMap[it] }
+                    if (programIds.isNotEmpty()) {
+                        try {
+                            val poi = peclPoiDao.getPoiByName(name)
+                            val poiId = if (poi == null) {
+                                val id = peclPoiDao.insertPoi(PeclPoiEntity(name = name))
+                                for (programId in programIds) {
+                                    poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = id, program_id = programId))
+                                    Log.d("AppRepository", "Assigned POI: $name to program ID: $programId")
+                                }
+                                Log.d("AppRepository", "Inserted POI: $name with ID: $id")
+                                id
+                            } else {
+                                Log.d("AppRepository", "Existing POI: $name with ID: ${poi.id}")
+                                poi.id
+                            }
+                            poiMap[name] = poiId
+                        } catch (e: Exception) {
+                            Log.e("AppRepository", "Error processing POI $name: ${e.message}", e)
                         }
-                        Log.d("AppRepository", "Inserted POI: $name with ID: $id")
-                        id
                     } else {
-                        Log.d("AppRepository", "Existing POI: $name with ID: ${poi.id}")
-                        poi.id
+                        Log.w("AppRepository", "Skipping POI '$name': No valid programs found for '$programNames'")
                     }
-                    poiMap[name] = poiId
                 }
 
                 // Tasks
                 val taskMap = mutableMapOf<String, Long>()
-                val taskData = listOf(
-                    "Overview" to "Boat Operations,Team Leader Planning,ATL Planning,RTO Planning,Fire Support Marine Artillery,PFTCFT",
-                    "Launch" to "Boat Operations",
-                    "Moor" to "Boat Operations",
-                    "Radar-Nav-FLIR" to "Boat Operations",
-                    "Plotting" to "Boat Operations",
-                    "Radio" to "Boat Operations",
-                    "Depart Dock" to "Boat Operations",
-                    "Maneuvering the AASB" to "Boat Operations",
-                    "M-O-B" to "Boat Operations",
-                    "Maintain Station" to "Boat Operations",
-                    "Recover AASB" to "Boat Operations",
-                    "Comments" to "Boat Operations",
-                    "Confirmation Brief" to "Team Leader Planning",
-                    "Issue a Warning Order" to "Team Leader Planning",
-                    "Mission Analysis/IPB" to "Team Leader Planning",
-                    "Conduct Mission Analysis Brief" to "Team Leader Planning",
-                    "Develop Teams Course of Action" to "Team Leader Planning",
-                    "Issue an Operations Order" to "Team Leader Planning",
-                    "Conduct Rehearsals" to "Team Leader Planning,ATL Planning,RTO Planning",
-                    "Conduct Backbrief" to "Team Leader Planning,ATL Planning,RTO Planning",
-                    "Evaluation Data" to "Fire Support Marine Artillery",
-                    "Leadership" to "Fire Support Marine Artillery",
-                    "Conduct Initial Inspections" to "ATL Planning",
-                    "Prepare for Mission" to "ATL Planning",
-                    "Prepare and Issue an OPORD" to "ATL Planning",
-                    "Issues 4 Para OPORD" to "ATL Planning",
-                    "Conduct Final Inspection" to "ATL Planning",
-                    "Prepare for OPORD and Operations" to "RTO Planning",
-                    "Issue 5 para OPORD" to "RTO Planning",
-                    "Preexecution" to "Fire Support Marine Artillery",
-                    "Call for Fire" to "Fire Support Marine Artillery",
-                    "Spottings/Corrections" to "Fire Support Marine Artillery",
-                    "RREMS" to "Fire Support Marine Artillery",
-                    "Individual Data" to "PFTCFT",
-                    "PFT Performance Data" to "PFTCFT",
-                    "CFT Performance Data" to "PFTCFT"
-                )
-                taskData.forEach { (name, poiNamesStr) ->
-                    val poiNames = poiNamesStr.split(",").map { it.trim() }
+                for ((name, poiNames) in TaskData.taskData) {
                     val poiIds = poiNames.mapNotNull { poiMap[it] }
                     if (poiIds.isNotEmpty()) {
-                        val task = peclTaskDao.getTaskByName(name)
-                        val taskId = if (task == null) {
-                            val id = peclTaskDao.insertTask(PeclTaskEntity(name = name))
-                            poiIds.forEach { poiId ->
-                                taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = id, poi_id = poiId))
-                                Log.d("AppRepository", "Assigned task: $name to POI ID: $poiId")
+                        try {
+                            val task = peclTaskDao.getTaskByName(name)
+                            val taskId = if (task == null) {
+                                val id = peclTaskDao.insertTask(PeclTaskEntity(name = name))
+                                for (poiId in poiIds) {
+                                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = id, poi_id = poiId))
+                                    Log.d("AppRepository", "Assigned task: $name to POI ID: $poiId")
+                                }
+                                Log.d("AppRepository", "Inserted task: $name with ID: $id")
+                                id
+                            } else {
+                                Log.d("AppRepository", "Existing task: $name with ID: ${task.id}")
+                                task.id
                             }
-                            Log.d("AppRepository", "Inserted task: $name with ID: $id")
-                            id
-                        } else {
-                            Log.d("AppRepository", "Existing task: $name with ID: ${task.id}")
-                            task.id
+                            taskMap[name] = taskId
+                        } catch (e: Exception) {
+                            Log.e("AppRepository", "Error processing task $name: ${e.message}", e)
                         }
-                        taskMap[name] = taskId
                     } else {
-                        Log.w("AppRepository", "Skipping task '$name': No valid POIs found for '$poiNamesStr'")
+                        Log.w("AppRepository", "Skipping task '$name': No valid POIs found for '$poiNames'")
                     }
                 }
 
                 // Scales
-                val scaleData = listOf(
-                    ScaleEntity(scaleName = "Scale_Affect", options = "No Affect,Minor Affect,Neutral,Moderate Affect,Major Affect"),
-                    ScaleEntity(scaleName = "Scale_Agree", options = "Strongly Agree,Agree,Neither Agree nor Disagree,Disagree,Strongly Disagree,NA"),
-                    ScaleEntity(scaleName = "Scale_Aware", options = "Extremely Aware,Moderately Aware,Somewhat Aware,Slightly Aware,Not At All Aware"),
-                    ScaleEntity(scaleName = "Scale_Comfort", options = "Very Comfortable,Comfortable,Neither Comfortable nor Uncomfortable,Uncomfortable,Very Uncomfortable"),
-                    ScaleEntity(scaleName = "Scale_NASATLX", options = "1 - Very Low,2,3,4 – Medium,5,6,7 - Very High"),
-                    ScaleEntity(scaleName = "Scale_Decrease", options = "Major Decrease,Moderate Decrease,Minor Decrease,No Effect"),
-                    ScaleEntity(scaleName = "Scale_Difficulty", options = "Very Easy,Easy,Neutral,Difficult,Very Difficult"),
-                    ScaleEntity(scaleName = "Scale_Ease_Of_Use", options = "Much Easier,Somewhat Easier,Not Easy or Difficult,Somewhat Difficult,Much More Difficult"),
-                    ScaleEntity(scaleName = "Scale_Effective", options = "Extremely Effective,Effective,Neither Effective nor Ineffective,Ineffective,Extremely Ineffective"),
-                    ScaleEntity(scaleName = "Scale_Improvement", options = "Major Improvement,Moderate Improvement,No Change,Moderate Decline,Major Decline"),
-                    ScaleEntity(scaleName = "Scale_Frequency_5", options = "Always,Often,Sometimes,Rarely,Never"),
-                    ScaleEntity(scaleName = "Scale_Frequency", options = "Never,Rarely (<10% of the time),Occasionally (~30% of the time),Sometimes (~50% of the time),Frequently (~70% of the time),Usually (~90% of the time),All the time (100%)"),
-                    ScaleEntity(scaleName = "Scale_Importance", options = "Extremely important,Very important,Moderately important,Neutral,Slightly important,Low importance,Not at all important"),
-                    ScaleEntity(scaleName = "Scale_Likelihood", options = "Almost Always True,Usually True,Occasionally True,Usually Not True,Almost Never True"),
-                    ScaleEntity(scaleName = "Scale_Precipitation", options = "No rain,Drizzle,Light,Moderate,Heavy"),
-                    ScaleEntity(scaleName = "Scale_Rating_Low_High", options = "LOW – 1,2,3,4,5,6,7,8,9,10 - High"),
-                    ScaleEntity(scaleName = "Scale_Risk", options = "Catastrophic,Critical,Marginal,Negligible"),
-                    ScaleEntity(scaleName = "Scale_Weather_Conditions", options = "Clear,Mostly Clear,Partly Cloudy,Mostly Cloudy,Cloudy"),
-                    ScaleEntity(scaleName = "Scale_Yes_No", options = "YES,NO,N/A"),
-                    ScaleEntity(scaleName = "Scale_Acceptability", options = "Perfectly Acceptable,Acceptable,Slightly acceptable,Neutral,Slightly unacceptable,Unacceptable,Totally unacceptable"),
-                    ScaleEntity(scaleName = "Scale_Appropriateness", options = "Absolutely appropriate,Appropriate,Slightly appropriate,Neutral,Slightly inappropriate,Inappropriate,Absolutely inappropriate"),
-                    ScaleEntity(scaleName = "Scale_Truth", options = "Always true,Usually true,Sometimes true,Neutral,Sometimes but infrequently true,Rarely true,Never true"),
-                    ScaleEntity(scaleName = "Scale_Priority", options = "Essential priority,High priority,Neutral,Low priority,Not a priority"),
-                    ScaleEntity(scaleName = "Scale_Concern", options = "Extremely concerned,Moderately concerned,Somewhat concerned,Slightly concerned,not at all concerned"),
-                    ScaleEntity(scaleName = "Scale_Consideration", options = "Definitely consider,Might or might not consider,Would not consider"),
-                    ScaleEntity(scaleName = "Scale_Support_Opposition", options = "Distinguished,Qualified,Unqualified"),
-                    ScaleEntity(scaleName = "Scale_Probability", options = "Very probable,Somewhat probable,Neutral,Somewhat improbable,Not probable"),
-                    ScaleEntity(scaleName = "Scale_Desirability", options = "Very desirable,Desirable,Neutral,Undesirable,Very undesirable"),
-                    ScaleEntity(scaleName = "Scale_Use", options = "Every time,Almost every time,Occasionally/Sometimes,Almost never,Never use"),
-                    ScaleEntity(scaleName = "Scale_Familiarity", options = "Extremely familiar,Moderately familiar,Somewhat familiar,Slightly familiar,not at all familiar"),
-                    ScaleEntity(scaleName = "Scale_Barriers", options = "Not a barrier,Somewhat of a barrier,Moderate barrier,Extreme barrier"),
-                    ScaleEntity(scaleName = "Scale_Satisfaction", options = "Very satisfied,Satisfied,Unsure,Dissatisfied,Very dissatisfied"),
-                    ScaleEntity(scaleName = "Scale_Quality", options = "Excellent,Very good,Good,Fair,Poor"),
-                    ScaleEntity(scaleName = "Scale_Comparison", options = "Much better,Somewhat better,About the same,Somewhat worse,Much worse"),
-                    ScaleEntity(scaleName = "Scale_Responsibility", options = "Completely responsible,Mostly responsible,Somewhat responsible,Not at all responsible"),
-                    ScaleEntity(scaleName = "Scale_Influence", options = "Extremely influential,Very influential,Somewhat influential,Slightly influential,Not at all influential"),
-                    ScaleEntity(scaleName = "Scale_Increase", options = "Major Increase,Moderate Increase,Minor Increase,No Effect"),
-                    ScaleEntity(scaleName = "Scale_Momentum", options = "Greatly Increased Momentum,Increased Momentum,No Change,Decreased Momentum"),
-                    ScaleEntity(scaleName = "Scale_Adequate", options = "Extremely Adequate,Adequate,Indifferent,Inadequate"),
-                    ScaleEntity(scaleName = "Scale_Assist", options = "Major Assist,Moderate Assist,Minor Assist,No Effect"),
-                    ScaleEntity(scaleName = "Scale_Potential", options = "Major Potential,Moderate Potential,Minor Potential,No effect"),
-                    ScaleEntity(scaleName = "Scale_Speed", options = "Extremely Rapid,Moderately Rapid,Fairly Rapid,Neither Rapid nor Slow"),
-                    ScaleEntity(scaleName = "Scale_Challenge", options = "No Challenges,Mild Challenges,Moderate Challenges,Severe Challenges"),
-                    ScaleEntity(scaleName = "Scale_Survivability", options = "Survivability 100% increase,Survivability 75-99% increase,Survivability 25-74% increase,Survivability 1-24% increase"),
-                    ScaleEntity(scaleName = "Scale_Cognative", options = "Mild (no impact),Moderate (could still process data),Severe (difficultly processing data),Extreme (Could not process data)"),
-                    ScaleEntity(scaleName = "Scale_Candidate", options = "Can 1,Can 2,Can 3,Can 4,Can 5,All Systems"),
-                    ScaleEntity(scaleName = "Scale_Candidate2", options = "Current Candidate,Other Device"),
-                    ScaleEntity(scaleName = "Scale_Cooper_Harper", options = "1,2,3,4,5,6,7,8,9,10"),
-                    ScaleEntity(scaleName = "Scale_Fielding", options = "Field Immediately - No Improvements,Field Immediately - Minor Improvements,Field Soon - Moderate Improvements,No fielding until major improvements made"),
-                    ScaleEntity(scaleName = "Scale_FieldingPercent", options = "No Improvements (100%),Fine Tune (~90% completion),Minor Improvements (~70% completion),Moderate Improvements (~50% completion),Major Improvements (~30% completion),Prototype Phase (<10% completion)"),
-                    ScaleEntity(scaleName = "Scale_Swimmer_Qual", options = "WSB,WSI,WSA,MCIWS"),
-                    ScaleEntity(scaleName = "Scale_Grade", options = "CIV,E1,E2,E3,E4,E5,E6,E7,E8,E9,O1,O2,O3,O4,O5,O6,O7,O8,O9,O10"),
-                    ScaleEntity(scaleName = "Scale_StudentEval", options = "None,Very Little,Average,Above Average,Expert"),
-                    ScaleEntity(scaleName = "Scale_PECL", options = "1,2,3,4,5"),
-                    ScaleEntity(scaleName = "Scale_Go_NOGO", options = "GO,NO GO,NA"),
-                    ScaleEntity(scaleName = "Scale_RSLC_Position", options = "Team Leader,Assistant Team Leader,RTO,Medic,Machine Gunner,Assistant Machine Gunner"),
-                    ScaleEntity(scaleName = "Scale_Comment", options = ""),
-                    ScaleEntity(scaleName = "Scale_Instructors", options = "Instructor1,Instructor2,Instructor3")
-                )
-                scaleData.forEach { scale ->
-                    val existing = scaleDao.getScaleByName(scale.scaleName)
-                    if (existing == null) {
-                        scaleDao.insertScale(scale)
-                        Log.d("AppRepository", "Inserted scale: ${scale.scaleName}")
-                    } else {
-                        Log.d("AppRepository", "Existing scale: ${scale.scaleName}")
+                for (scale in ScaleData.scaleData) {
+                    try {
+                        val existing = scaleDao.getScaleByName(scale.scaleName)
+                        if (existing == null) {
+                            scaleDao.insertScale(scale)
+                            Log.d("AppRepository", "Inserted scale: ${scale.scaleName}")
+                        } else {
+                            Log.d("AppRepository", "Existing scale: ${scale.scaleName}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("AppRepository", "Error processing scale ${scale.scaleName}: ${e.message}", e)
                     }
                 }
 
-                // Questions (from QuestionData.kt)
-                QuestionData.questionData.forEach { (question, taskName) ->
+                // Questions
+                for ((question, taskName) in QuestionData.questionData) {
                     val taskId = taskMap[taskName]
                     if (taskId != null) {
-                        val existing = peclQuestionDao.getQuestionBySubTask(question.subTask)
-                        if (existing == null) {
-                            val id = peclQuestionDao.insertQuestion(question)
-                            questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(question_id = id, task_id = taskId))
-                            Log.d("AppRepository", "Inserted question: ${question.subTask} with ID: $id assigned to task: $taskName")
-                        } else {
-                            Log.d("AppRepository", "Existing question: ${question.subTask} with ID: ${existing.id}")
+                        try {
+                            val existing = peclQuestionDao.getQuestionBySubTask(question.subTask)
+                            if (existing == null) {
+                                val id = peclQuestionDao.insertQuestion(question)
+                                questionAssignmentDao.insertAssignment(QuestionAssignmentEntity(question_id = id, task_id = taskId))
+                                Log.d("AppRepository", "Inserted question: ${question.subTask} with ID: $id assigned to task: $taskName")
+                            } else {
+                                Log.d("AppRepository", "Existing question: ${question.subTask} with ID: ${existing.id}")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AppRepository", "Error processing question ${question.subTask}: ${e.message}", e)
                         }
                     } else {
                         Log.w("AppRepository", "Skipping question '${question.subTask}': No valid task found for '$taskName'")
                     }
                 }
 
-                // Prepopulate students
-                val students = listOf(
-                    PeclStudentEntity(id = 0, fullName = "John Doe", programId = programMap["AASB"]!!),
-                    PeclStudentEntity(id = 0, fullName = "Jane Smith", programId = programMap["AASB"]!!)
-                )
-                students.forEach { peclStudentDao.insertStudent(it) }
+                // Students
+                for (student in PeclStudentData.studentData) {
+                    try {
+                        peclStudentDao.insertStudent(student)
+                        Log.d("AppRepository", "Inserted student: ${student.fullName}")
+                    } catch (e: Exception) {
+                        Log.e("AppRepository", "Error processing student ${student.fullName}: ${e.message}", e)
+                    }
+                }
+
+                // Instructors
+                for ((fullName, programName) in PeclInstructorData.instructorData) {
+                    try {
+                        val existing = userDao.getUsersByRole("instructor").first().firstOrNull { it.fullName == fullName }
+                        if (existing == null) {
+                            val parts = fullName.split(" ")
+                            val firstName = parts.dropLast(1).joinToString(" ")
+                            val lastName = parts.last()
+                            val user = UserEntity(firstName = firstName, lastName = lastName, grade = "", pin = null, fullName = fullName, role = "instructor")
+                            val instructorId = userDao.insertUser(user)
+                            val programId = programMap[programName]
+                            if (programId != null) {
+                                instructorProgramAssignmentDao.insertAssignment(InstructorProgramAssignmentEntity(instructor_id = instructorId, program_id = programId))
+                                Log.d("AppRepository", "Assigned instructor: $fullName to program: $programName")
+                            } else {
+                                Log.w("AppRepository", "Skipping assignment for instructor '$fullName': Program '$programName' not found")
+                            }
+                            Log.d("AppRepository", "Inserted instructor: $fullName with ID: $instructorId")
+                        } else {
+                            Log.d("AppRepository", "Existing instructor: $fullName with ID: ${existing.id}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("AppRepository", "Error processing instructor $fullName: ${e.message}", e)
+                    }
+                }
             }
             AppResult.Success(Unit)
         } catch (e: Exception) {
@@ -276,7 +223,7 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun deleteUser(user: UserEntity) = userDao.deleteUser(user)
 
-    suspend fun getUserById(userId: Long): Flow<UserEntity?> = userDao.getUserById(userId)
+    fun getUserById(userId: Long): Flow<UserEntity?> = userDao.getUserById(userId)
 
     fun getAllPrograms(): Flow<List<PeclProgramEntity>> = peclProgramDao.getAllPrograms()
 

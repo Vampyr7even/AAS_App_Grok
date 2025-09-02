@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,13 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +45,11 @@ fun PeclDashboardScreen(
     var showComments by remember { mutableStateOf(false) }
     var expandedInstructor by remember { mutableStateOf(false) }
 
+    val horizontalScrollState = rememberScrollState()
+
+    // Per-student evaluations map for live updates
+    val evaluationsByStudent = remember { mutableStateMapOf<Long, AppState<List<PeclEvaluationResultEntity>>>() }
+
     // Initialize selectedInstructor with instructorId
     LaunchedEffect(instructorId) {
         viewModel.loadInstructors()
@@ -71,11 +71,15 @@ fun PeclDashboardScreen(
         }
     }
 
-    // Load evaluation results for students
+    // Load evaluation results for students with live collection
     LaunchedEffect(studentsState) {
         if (studentsState is AppState.Success) {
             (studentsState as AppState.Success).data.forEach { student ->
-                viewModel.loadEvaluationResultsForStudent(student.id)
+                evaluationsByStudent[student.id] = AppState.Loading
+                viewModel.loadEvaluationResultsForStudent(student.id) // Initial load if needed
+                viewModel.repository.getEvaluationResultsForStudent(student.id).collect { data: List<PeclEvaluationResultEntity> ->
+                    evaluationsByStudent[student.id] = AppState.Success(data)
+                }
             }
         }
     }
@@ -162,11 +166,11 @@ fun PeclDashboardScreen(
                             textAlign = TextAlign.Center
                         )
                     } else {
-                        // Header Row: Tasks
+                        // Header Row: Tasks with shared scroll state
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
+                                .horizontalScroll(horizontalScrollState)
                                 .padding(vertical = 8.dp),
                             horizontalArrangement = Arrangement.Start
                         ) {
@@ -203,12 +207,28 @@ fun PeclDashboardScreen(
                                             .width(150.dp)
                                             .padding(end = 8.dp)
                                     )
-                                    LazyRow {
+                                    Row(
+                                        modifier = Modifier.horizontalScroll(horizontalScrollState)
+                                    ) {
                                         when (val tasks = tasksState) {
-                                            is AppState.Success -> items(tasks.data) { task ->
-                                                // TODO: Requires task_id in pecl_evaluation_results (future schema update)
-                                                // Fallback to "Not Graded" for current schema
-                                                val score = "Not Graded"
+                                            is AppState.Success -> tasks.data.forEach { task ->
+                                                var score by remember { mutableStateOf("Loading...") }
+                                                LaunchedEffect(student.id, task.id) {
+                                                    try {
+                                                        val evalsState = evaluationsByStudent[student.id]
+                                                        if (evalsState is AppState.Success) {
+                                                            val taskEvals = evalsState.data.filter { eval ->
+                                                                eval.task_id == task.id
+                                                            }
+                                                            score = if (taskEvals.isEmpty()) "No Grade" else taskEvals.map { it.score }.average().toString()
+                                                        } else {
+                                                            score = "No Grade"
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Log.e("PeclDashboard", "Error fetching score: ${e.message}", e)
+                                                        score = "Error"
+                                                    }
+                                                }
                                                 Button(
                                                     onClick = {
                                                         navController.navigate(
@@ -224,7 +244,7 @@ fun PeclDashboardScreen(
                                                     Text(score)
                                                 }
                                             }
-                                            is AppState.Error -> item {
+                                            is AppState.Error -> {
                                                 Text("Error: ${tasks.message}")
                                             }
                                             else -> {}
@@ -272,7 +292,6 @@ fun PeclDashboardScreen(
                             } else {
                                 LazyColumn {
                                     items(state.data) { comment ->
-                                        // TODO: Enhance with instructor name and timestamp after schema update
                                         Text(
                                             text = comment,
                                             modifier = Modifier.padding(vertical = 4.dp)

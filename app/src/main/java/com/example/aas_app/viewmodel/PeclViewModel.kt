@@ -14,9 +14,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.collections.sortedBy
 
 @HiltViewModel
-class PeclViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
+class PeclViewModel @Inject constructor(val repository: AppRepository) : ViewModel() {
 
     private val _tasksState = MutableLiveData<AppState<List<PeclTaskEntity>>>()
     val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = _tasksState
@@ -305,15 +306,10 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            try {
-                val result = repository.insertQuestion(question, taskId)
-                when (result) {
-                    is AppResult.Success -> loadAllQuestions()
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
-                }
-            } catch (e: Exception) {
-                Log.e("PeclViewModel", "Error inserting question: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error inserting question"))
+            val result = repository.insertQuestion(question, taskId)
+            when (result) {
+                is AppResult.Success -> loadAllQuestions()
+                is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
         }
     }
@@ -321,15 +317,10 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun updateQuestion(question: PeclQuestionEntity, taskId: Long) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            try {
-                val result = repository.updateQuestion(question, taskId)
-                when (result) {
-                    is AppResult.Success -> loadAllQuestions()
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
-                }
-            } catch (e: Exception) {
-                Log.e("PeclViewModel", "Error updating question: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error updating question"))
+            val result = repository.updateQuestion(question, taskId)
+            when (result) {
+                is AppResult.Success -> loadAllQuestions()
+                is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
         }
     }
@@ -337,15 +328,10 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun deleteQuestion(question: PeclQuestionEntity) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            try {
-                val result = repository.deleteQuestion(question)
-                when (result) {
-                    is AppResult.Success -> loadAllQuestions()
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
-                }
-            } catch (e: Exception) {
-                Log.e("PeclViewModel", "Error deleting question: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error deleting question"))
+            val result = repository.deleteQuestion(question)
+            when (result) {
+                is AppResult.Success -> loadAllQuestions()
+                is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
         }
     }
@@ -373,5 +359,60 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
                 onResult(null)
             }
         }
+    }
+
+    suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? {
+        return try {
+            repository.getAssignmentForStudent(studentId)
+        } catch (e: Exception) {
+            Log.e("PeclViewModel", "Error getting assignment for student $studentId: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun getProgramById(programId: Long): PeclProgramEntity? {
+        return try {
+            repository.getProgramById(programId)
+        } catch (e: Exception) {
+            Log.e("PeclViewModel", "Error getting program $programId: ${e.message}", e)
+            null
+        }
+    }
+
+    fun getPeclStudentById(studentId: Long, onResult: (PeclStudentEntity?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val student = repository.getPeclStudentById(studentId).first()
+                onResult(student)
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error getting student $studentId: ${e.message}", e)
+                onResult(null)
+            }
+        }
+    }
+
+    suspend fun getScaleByName(scaleName: String): ScaleEntity? {
+        return try {
+            repository.getScaleByName(scaleName)
+        } catch (e: Exception) {
+            Log.e("PeclViewModel", "Error getting scale $scaleName: ${e.message}", e)
+            null
+        }
+    }
+
+    fun getTaskById(taskId: Long, onResult: (PeclTaskEntity?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val task = repository.getTaskById(taskId)
+                onResult(task)
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error getting task $taskId: ${e.message}", e)
+                onResult(null)
+            }
+        }
+    }
+
+    fun getEvaluationsForStudent(studentId: Long): Flow<List<PeclEvaluationResultEntity>> {
+        return repository.getEvaluationResultsForStudent(studentId)
     }
 }

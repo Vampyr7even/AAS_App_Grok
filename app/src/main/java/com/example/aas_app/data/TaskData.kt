@@ -1,0 +1,42 @@
+package com.example.aas_app.data
+
+object TaskData {
+    val taskData = listOf(
+        "Overview" to listOf("Boat Operations", "Team Leader Planning", "ATL Planning", "RTO Planning", "Fire Support Marine Artillery", "PFTCFT"),
+        "Launch" to listOf("Boat Operations"),
+        "Moor" to listOf("Boat Operations"),
+        "Radar-Nav-FLIR" to listOf("Boat Operations"),
+        "Plotting" to listOf("Boat Operations"),
+        "Radio" to listOf("Boat Operations"),
+        "Depart Dock" to listOf("Boat Operations"),
+        "Maneuvering the AASB" to listOf("Boat Operations"),
+        "M-O-B" to listOf("Boat Operations"),
+        "Maintain Station" to listOf("Boat Operations"),
+        "Recover AASB" to listOf("Boat Operations"),
+        "Comments" to listOf("Boat Operations"),
+        "Confirmation Brief" to listOf("Team Leader Planning"),
+        "Issue a Warning Order" to listOf("Team Leader Planning"),
+        "Mission Analysis/IPB" to listOf("Team Leader Planning"),
+        "Conduct Mission Analysis Brief" to listOf("Team Leader Planning"),
+        "Develop Teams Course of Action" to listOf("Team Leader Planning"),
+        "Issue an Operations Order" to listOf("Team Leader Planning"),
+        "Conduct Rehearsals" to listOf("Team Leader Planning", "ATL Planning", "RTO Planning"),
+        "Conduct Backbrief" to listOf("Team Leader Planning", "ATL Planning", "RTO Planning"),
+        "Evaluation Data" to listOf("Fire Support Marine Artillery"),
+        "Leadership" to listOf("Fire Support Marine Artillery"),
+        "Conduct Initial Inspections" to listOf("ATL Planning"),
+        "Prepare for Mission" to listOf("ATL Planning"),
+        "Prepare and Issue an OPORD" to listOf("ATL Planning"),
+        "Issues 4 Para OPORD" to listOf("ATL Planning"),
+        "Conduct Final Inspection" to listOf("ATL Planning"),
+        "Prepare for OPORD and Operations" to listOf("RTO Planning"),
+        "Issue 5 para OPORD" to listOf("RTO Planning"),
+        "Preexecution" to listOf("Fire Support Marine Artillery"),
+        "Call for Fire" to listOf("Fire Support Marine Artillery"),
+        "Spottings/Corrections" to listOf("Fire Support Marine Artillery"),
+        "RREMS" to listOf("Fire Support Marine Artillery"),
+        "Individual Data" to listOf("PFTCFT"),
+        "PFT Performance Data" to listOf("PFTCFT"),
+        "CFT Performance Data" to listOf("PFTCFT")
+    )
+}

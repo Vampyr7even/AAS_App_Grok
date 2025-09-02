@@ -100,19 +100,52 @@ fun StudentsTab(peclViewModel: PeclViewModel, errorMessage: String?, snackbarHos
             val sortedStudents = state.data.sortedBy { it.fullName }
             LazyColumn {
                 items(sortedStudents) { student ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = student.fullName, modifier = Modifier.weight(1f))
-                        IconButton(onClick = {
-                            editStudent = student
-                            showEditStudentDialog = true
-                        }) {
-                            Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = student.fullName,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            var programName by remember { mutableStateOf("Loading...") }
+                            LaunchedEffect(student.id) {
+                                try {
+                                    val assignment = peclViewModel.getAssignmentForStudent(student.id)
+                                    val programId = assignment?.program_id
+                                    val program = programId?.let { peclViewModel.getProgramById(it) }
+                                    programName = program?.name ?: "No Program"
+                                } catch (e: Exception) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Error loading program for student: ${e.message}")
+                                    }
+                                    programName = "Error"
+                                }
+                            }
+                            Text(
+                                text = "Program: $programName",
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
-                        IconButton(onClick = {
-                            selectedStudentToDelete = student
-                            showStudentDeleteDialog = true
-                        }) {
-                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                        Row {
+                            IconButton(onClick = {
+                                editStudent = student
+                                showEditStudentDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                            }
+                            IconButton(onClick = {
+                                selectedStudentToDelete = student
+                                showStudentDeleteDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                            }
                         }
                     }
                 }

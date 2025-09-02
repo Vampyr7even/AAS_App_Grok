@@ -63,7 +63,7 @@ import com.example.aas_app.data.entity.UserEntity
         TaskPoiAssignmentEntity::class,
         PeclStudentEntity::class
     ],
-    version = 23,  // Incremented from 22 to 23 to force re-validation
+    version = 24,  // Incremented from 23 to 24 for Phase 1 migration
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -100,7 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
                     .addMigrations(
                         MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
                         MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
-                        MIGRATION_21_22, MIGRATION_22_23  // New empty migration
+                        MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24  // New Phase 1 migration
                     )
                     //.fallbackToDestructiveMigration()  // Uncomment temporarily for dev if needed
                     .build()
@@ -125,7 +125,7 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `question_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `question_id` INTEGER NOT NULL, `task_id` INTEGER NOT NULL, FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_question_assignments_question_id_task_id` ON `question_assignments` (`question_id`, `task_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_question_assignments_task_id` ON `question_assignments` (`task_id`)")
-                db.execSQL("CREATE TABLE IF NOT EXISTS `instructor_student_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `student_id` INTEGER NOT NULL, `program_id` INTEGER, FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`student_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `instructor_student_assignments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `student_id` INTEGER NOT NULL, `program_id` INTEGER, FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`student_id` ) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_instructor_id` ON `instructor_student_assignments` (`instructor_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_instructor_student_assignments_student_id` ON `instructor_student_assignments` (`student_id`)")
                 db.execSQL("CREATE TABLE IF NOT EXISTS `pecl_scales` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `scale_name` TEXT NOT NULL, `options` TEXT NOT NULL)")
@@ -292,6 +292,31 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Empty migration to force schema re-validation after previous changes
                 // No structural changes needed; this ensures integrity check passes
+            }
+        }
+
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    // Add new columns to pecl_evaluation_results with FKs
+                    db.execSQL("ALTER TABLE pecl_evaluation_results ADD COLUMN student_id INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE pecl_evaluation_results ADD COLUMN instructor_id INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE pecl_evaluation_results ADD COLUMN task_id INTEGER NOT NULL DEFAULT 0")
+                } catch (e: Exception) {
+                    Log.e("Migration23_24", "Columns already exist or error adding: ${e.message}", e)
+                }
+
+                // Recreate table with FKs
+                db.execSQL("CREATE TABLE pecl_evaluation_results_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, student_id INTEGER NOT NULL, instructor_id INTEGER NOT NULL, question_id INTEGER NOT NULL, score REAL NOT NULL, comment TEXT NOT NULL, timestamp INTEGER NOT NULL, FOREIGN KEY(student_id) REFERENCES pecl_students(id) ON DELETE RESTRICT, FOREIGN KEY(instructor_id) REFERENCES users(id) ON DELETE RESTRICT, FOREIGN KEY(question_id) REFERENCES pecl_questions(id) ON DELETE RESTRICT, FOREIGN KEY(task_id) REFERENCES pecl_tasks(id) ON DELETE RESTRICT)")
+                db.execSQL("INSERT INTO pecl_evaluation_results_new (id, student_id, instructor_id, question_id, score, comment, timestamp, task_id) SELECT id, student_id, instructor_id, question_id, score, comment, timestamp, task_id FROM pecl_evaluation_results")
+                db.execSQL("DROP TABLE pecl_evaluation_results")
+                db.execSQL("ALTER TABLE pecl_evaluation_results_new RENAME TO pecl_evaluation_results")
+
+                // Add indices
+                db.execSQL("CREATE INDEX index_pecl_evaluation_results_student_id ON pecl_evaluation_results (student_id)")
+                db.execSQL("CREATE INDEX index_pecl_evaluation_results_instructor_id ON pecl_evaluation_results (instructor_id)")
+                db.execSQL("CREATE INDEX index_pecl_evaluation_results_question_id ON pecl_evaluation_results (question_id)")
+                db.execSQL("CREATE INDEX index_pecl_evaluation_results_task_id ON pecl_evaluation_results (task_id)")
             }
         }
     }
