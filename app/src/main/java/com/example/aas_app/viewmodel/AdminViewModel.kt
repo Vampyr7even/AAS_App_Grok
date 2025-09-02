@@ -5,7 +5,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
@@ -13,10 +12,9 @@ import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.ScaleEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.collections.sortedBy
 
 data class PoiWithPrograms(
     val poi: PeclPoiEntity,
@@ -202,8 +200,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun insertProgram(program: PeclProgramEntity) {
         _programsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.insertProgram(program)
-            when (result) {
+            when (val result = repository.insertProgram(program)) {
                 is AppResult.Success -> loadPrograms()
                 is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
             }
@@ -213,8 +210,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun updateProgram(program: PeclProgramEntity) {
         _programsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.updateProgram(program)
-            when (result) {
+            when (val result = repository.updateProgram(program)) {
                 is AppResult.Success -> loadPrograms()
                 is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
             }
@@ -224,8 +220,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun deleteProgram(program: PeclProgramEntity) {
         _programsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.deleteProgram(program)
-            when (result) {
+            when (val result = repository.deleteProgram(program)) {
                 is AppResult.Success -> loadPrograms()
                 is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
             }
@@ -235,8 +230,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun insertPoi(poi: PeclPoiEntity, programIds: List<Long>) {
         _poisState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.insertPoi(poi, programIds)
-            when (result) {
+            when (val result = repository.insertPoi(poi, programIds)) {
                 is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
             }
@@ -246,8 +240,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun updatePoi(poi: PeclPoiEntity, programIds: List<Long>) {
         _poisState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.updatePoi(poi, programIds)
-            when (result) {
+            when (val result = repository.updatePoi(poi, programIds)) {
                 is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
             }
@@ -257,8 +250,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun deletePoi(poi: PeclPoiEntity) {
         _poisState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.deletePoi(poi)
-            when (result) {
+            when (val result = repository.deletePoi(poi)) {
                 is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
             }
@@ -268,8 +260,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun insertTask(task: PeclTaskEntity, poiIds: List<Long>) {
         _tasksState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.insertTask(task, poiIds)
-            when (result) {
+            when (val result = repository.insertTask(task, poiIds)) {
                 is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
             }
@@ -279,8 +270,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun updateTask(task: PeclTaskEntity, poiIds: List<Long>? = null) {
         _tasksState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.updateTask(task, poiIds)
-            when (result) {
+            when (val result = repository.updateTask(task, poiIds)) {
                 is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
             }
@@ -290,8 +280,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun deleteTask(task: PeclTaskEntity) {
         _tasksState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.deleteTask(task)
-            when (result) {
+            when (val result = repository.deleteTask(task)) {
                 is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
             }
@@ -301,8 +290,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.insertQuestion(question, taskId)
-            when (result) {
+            when (val result = repository.insertQuestion(question, taskId)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
@@ -312,8 +300,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun updateQuestion(question: PeclQuestionEntity, taskId: Long) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.updateQuestion(question, taskId)
-            when (result) {
+            when (val result = repository.updateQuestion(question, taskId)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
@@ -323,8 +310,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun deleteQuestion(question: PeclQuestionEntity) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.deleteQuestion(question)
-            when (result) {
+            when (val result = repository.deleteQuestion(question)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
             }
@@ -334,8 +320,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun insertScale(scale: ScaleEntity) {
         _scalesState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.insertScale(scale)
-            when (result) {
+            when (val result = repository.insertScale(scale)) {
                 is AppResult.Success -> loadScales()
                 is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
             }
@@ -345,8 +330,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun updateScale(scale: ScaleEntity) {
         _scalesState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.updateScale(scale)
-            when (result) {
+            when (val result = repository.updateScale(scale)) {
                 is AppResult.Success -> loadScales()
                 is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
             }
@@ -356,8 +340,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun deleteScale(scale: ScaleEntity) {
         _scalesState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.deleteScale(scale)
-            when (result) {
+            when (val result = repository.deleteScale(scale)) {
                 is AppResult.Success -> loadScales()
                 is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
             }

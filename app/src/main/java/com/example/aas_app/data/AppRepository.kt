@@ -437,63 +437,6 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
         }
     }
 
-    fun getStudentsForInstructor(instructorId: Long): Flow<List<PeclStudentEntity>> = instructorStudentAssignmentDao.getStudentsForInstructor(instructorId)
-
-    fun getStudentsForProgram(programId: Long): Flow<List<PeclStudentEntity>> = instructorStudentAssignmentDao.getStudentsForProgram(programId)
-
-    fun getAssignmentsForInstructor(instructorId: Long): Flow<List<InstructorStudentAssignmentEntity>> = instructorStudentAssignmentDao.getAssignmentsForInstructor(instructorId)
-
-    suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity): AppResult<Long> {
-        return try {
-            val id = instructorStudentAssignmentDao.insertAssignment(assignment)
-            AppResult.Success(id)
-        } catch (e: Exception) {
-            AppResult.Error("Error inserting assignment: ${e.message}", e)
-        }
-    }
-
-    suspend fun deleteAssignmentsForInstructor(instructorId: Long): AppResult<Unit> {
-        return try {
-            instructorStudentAssignmentDao.deleteAssignmentsForInstructor(instructorId)
-            AppResult.Success(Unit)
-        } catch (e: Exception) {
-            AppResult.Error("Error deleting assignments: ${e.message}", e)
-        }
-    }
-
-    suspend fun insertInstructorProgramAssignment(assignment: InstructorProgramAssignmentEntity): AppResult<Long> {
-        return try {
-            val id = instructorProgramAssignmentDao.insertAssignment(assignment)
-            AppResult.Success(id)
-        } catch (e: Exception) {
-            AppResult.Error("Error inserting instructor program assignment: ${e.message}", e)
-        }
-    }
-
-    suspend fun deleteInstructorProgramAssignmentsForInstructor(instructorId: Long): AppResult<Unit> {
-        return try {
-            instructorProgramAssignmentDao.deleteAssignmentsForInstructor(instructorId)
-            AppResult.Success(Unit)
-        } catch (e: Exception) {
-            AppResult.Error("Error deleting instructor program assignments: ${e.message}", e)
-        }
-    }
-
-    fun getProgramsForInstructor(instructorId: Long): Flow<List<String>> = instructorProgramAssignmentDao.getProgramsForInstructor(instructorId)
-
-    fun getEvaluationResultsForStudent(studentId: Long): Flow<List<PeclEvaluationResultEntity>> = evaluationResultDao.getEvaluationResultsForStudent(studentId)
-
-    suspend fun getAverageScoreForStudent(studentId: Long, poiId: Long): Double = evaluationResultDao.getAverageScoreForStudent(studentId, poiId)
-
-    suspend fun insertEvaluationResult(result: PeclEvaluationResultEntity): AppResult<Long> {
-        return try {
-            val id = evaluationResultDao.insertEvaluationResult(result)
-            AppResult.Success(id)
-        } catch (e: Exception) {
-            AppResult.Error("Error inserting evaluation result: ${e.message}", e)
-        }
-    }
-
     fun getProgramsForPoi(poiId: Long): Flow<List<String>> = poiProgramAssignmentDao.getProgramsForPoi(poiId)
 
     fun getPoisForTask(taskId: Long): Flow<List<String>> = taskPoiAssignmentDao.getPoisForTask(taskId)
@@ -547,5 +490,91 @@ class AppRepository @Inject constructor(private val db: AppDatabase) {
             Log.e("AppRepository", "Error getting task ID for question $questionId: ${e.message}", e)
             null
         }
+    }
+
+    fun getEvaluationResultsForStudent(studentId: Long): Flow<List<PeclEvaluationResultEntity>> {
+        return evaluationResultDao.getEvaluationResultsForStudent(studentId)
+    }
+
+    fun getEvaluationsForStudentAndTask(studentId: Long, taskId: Long): Flow<List<PeclEvaluationResultEntity>> {
+        return evaluationResultDao.getEvaluationsForStudentAndTask(studentId, taskId)
+    }
+
+    suspend fun deleteEvaluationResult(result: PeclEvaluationResultEntity): AppResult<Unit> {
+        return try {
+            evaluationResultDao.deleteEvaluationResultById(result.id)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            AppResult.Error("Error deleting evaluation result: ${e.message}", e)
+        }
+    }
+
+    suspend fun deleteEvaluationsForStudentAndTask(studentId: Long, taskId: Long): AppResult<Unit> {
+        return try {
+            db.withTransaction {
+                val evals = evaluationResultDao.getEvaluationsForStudentAndTask(studentId, taskId).first()
+                evals.forEach { eval ->
+                    evaluationResultDao.deleteEvaluationResultById(eval.id)
+                }
+            }
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            AppResult.Error("Error deleting evaluations for task: ${e.message}", e)
+        }
+    }
+
+    suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity): AppResult<Long> {
+        return try {
+            val id = instructorStudentAssignmentDao.insertAssignment(assignment)
+            AppResult.Success(id)
+        } catch (e: Exception) {
+            AppResult.Error("Error inserting assignment: ${e.message}", e)
+        }
+    }
+
+    suspend fun deleteAssignmentsForInstructor(instructorId: Long): AppResult<Unit> {
+        return try {
+            instructorStudentAssignmentDao.deleteAssignmentsForInstructor(instructorId)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            AppResult.Error("Error deleting assignments: ${e.message}", e)
+        }
+    }
+
+    fun getAssignmentsForInstructor(instructorId: Long): Flow<List<InstructorStudentAssignmentEntity>> = instructorStudentAssignmentDao.getAssignmentsForInstructor(instructorId)
+
+    suspend fun insertInstructorProgramAssignment(assignment: InstructorProgramAssignmentEntity): AppResult<Long> {
+        return try {
+            val id = instructorProgramAssignmentDao.insertAssignment(assignment)
+            AppResult.Success(id)
+        } catch (e: Exception) {
+            AppResult.Error("Error inserting instructor program assignment: ${e.message}", e)
+        }
+    }
+
+    suspend fun deleteInstructorProgramAssignmentsForInstructor(instructorId: Long): AppResult<Unit> {
+        return try {
+            instructorProgramAssignmentDao.deleteAssignmentsForInstructor(instructorId)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            AppResult.Error("Error deleting instructor program assignments: ${e.message}", e)
+        }
+    }
+
+    fun getProgramsForInstructor(instructorId: Long): Flow<List<String>> = instructorProgramAssignmentDao.getProgramsForInstructor(instructorId)
+
+    // New: Insert evaluation result
+    suspend fun insertEvaluationResult(result: PeclEvaluationResultEntity): AppResult<Long> {
+        return try {
+            val id = evaluationResultDao.insertEvaluationResult(result)
+            AppResult.Success(id)
+        } catch (e: Exception) {
+            AppResult.Error("Error inserting evaluation result: ${e.message}", e)
+        }
+    }
+
+    // New: Get students for program
+    fun getStudentsForProgram(programId: Long): Flow<List<PeclStudentEntity>> {
+        return instructorStudentAssignmentDao.getStudentsForProgram(programId)
     }
 }

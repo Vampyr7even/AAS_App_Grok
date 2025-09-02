@@ -89,12 +89,6 @@ fun InstructorsTab(demographicsViewModel: DemographicsViewModel, peclViewModel: 
         }
     }
 
-    LaunchedEffect(showAddInstructorDialog) {
-        if (showAddInstructorDialog) {
-            Toast.makeText(context, "Opening Add Instructor dialog", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     LaunchedEffect(editInstructor) {
         editInstructor?.let { instructor: UserEntity ->
             editInstructorName = instructor.fullName
@@ -170,7 +164,10 @@ fun InstructorsTab(demographicsViewModel: DemographicsViewModel, peclViewModel: 
                     }) {
                         Icon(imageVector = Icons.Filled.Person, contentDescription = "Assign Students")
                     }
-                    IconButton(onClick = { selectedInstructorToDelete = instructorWithProgram.instructor; showInstructorDeleteDialog = true }) {
+                    IconButton(onClick = {
+                        selectedInstructorToDelete = instructorWithProgram.instructor
+                        showInstructorDeleteDialog = true
+                    }) {
                         Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
                     }
                 }

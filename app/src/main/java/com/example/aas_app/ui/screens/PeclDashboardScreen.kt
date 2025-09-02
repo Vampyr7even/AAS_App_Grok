@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +49,9 @@ fun PeclDashboardScreen(
     // Per-student evaluations map for live updates
     val evaluationsByStudent = remember { mutableStateMapOf<Long, AppState<List<PeclEvaluationResultEntity>>>() }
 
+    // Per-student-task grades map for task_grade
+    val taskGradesByStudentTask = remember { mutableStateMapOf<Pair<Long, Long>, Double?>() }
+
     // Initialize selectedInstructor with instructorId
     LaunchedEffect(instructorId) {
         viewModel.loadInstructors()
@@ -77,8 +79,25 @@ fun PeclDashboardScreen(
             (studentsState as AppState.Success).data.forEach { student ->
                 evaluationsByStudent[student.id] = AppState.Loading
                 viewModel.loadEvaluationResultsForStudent(student.id) // Initial load if needed
-                viewModel.repository.getEvaluationResultsForStudent(student.id).collect { data: List<PeclEvaluationResultEntity> ->
+                viewModel.getEvaluationsForStudent(student.id).collect { data ->
                     evaluationsByStudent[student.id] = AppState.Success(data)
+                }
+            }
+        }
+    }
+
+    // Load task grades for each student-task pair
+    LaunchedEffect(studentsState, tasksState) {
+        if (studentsState is AppState.Success && tasksState is AppState.Success) {
+            val students = (studentsState as AppState.Success).data
+            val tasks = (tasksState as AppState.Success).data
+            students.forEach { student ->
+                tasks.forEach { task ->
+                    val key = Pair(student.id, task.id)
+                    taskGradesByStudentTask[key] = null // Initial null
+                    viewModel.loadTaskGradeForStudent(student.id, task.id).collect { grade ->
+                        taskGradesByStudentTask[key] = grade
+                    }
                 }
             }
         }
@@ -87,18 +106,22 @@ fun PeclDashboardScreen(
     // Handle instructor error state
     LaunchedEffect(instructorsState) {
         if (instructorsState is AppState.Error) {
-            snackbarHostState.showSnackbar(
-                "Error loading instructors: ${(instructorsState as AppState.Error).message}"
-            )
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    "Error loading instructors: ${(instructorsState as AppState.Error).message}"
+                )
+            }
         }
     }
 
     // Handle comments error state
     LaunchedEffect(commentsState) {
         if (commentsState is AppState.Error) {
-            snackbarHostState.showSnackbar(
-                "Error loading comments: ${(commentsState as AppState.Error).message}"
-            )
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    "Error loading comments: ${(commentsState as AppState.Error).message}"
+                )
+            }
         }
     }
 
@@ -212,23 +235,9 @@ fun PeclDashboardScreen(
                                     ) {
                                         when (val tasks = tasksState) {
                                             is AppState.Success -> tasks.data.forEach { task ->
-                                                var score by remember { mutableStateOf("Loading...") }
-                                                LaunchedEffect(student.id, task.id) {
-                                                    try {
-                                                        val evalsState = evaluationsByStudent[student.id]
-                                                        if (evalsState is AppState.Success) {
-                                                            val taskEvals = evalsState.data.filter { eval ->
-                                                                eval.task_id == task.id
-                                                            }
-                                                            score = if (taskEvals.isEmpty()) "No Grade" else taskEvals.map { it.score }.average().toString()
-                                                        } else {
-                                                            score = "No Grade"
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        Log.e("PeclDashboard", "Error fetching score: ${e.message}", e)
-                                                        score = "Error"
-                                                    }
-                                                }
+                                                val key = Pair(student.id, task.id)
+                                                val grade = taskGradesByStudentTask[key]
+                                                val displayGrade = grade?.toString() ?: "No Grade"
                                                 Button(
                                                     onClick = {
                                                         navController.navigate(
@@ -241,7 +250,7 @@ fun PeclDashboardScreen(
                                                         .width(100.dp)
                                                         .padding(end = 8.dp)
                                                 ) {
-                                                    Text(score)
+                                                    Text(displayGrade)
                                                 }
                                             }
                                             is AppState.Error -> {

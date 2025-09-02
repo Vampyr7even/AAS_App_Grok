@@ -20,4 +20,11 @@ interface EvaluationResultDao {
 
     @Query("SELECT * FROM pecl_evaluation_results WHERE question_id = :questionId")
     suspend fun getEvaluationsForQuestion(questionId: Long): List<PeclEvaluationResultEntity>
+
+    @Query("DELETE FROM pecl_evaluation_results WHERE id = :id")
+    suspend fun deleteEvaluationResultById(id: Long)
+
+    // New: Get evaluations for student and task
+    @Query("SELECT * FROM pecl_evaluation_results WHERE student_id = :studentId AND task_id = :taskId")
+    fun getEvaluationsForStudentAndTask(studentId: Long, taskId: Long): Flow<List<PeclEvaluationResultEntity>>
 }

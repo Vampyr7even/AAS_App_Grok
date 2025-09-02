@@ -9,7 +9,6 @@ import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
-import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
@@ -46,7 +45,7 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
                 val instructorsWithPrograms = instructorList.map { instructor ->
                     val programNames = repository.getProgramsForInstructor(instructor.id).first().joinToString(", ")
                     InstructorWithProgram(instructor, if (programNames.isEmpty()) null else programNames)
-                }
+                }.sortedBy { it.instructor.fullName }
                 _instructorsWithPrograms.postValue(instructorsWithPrograms)
             } catch (e: Exception) {
                 Log.e("DemographicsViewModel", "Error loading instructors: ${e.message}", e)
@@ -201,20 +200,7 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
     // New method for fetching instructor name by ID
     suspend fun getInstructorName(instructorId: Long): String? = repository.getInstructorName(instructorId)
 
-    // New method for fetching program IDs for instructor
-    fun getProgramIdsForInstructor(instructorId: Long): LiveData<List<Long>> {
-        val liveData = MutableLiveData<List<Long>>()
-        viewModelScope.launch {
-            try {
-                val programIds = repository.getProgramIdsForInstructor(instructorId).first()
-                liveData.postValue(programIds)
-            } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error loading program IDs: ${e.message}", e)
-            }
-        }
-        return liveData
-    }
-
+    // New method for getting program IDs synchronously
     suspend fun getProgramIdsForInstructorSync(instructorId: Long): List<Long> {
         return try {
             repository.getProgramIdsForInstructor(instructorId).first()

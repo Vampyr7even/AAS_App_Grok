@@ -63,7 +63,7 @@ import com.example.aas_app.data.entity.UserEntity
         TaskPoiAssignmentEntity::class,
         PeclStudentEntity::class
     ],
-    version = 24,  // Incremented from 23 to 24 for Phase 1 migration
+    version = 25,  // Incremented from 24 to 25 for Phase 1 migration
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -100,7 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
                     .addMigrations(
                         MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
                         MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
-                        MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24  // New Phase 1 migration
+                        MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25  // New Phase 1 migration
                     )
                     //.fallbackToDestructiveMigration()  // Uncomment temporarily for dev if needed
                     .build()
@@ -317,6 +317,13 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX index_pecl_evaluation_results_instructor_id ON pecl_evaluation_results (instructor_id)")
                 db.execSQL("CREATE INDEX index_pecl_evaluation_results_question_id ON pecl_evaluation_results (question_id)")
                 db.execSQL("CREATE INDEX index_pecl_evaluation_results_task_id ON pecl_evaluation_results (task_id)")
+            }
+        }
+
+        val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add new task_grade column to pecl_evaluation_results table
+                db.execSQL("ALTER TABLE pecl_evaluation_results ADD COLUMN task_grade REAL")
             }
         }
     }

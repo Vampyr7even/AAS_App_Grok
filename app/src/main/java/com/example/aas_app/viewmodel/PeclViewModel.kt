@@ -17,7 +17,7 @@ import javax.inject.Inject
 import kotlin.collections.sortedBy
 
 @HiltViewModel
-class PeclViewModel @Inject constructor(val repository: AppRepository) : ViewModel() {
+class PeclViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
 
     private val _tasksState = MutableLiveData<AppState<List<PeclTaskEntity>>>()
     val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = _tasksState
@@ -45,6 +45,9 @@ class PeclViewModel @Inject constructor(val repository: AppRepository) : ViewMod
 
     private val _studentsForInstructorAndProgramState = MutableLiveData<AppState<List<PeclStudentEntity>>>()
     val studentsForInstructorAndProgramState: LiveData<AppState<List<PeclStudentEntity>>> = _studentsForInstructorAndProgramState
+
+    private val _evaluationsForStudentAndTaskState = MutableLiveData<AppState<List<PeclEvaluationResultEntity>>>()
+    val evaluationsForStudentAndTaskState: LiveData<AppState<List<PeclEvaluationResultEntity>>> = _evaluationsForStudentAndTaskState
 
     fun loadTasksForPoi(poiId: Long) {
         _tasksState.value = AppState.Loading
@@ -103,7 +106,7 @@ class PeclViewModel @Inject constructor(val repository: AppRepository) : ViewMod
             try {
                 val id = repository.insertEvaluationResult(result)
                 when (id) {
-                    is AppResult.Success -> _evaluationResultsState.postValue(AppState.Success(listOf(result)))
+                    is AppResult.Success -> _evaluationResultsState.postValue(AppState.Success<List<PeclEvaluationResultEntity>>(listOf(result)))
                     is AppResult.Error -> _evaluationResultsState.postValue(AppState.Error(id.message))
                 }
             } catch (e: Exception) {
@@ -181,18 +184,13 @@ class PeclViewModel @Inject constructor(val repository: AppRepository) : ViewMod
     fun insertPeclStudent(student: PeclStudentEntity) {
         _studentsState.value = AppState.Loading
         viewModelScope.launch {
-            try {
-                val result = repository.insertPeclStudent(student)
-                when (result) {
-                    is AppResult.Success -> {
-                        loadStudents()
-                        _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
-                    }
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+            val result = repository.insertPeclStudent(student)
+            when (result) {
+                is AppResult.Success -> {
+                    loadStudents()
+                    _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
                 }
-            } catch (e: Exception) {
-                Log.e("PeclViewModel", "Error inserting student: ${e.message}", e)
-                _studentsState.postValue(AppState.Error(e.message ?: "Error inserting student"))
+                is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
             }
         }
     }
@@ -200,18 +198,13 @@ class PeclViewModel @Inject constructor(val repository: AppRepository) : ViewMod
     fun updatePeclStudent(student: PeclStudentEntity) {
         _studentsState.value = AppState.Loading
         viewModelScope.launch {
-            try {
-                val result = repository.updatePeclStudent(student)
-                when (result) {
-                    is AppResult.Success -> {
-                        loadStudents()
-                        _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
-                    }
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+            val result = repository.updatePeclStudent(student)
+            when (result) {
+                is AppResult.Success -> {
+                    loadStudents()
+                    _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
                 }
-            } catch (e: Exception) {
-                Log.e("PeclViewModel", "Error updating student: ${e.message}", e)
-                _studentsState.postValue(AppState.Error(e.message ?: "Error updating student"))
+                is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
             }
         }
     }
@@ -219,18 +212,13 @@ class PeclViewModel @Inject constructor(val repository: AppRepository) : ViewMod
     fun deletePeclStudent(student: PeclStudentEntity) {
         _studentsState.value = AppState.Loading
         viewModelScope.launch {
-            try {
-                val result = repository.deletePeclStudent(student)
-                when (result) {
-                    is AppResult.Success -> {
-                        loadStudents()
-                        _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
-                    }
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+            val result = repository.deletePeclStudent(student)
+            when (result) {
+                is AppResult.Success -> {
+                    loadStudents()
+                    _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
                 }
-            } catch (e: Exception) {
-                Log.e("PeclViewModel", "Error deleting student: ${e.message}", e)
-                _studentsState.postValue(AppState.Error(e.message ?: "Error deleting student"))
+                is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
             }
         }
     }
@@ -414,5 +402,40 @@ class PeclViewModel @Inject constructor(val repository: AppRepository) : ViewMod
 
     fun getEvaluationsForStudent(studentId: Long): Flow<List<PeclEvaluationResultEntity>> {
         return repository.getEvaluationResultsForStudent(studentId)
+    }
+
+    fun loadTaskGradeForStudent(studentId: Long, taskId: Long): Flow<Double?> {
+        return repository.getEvaluationResultsForStudent(studentId)
+            .map { evaluations ->
+                evaluations.firstOrNull { it.task_id == taskId }?.task_grade
+            }
+    }
+
+    fun loadEvaluationsForStudentAndTask(studentId: Long, taskId: Long) {
+        _evaluationsForStudentAndTaskState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getEvaluationsForStudentAndTask(studentId, taskId).first()
+                _evaluationsForStudentAndTaskState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error loading evaluations for student and task: ${e.message}", e)
+                _evaluationsForStudentAndTaskState.postValue(AppState.Error(e.message ?: "Error loading evaluations"))
+            }
+        }
+    }
+
+    fun deleteEvaluationsForStudentAndTask(studentId: Long, taskId: Long) {
+        viewModelScope.launch {
+            try {
+                val result = repository.deleteEvaluationsForStudentAndTask(studentId, taskId)
+                when (result) {
+                    is AppResult.Success -> _evaluationsForStudentAndTaskState.postValue(AppState.Success(emptyList()))
+                    is AppResult.Error -> _evaluationsForStudentAndTaskState.postValue(AppState.Error(result.message))
+                }
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error deleting evaluations for task: ${e.message}", e)
+                _evaluationsForStudentAndTaskState.postValue(AppState.Error(e.message ?: "Error deleting evaluations"))
+            }
+        }
     }
 }
