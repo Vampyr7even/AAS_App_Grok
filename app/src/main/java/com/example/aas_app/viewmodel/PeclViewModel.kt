@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.collections.sortedBy
 
 @HiltViewModel
 class PeclViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
@@ -83,7 +82,7 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
                 _questionsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error loading questions: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions"))
+                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions for task"))
             }
         }
     }
@@ -106,8 +105,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
             try {
                 val id = repository.insertEvaluationResult(result)
                 when (id) {
-                    is AppResult.Success -> _evaluationResultsState.postValue(AppState.Success<List<PeclEvaluationResultEntity>>(listOf(result)))
+                    is AppResult.Success -> _evaluationResultsState.postValue(AppState.Success(listOf(result)))
                     is AppResult.Error -> _evaluationResultsState.postValue(AppState.Error(id.message))
+                    else -> _evaluationResultsState.postValue(AppState.Error("Unexpected result"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error inserting evaluation: ${e.message}", e)
@@ -191,6 +191,7 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
                     _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
                 }
                 is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                else -> _studentsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -205,6 +206,7 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
                     _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
                 }
                 is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                else -> _studentsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -219,6 +221,7 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
                     _studentsState.postValue(AppState.Success(repository.getAllPeclStudents().first()))
                 }
                 is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                else -> _studentsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -280,9 +283,7 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getAllQuestions().map { questions ->
-                    questions.sortedBy { it.subTask }
-                }.first()
+                val data = repository.getAllQuestions().first()
                 _questionsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error loading all questions: ${e.message}", e)
@@ -294,10 +295,10 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.insertQuestion(question, taskId)
-            when (result) {
+            when (val result = repository.insertQuestion(question, taskId)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                else -> _questionsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -305,10 +306,10 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun updateQuestion(question: PeclQuestionEntity, taskId: Long) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.updateQuestion(question, taskId)
-            when (result) {
+            when (val result = repository.updateQuestion(question, taskId)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                else -> _questionsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -316,10 +317,10 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun deleteQuestion(question: PeclQuestionEntity) {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
-            val result = repository.deleteQuestion(question)
-            when (result) {
+            when (val result = repository.deleteQuestion(question)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                else -> _questionsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -364,18 +365,6 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         } catch (e: Exception) {
             Log.e("PeclViewModel", "Error getting program $programId: ${e.message}", e)
             null
-        }
-    }
-
-    fun getPeclStudentById(studentId: Long, onResult: (PeclStudentEntity?) -> Unit) {
-        viewModelScope.launch {
-            try {
-                val student = repository.getPeclStudentById(studentId).first()
-                onResult(student)
-            } catch (e: Exception) {
-                Log.e("PeclViewModel", "Error getting student $studentId: ${e.message}", e)
-                onResult(null)
-            }
         }
     }
 
@@ -431,10 +420,23 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
                 when (result) {
                     is AppResult.Success -> _evaluationsForStudentAndTaskState.postValue(AppState.Success(emptyList()))
                     is AppResult.Error -> _evaluationsForStudentAndTaskState.postValue(AppState.Error(result.message))
+                    else -> _evaluationsForStudentAndTaskState.postValue(AppState.Error("Unexpected result"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error deleting evaluations for task: ${e.message}", e)
                 _evaluationsForStudentAndTaskState.postValue(AppState.Error(e.message ?: "Error deleting evaluations"))
+            }
+        }
+    }
+
+    fun getPeclStudentById(studentId: Long, onResult: (PeclStudentEntity?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val student = repository.getPeclStudentById(studentId).first()
+                onResult(student)
+            } catch (e: Exception) {
+                Log.e("PeclViewModel", "Error getting student $studentId: ${e.message}", e)
+                onResult(null)
             }
         }
     }

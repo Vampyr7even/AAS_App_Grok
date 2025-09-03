@@ -1,125 +1,132 @@
 package com.example.aas_app.ui.screens
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import android.util.Log
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.aas_app.ui.screens.pecl.EvaluateTab
-import com.example.aas_app.ui.screens.pecl.InstructorsTab
-import com.example.aas_app.ui.screens.pecl.PoisTab
-import com.example.aas_app.ui.screens.pecl.ProgramsTab
 import com.example.aas_app.ui.screens.pecl.StudentsTab
-import com.example.aas_app.ui.screens.pecl.SubTasksTab
-import com.example.aas_app.ui.screens.pecl.TasksTab
-import com.example.aas_app.viewmodel.AdminViewModel
-import com.example.aas_app.viewmodel.DemographicsViewModel
+import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PeclViewModel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PeclScreen(navController: NavController) {
-    val adminViewModel: AdminViewModel = hiltViewModel()
-    val demographicsViewModel: DemographicsViewModel = hiltViewModel()
-    val peclViewModel: PeclViewModel = hiltViewModel()
-    var selectedTab by remember { mutableStateOf<String?>(null) }
+fun PeclScreen(
+    navController: NavController,
+    instructorId: Long
+) {
+    val viewModel = hiltViewModel<PeclViewModel>()
+    val programsState by viewModel.programsForInstructorState.observeAsState(AppState.Success(emptyList()))
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let {
+    // State for selected program
+    var selectedProgramId by remember { mutableStateOf<Long?>(null) }
+
+    // Load programs for instructor
+    LaunchedEffect(Unit) {
+        try {
+            viewModel.loadProgramsForInstructor(instructorId)
+        } catch (e: Exception) {
+            Log.e("PeclScreen", "Error loading programs: ${e.message}", e)
             coroutineScope.launch {
-                snackbarHostState.showSnackbar(it)
+                snackbarHostState.showSnackbar("Error loading programs: ${e.message}")
             }
         }
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Performance Evaluation Checklist",
-                fontSize = 24.sp,
-                textAlign = TextAlign.Center
+        Text(
+            text = "PECL Dashboard",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        when (val state = programsState) {
+            is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is AppState.Success -> {
+                if (state.data.isEmpty()) {
+                    Text(text = "No programs assigned to this instructor.")
+                } else {
+                    // Program selection dropdown
+                    var expanded by remember { mutableStateOf(false) }
+                    var selectedProgramName by remember { mutableStateOf("Select a program") }
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        TextField(
+                            readOnly = true,
+                            value = selectedProgramName,
+                            onValueChange = { },
+                            label = { Text("Program") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            state.data.forEach { program ->
+                                DropdownMenuItem(
+                                    text = { Text(program.name) },
+                                    onClick = {
+                                        selectedProgramId = program.id
+                                        selectedProgramName = program.name
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Display StudentsTab when a program is selected
+                    selectedProgramId?.let { programId ->
+                        StudentsTab(
+                            navController = navController,
+                            instructorId = instructorId,
+                            programId = programId
+                        )
+                    } ?: Text(text = "Please select a program to view students.")
+                }
+            }
+            is AppState.Error -> Text(
+                text = "Error: ${state.message}",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(1.dp)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { navController.navigate("addProgram") },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.align(Alignment.End)
         ) {
-            PeclModuleNavButton("Evaluate", selectedTab == "Evaluate") { navController.navigate("pecl/evaluate"); selectedTab = "Evaluate" }
-            PeclModuleNavButton("Programs", selectedTab == "Programs") { selectedTab = "Programs" }
-            PeclModuleNavButton("POI", selectedTab == "POI") { selectedTab = "POI" }
-            PeclModuleNavButton("Tasks", selectedTab == "Tasks") { selectedTab = "Tasks" }
-            PeclModuleNavButton("Sub Tasks", selectedTab == "Sub Tasks") { selectedTab = "Sub Tasks" }
-            PeclModuleNavButton("Instructors", selectedTab == "Instructors") { selectedTab = "Instructors" }
-            PeclModuleNavButton("Students", selectedTab == "Students") { selectedTab = "Students" }
+            Text("Add Program")
         }
 
         SnackbarHost(hostState = snackbarHostState)
-
-        when (selectedTab) {
-            "Evaluate" -> EvaluateTab(navController, errorMessage, snackbarHostState, coroutineScope)
-            "Programs" -> ProgramsTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
-            "POI" -> PoisTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
-            "Tasks" -> TasksTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
-            "Sub Tasks" -> SubTasksTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
-            "Instructors" -> InstructorsTab(demographicsViewModel, peclViewModel, errorMessage, snackbarHostState, coroutineScope)
-            "Students" -> StudentsTab(peclViewModel, errorMessage, snackbarHostState, coroutineScope)
-        }
-    }
-}
-
-@Composable
-fun PeclModuleNavButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        shape = RoundedCornerShape(0.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) Color(0xFFE57373) else Color.Transparent,
-            contentColor = if (isSelected) Color.White else Color.Black
-        )
-    ) {
-        Text(text)
     }
 }

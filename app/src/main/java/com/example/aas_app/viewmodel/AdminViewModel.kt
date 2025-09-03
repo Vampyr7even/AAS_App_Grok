@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
@@ -59,7 +60,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         _programsState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getAllPrograms().first()
+                val data = repository.getAllPrograms().first().sortedBy { it.name }
                 _programsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading programs: ${e.message}", e)
@@ -76,7 +77,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
                 val poisWithPrograms = pois.map { poi ->
                     val programs = repository.getProgramsForPoi(poi.id).first()
                     PoiWithPrograms(poi, programs)
-                }
+                }.sortedBy { it.poi.name }
                 _poisState.postValue(AppState.Success(poisWithPrograms))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading POIs with programs: ${e.message}", e)
@@ -88,7 +89,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun loadAllPois() {
         viewModelScope.launch {
             try {
-                val data = repository.getAllPois().first()
+                val data = repository.getAllPois().first().sortedBy { it.name }
                 _poisSimple.postValue(data)
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading simple POIs: ${e.message}", e)
@@ -118,7 +119,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         viewModelScope.launch {
             try {
                 val data = repository.getPoisForProgram(programId).first()
-                _poisState.postValue(AppState.Success(data.map { PoiWithPrograms(it, emptyList()) }))
+                _poisState.postValue(AppState.Success(data.map { PoiWithPrograms(it, emptyList()) }.sortedBy { it.poi.name }))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading POIs: ${e.message}", e)
                 _poisState.postValue(AppState.Error(e.message ?: "Error loading POIs"))
@@ -131,7 +132,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         viewModelScope.launch {
             try {
                 val data = repository.getTasksForPoi(poiId).first()
-                _tasksState.postValue(AppState.Success(data.map { TaskWithPois(it, emptyList()) }))
+                _tasksState.postValue(AppState.Success(data.map { TaskWithPois(it, emptyList()) }.sortedBy { it.task.name }))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading tasks: ${e.message}", e)
                 _tasksState.postValue(AppState.Error(e.message ?: "Error loading tasks"))
@@ -169,7 +170,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         _questionsWithTasksState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getAllQuestionsWithTasks().first().sortedBy { it.question.subTask }
+                val data = repository.getAllQuestionsWithTasks().first().sortedBy { questionWithTask: QuestionWithTask -> questionWithTask.question.subTask }
                 _questionsWithTasksState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading questions with tasks: ${e.message}", e)
@@ -203,6 +204,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.insertProgram(program)) {
                 is AppResult.Success -> loadPrograms()
                 is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
+                else -> _programsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -213,6 +215,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.updateProgram(program)) {
                 is AppResult.Success -> loadPrograms()
                 is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
+                else -> _programsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -223,6 +226,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.deleteProgram(program)) {
                 is AppResult.Success -> loadPrograms()
                 is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
+                else -> _programsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -233,6 +237,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.insertPoi(poi, programIds)) {
                 is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
+                else -> _poisState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -243,6 +248,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.updatePoi(poi, programIds)) {
                 is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
+                else -> _poisState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -253,6 +259,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.deletePoi(poi)) {
                 is AppResult.Success -> loadAllPoisWithPrograms()
                 is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
+                else -> _poisState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -263,6 +270,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.insertTask(task, poiIds)) {
                 is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
+                else -> _tasksState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -273,6 +281,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.updateTask(task, poiIds)) {
                 is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
+                else -> _tasksState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -283,6 +292,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.deleteTask(task)) {
                 is AppResult.Success -> loadAllTasksWithPois()
                 is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
+                else -> _tasksState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -293,6 +303,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.insertQuestion(question, taskId)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                else -> _questionsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -303,6 +314,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.updateQuestion(question, taskId)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                else -> _questionsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -313,6 +325,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.deleteQuestion(question)) {
                 is AppResult.Success -> loadAllQuestions()
                 is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                else -> _questionsState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -323,6 +336,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.insertScale(scale)) {
                 is AppResult.Success -> loadScales()
                 is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
+                else -> _scalesState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -333,6 +347,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.updateScale(scale)) {
                 is AppResult.Success -> loadScales()
                 is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
+                else -> _scalesState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
@@ -343,6 +358,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             when (val result = repository.deleteScale(scale)) {
                 is AppResult.Success -> loadScales()
                 is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
+                else -> _scalesState.postValue(AppState.Error("Unexpected result"))
             }
         }
     }
