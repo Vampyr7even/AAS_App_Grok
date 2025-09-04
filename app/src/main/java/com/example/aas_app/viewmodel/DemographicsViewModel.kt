@@ -6,7 +6,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
-import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.UserEntity
@@ -194,13 +193,19 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 
-    // New method for fetching assignment by student ID
-    suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? = repository.getAssignmentForStudent(studentId)
+    suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? {
+        return try {
+            repository.getAssignmentForStudent(studentId).first().firstOrNull()
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error getting assignment for student: ${e.message}", e)
+            null
+        }
+    }
 
-    // New method for fetching instructor name by ID
-    suspend fun getInstructorName(instructorId: Long): String? = repository.getInstructorName(instructorId)
+    suspend fun getInstructorName(instructorId: Long): String? {
+        return repository.getInstructorName(instructorId)
+    }
 
-    // New method for getting program IDs synchronously
     suspend fun getProgramIdsForInstructorSync(instructorId: Long): List<Long> {
         return try {
             repository.getProgramIdsForInstructor(instructorId).first()

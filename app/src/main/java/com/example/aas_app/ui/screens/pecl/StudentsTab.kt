@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -22,13 +23,12 @@ import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PeclViewModel
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
 fun StudentsTab(
     navController: NavController,
     instructorId: Long,
-    programId: Long
+    programId: Long = 0L // Default to 0L for no program filter
 ) {
     val viewModel = hiltViewModel<PeclViewModel>()
     val studentsState by viewModel.studentsForInstructorAndProgramState.observeAsState(AppState.Success(emptyList()))
@@ -36,7 +36,19 @@ fun StudentsTab(
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
-        viewModel.loadStudentsForInstructorAndProgram(instructorId, programId)
+        Log.d("StudentsTab", "Loading students for instructorId=$instructorId, programId=$programId")
+        try {
+            if (programId == 0L) {
+                viewModel.loadStudentsForInstructor(instructorId) // Load all students if no programId
+            } else {
+                viewModel.loadStudentsForInstructorAndProgram(instructorId, programId)
+            }
+        } catch (e: Exception) {
+            Log.e("StudentsTab", "Error loading students: ${e.message}", e)
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Error loading students: ${e.message}")
+            }
+        }
     }
 
     Column(
@@ -62,14 +74,18 @@ fun StudentsTab(
                         items(state.data) { student ->
                             var programName by remember { mutableStateOf("Loading...") }
                             LaunchedEffect(programId) {
-                                try {
-                                    val program: PeclProgramEntity? = viewModel.getProgramById(programId)
-                                    programName = program?.name ?: "Unknown Program"
-                                } catch (e: Exception) {
-                                    Log.e("StudentsTab", "Error loading program: ${e.message}", e)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Error loading program: ${e.message}")
+                                if (programId != 0L) {
+                                    try {
+                                        val program: PeclProgramEntity? = viewModel.getProgramById(programId)
+                                        programName = program?.name ?: "Unknown Program"
+                                    } catch (e: Exception) {
+                                        Log.e("StudentsTab", "Error loading program: ${e.message}", e)
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Error loading program: ${e.message}")
+                                        }
                                     }
+                                } else {
+                                    programName = "All Programs"
                                 }
                             }
                             Row(
@@ -82,8 +98,15 @@ fun StudentsTab(
                                 Text(text = student.fullName)
                                 Row {
                                     IconButton(onClick = {
-                                        // Navigate to edit screen (implement as needed)
-                                        navController.navigate("editStudent/${student.id}")
+                                        try {
+                                            Log.d("StudentsTab", "Navigating to editStudent/${student.id}")
+                                            navController.navigate("editStudent/${student.id}")
+                                        } catch (e: Exception) {
+                                            Log.e("StudentsTab", "Navigation error to editStudent/${student.id}: ${e.message}", e)
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Navigation failed: ${e.message}")
+                                            }
+                                        }
                                     }) {
                                         Icon(Icons.Default.Edit, contentDescription = "Edit Student")
                                     }
@@ -91,6 +114,7 @@ fun StudentsTab(
                                         coroutineScope.launch {
                                             try {
                                                 viewModel.deletePeclStudent(student)
+                                                Log.d("StudentsTab", "Deleted student: ${student.fullName}")
                                                 snackbarHostState.showSnackbar("Student deleted successfully")
                                             } catch (e: Exception) {
                                                 Log.e("StudentsTab", "Error deleting student: ${e.message}", e)
@@ -115,7 +139,17 @@ fun StudentsTab(
 
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = { navController.navigate("addStudent") },
+            onClick = {
+                try {
+                    Log.d("StudentsTab", "Navigating to addStudent")
+                    navController.navigate("addStudent")
+                } catch (e: Exception) {
+                    Log.e("StudentsTab", "Navigation error to addStudent: ${e.message}", e)
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Navigation failed: ${e.message}")
+                    }
+                }
+            },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp),
             modifier = Modifier.align(Alignment.End)

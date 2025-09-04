@@ -25,6 +25,8 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -51,7 +53,7 @@ import com.example.aas_app.viewmodel.DemographicsViewModel
 import com.example.aas_app.viewmodel.PeclViewModel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@ExperimentalMaterial3Api
 @Composable
 fun UpdateUsersScreen(navController: NavController, role: String? = null) {
     val context = LocalContext.current
@@ -60,7 +62,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
     val users by demographicsViewModel.users.observeAsState(emptyList())
     val instructors by demographicsViewModel.instructorsWithPrograms.observeAsState(emptyList())
     val programs by demographicsViewModel.programs.observeAsState(emptyList())
-    val studentsState by peclViewModel.studentsState.observeAsState(AppState.Loading as AppState<List<PeclStudentEntity>>)
+    val studentsState by peclViewModel.studentsState.observeAsState(AppState.Loading)
 
     var showDialog by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<UserEntity?>(null) }
@@ -98,6 +100,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
     var showAddStudentDialog by remember { mutableStateOf(false) }
     var showEditStudentDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(role) {
         if (role == "instructor") {
@@ -202,10 +205,10 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                 Text("Add Student", modifier = Modifier.padding(start = 4.dp))
             }
 
-            when (val state = studentsState) {
+            when (studentsState) {
                 is AppState.Loading -> Text("Loading...")
                 is AppState.Success -> {
-                    val sortedStudents = state.data.sortedBy { it.fullName }
+                    val sortedStudents = studentsState.data.sortedBy { it.fullName }
                     LazyColumn {
                         items(sortedStudents) { student ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -223,7 +226,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                         }
                     }
                 }
-                is AppState.Error -> Text("Error: ${state.message}")
+                is AppState.Error -> Text("Error: ${studentsState.message}")
             }
         } else {
             if (users.isEmpty()) {
@@ -313,7 +316,11 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                                             Checkbox(
                                                 checked = selectedStudentsForAdd.contains(student.id),
                                                 onCheckedChange = { checked ->
-                                                    selectedStudentsForAdd = if (checked) selectedStudentsForAdd + student.id else selectedStudentsForAdd - student.id
+                                                    if (checked) {
+                                                        selectedStudentsForAdd += student.id
+                                                    } else {
+                                                        selectedStudentsForAdd -= student.id
+                                                    }
                                                 }
                                             )
                                             Text(student.fullName)
@@ -408,7 +415,11 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                                             Checkbox(
                                                 checked = selectedStudentsForEdit.contains(student.id),
                                                 onCheckedChange = { checked ->
-                                                    selectedStudentsForEdit = if (checked) selectedStudentsForEdit + student.id else selectedStudentsForEdit - student.id
+                                                    if (checked) {
+                                                        selectedStudentsForEdit += student.id
+                                                    } else {
+                                                        selectedStudentsForEdit -= student.id
+                                                    }
                                                 }
                                             )
                                             Text(student.fullName)
@@ -603,95 +614,35 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
             )
         }
 
-        editUser?.let { user ->
-            if (role != "instructor") {
-                AlertDialog(
-                    onDismissRequest = { editUser = null },
-                    title = { Text("Edit User") },
-                    text = {
-                        Column {
-                            TextField(
-                                value = editFirstName,
-                                onValueChange = { editFirstName = it },
-                                label = { Text("First Name") }
-                            )
-                            TextField(
-                                value = editLastName,
-                                onValueChange = { editLastName = it },
-                                label = { Text("Last Name") }
-                            )
-                            TextField(
-                                value = editGrade,
-                                onValueChange = { editGrade = it },
-                                label = { Text("Grade") }
-                            )
-                            TextField(
-                                value = editPin?.toString() ?: "",
-                                onValueChange = { editPin = it.toIntOrNull() },
-                                label = { Text("PIN") }
-                            )
-                            if (role == null) {
-                                TextField(
-                                    value = editRole,
-                                    onValueChange = { editRole = it },
-                                    label = { Text("Role") }
-                                )
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                val fullName = "$editLastName, $editFirstName"
-                                demographicsViewModel.updateUser(user.copy(firstName = editFirstName, lastName = editLastName, grade = editGrade, pin = editPin, fullName = fullName, role = editRole))
-                                editUser = null
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text("Save")
-                        }
-                    },
-                    dismissButton = {
-                        Button(
-                            onClick = { editUser = null },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text("Cancel")
-                        }
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Confirm Delete") },
+                text = { Text("Delete this user?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            selectedUser?.let { demographicsViewModel.deleteUser(it) }
+                            showDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("Yes")
                     }
-                )
-            }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = { showDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("No")
+                    }
+                }
+            )
         }
-    }
 
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Confirm Delete") },
-            text = { Text("Delete this user?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        selectedUser?.let { demographicsViewModel.deleteUser(it) }
-                        showDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text("Yes")
-                }
-            },
-            dismissButton = {
-                Button(
-                    onClick = { showDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text("No")
-                }
-            }
-        )
+        SnackbarHost(hostState = snackbarHostState)
     }
 }

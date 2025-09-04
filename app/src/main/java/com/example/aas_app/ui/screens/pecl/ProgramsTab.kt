@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens.pecl
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -50,9 +51,11 @@ fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
     var selectedProgramToDelete by remember { mutableStateOf<PeclProgramEntity?>(null) }
 
     LaunchedEffect(Unit) {
+        Log.d("ProgramsTab", "Loading programs")
         try {
             adminViewModel.loadPrograms()
         } catch (e: Exception) {
+            Log.e("ProgramsTab", "Error loading programs: ${e.message}", e)
             coroutineScope.launch {
                 snackbarHostState.showSnackbar("Error loading programs: ${e.message}")
             }
@@ -91,9 +94,16 @@ fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                                 modifier = Modifier.weight(1f)
                             )
                             IconButton(onClick = {
-                                adminViewModel.updateProgram(program.copy(name = editName))
-                                isEditing = false
-                                Toast.makeText(context, "Program updated", Toast.LENGTH_SHORT).show()
+                                try {
+                                    adminViewModel.updateProgram(program.copy(name = editName))
+                                    isEditing = false
+                                    Toast.makeText(context, "Program updated", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Log.e("ProgramsTab", "Error updating program: ${e.message}", e)
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Error updating program: ${e.message}")
+                                    }
+                                }
                             }) {
                                 Icon(imageVector = Icons.Filled.Save, contentDescription = "Save")
                             }
@@ -132,10 +142,17 @@ fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
             )
             IconButton(onClick = {
                 if (newProgramName.isNotBlank()) {
-                    adminViewModel.insertProgram(PeclProgramEntity(0L, newProgramName))
-                    newProgramName = ""
-                    showAddProgram = false
-                    Toast.makeText(context, "Program added successfully", Toast.LENGTH_SHORT).show()
+                    try {
+                        adminViewModel.insertProgram(PeclProgramEntity(0L, newProgramName))
+                        newProgramName = ""
+                        showAddProgram = false
+                        Toast.makeText(context, "Program added successfully", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Log.e("ProgramsTab", "Error adding program: ${e.message}", e)
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Error adding program: ${e.message}")
+                        }
+                    }
                 } else {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar("Program name cannot be blank")
@@ -153,31 +170,32 @@ fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
             title = { Text("Confirm Delete") },
             text = { Text("Delete this program?") },
             confirmButton = {
-                @Composable
-                {
-                    Button(
-                        onClick = {
+                Button(
+                    onClick = {
+                        try {
                             adminViewModel.deleteProgram(program)
                             selectedProgramToDelete = null
                             Toast.makeText(context, "Program deleted successfully", Toast.LENGTH_SHORT).show()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text("Yes")
-                    }
+                        } catch (e: Exception) {
+                            Log.e("ProgramsTab", "Error deleting program: ${e.message}", e)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Error deleting program: ${e.message}")
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Yes")
                 }
             },
             dismissButton = {
-                @Composable
-                {
-                    Button(
-                        onClick = { selectedProgramToDelete = null },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text("No")
-                    }
+                Button(
+                    onClick = { selectedProgramToDelete = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("No")
                 }
             }
         )

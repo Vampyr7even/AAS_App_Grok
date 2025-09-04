@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -56,12 +57,26 @@ fun EvaluateScreen(navController: NavController) {
     var showProgramDropdown by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        viewModel.loadInstructors()
+        try {
+            viewModel.loadInstructors()
+        } catch (e: Exception) {
+            Log.e("EvaluateScreen", "Error loading instructors: ${e.message}", e)
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Error loading instructors: ${e.message}")
+            }
+        }
     }
 
     LaunchedEffect(selectedInstructor) {
         selectedInstructor?.let { instructor ->
-            viewModel.loadProgramsForInstructor(instructor.id)
+            try {
+                viewModel.loadProgramsForInstructor(instructor.id)
+            } catch (e: Exception) {
+                Log.e("EvaluateScreen", "Error loading programs for instructor ${instructor.id}: ${e.message}", e)
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Error loading programs: ${e.message}")
+                }
+            }
         }
     }
 
@@ -71,6 +86,7 @@ fun EvaluateScreen(navController: NavController) {
                 val programs = state.data
                 when (programs.size) {
                     0 -> {
+                        Log.w("EvaluateScreen", "No programs assigned for instructor")
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar("Instructor has no assigned program")
                         }
@@ -83,7 +99,14 @@ fun EvaluateScreen(navController: NavController) {
                         selectedPoi = null
                         showProgramDropdown = false
                         selectedProgram?.let { program ->
-                            viewModel.loadPoisForProgram(program.id)
+                            try {
+                                viewModel.loadPoisForProgram(program.id)
+                            } catch (e: Exception) {
+                                Log.e("EvaluateScreen", "Error loading POIs for program ${program.id}: ${e.message}", e)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error loading POIs: ${e.message}")
+                                }
+                            }
                         }
                     }
                     else -> {
@@ -94,6 +117,7 @@ fun EvaluateScreen(navController: NavController) {
                 }
             }
             is AppState.Error -> {
+                Log.w("EvaluateScreen", "Programs load error: ${state.message}")
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar("Error loading programs: ${state.message}")
                 }
@@ -104,7 +128,14 @@ fun EvaluateScreen(navController: NavController) {
 
     LaunchedEffect(selectedProgram) {
         selectedProgram?.let { program ->
-            viewModel.loadPoisForProgram(program.id)
+            try {
+                viewModel.loadPoisForProgram(program.id)
+            } catch (e: Exception) {
+                Log.e("EvaluateScreen", "Error loading POIs for program ${program.id}: ${e.message}", e)
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Error loading POIs: ${e.message}")
+                }
+            }
         }
     }
 
@@ -263,23 +294,34 @@ fun EvaluateScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
-                selectedProgram?.let { program ->
-                    selectedPoi?.let { poi ->
-                        selectedInstructor?.let { instructor ->
-                            navController.navigate("pecl/dashboard/${program.id}/${poi.id}/${instructor.id}")
+                try {
+                    selectedProgram?.let { program ->
+                        selectedPoi?.let { poi ->
+                            selectedInstructor?.let { instructor ->
+                                Log.d("EvaluateScreen", "Navigating to pecl/dashboard/${program.id}/${poi.id}/${instructor.id}")
+                                navController.navigate("pecl/dashboard/${program.id}/${poi.id}/${instructor.id}")
+                            } ?: run {
+                                Log.w("EvaluateScreen", "Navigation failed: Instructor not selected")
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Please select an instructor")
+                                }
+                            }
                         } ?: run {
+                            Log.w("EvaluateScreen", "Navigation failed: POI not selected")
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please select an instructor")
+                                snackbarHostState.showSnackbar("Please select a POI")
                             }
                         }
                     } ?: run {
+                        Log.w("EvaluateScreen", "Navigation failed: Program not selected")
                         coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Please select a POI")
+                            snackbarHostState.showSnackbar("Please select a program")
                         }
                     }
-                } ?: run {
+                } catch (e: Exception) {
+                    Log.e("EvaluateScreen", "Navigation error to dashboard: ${e.message}", e)
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar("Please select a program")
+                        snackbarHostState.showSnackbar("Navigation failed: ${e.message}")
                     }
                 }
             },

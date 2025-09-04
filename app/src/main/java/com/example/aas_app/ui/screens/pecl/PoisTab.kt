@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens.pecl
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,10 +58,12 @@ fun PoisTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHostS
     var selectedPoiToDelete by remember { mutableStateOf<PeclPoiEntity?>(null) }
 
     LaunchedEffect(Unit) {
+        Log.d("PoisTab", "Loading POIs and programs")
         try {
             adminViewModel.loadPrograms()
             adminViewModel.loadAllPoisWithPrograms()
         } catch (e: Exception) {
+            Log.e("PoisTab", "Error loading POI data: ${e.message}", e)
             coroutineScope.launch {
                 snackbarHostState.showSnackbar("Error loading POI data: ${e.message}")
             }
@@ -142,11 +145,18 @@ fun PoisTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHostS
                 Button(
                     onClick = {
                         if (newPoiName.isNotBlank() && selectedProgramsForAdd.isNotEmpty()) {
-                            adminViewModel.insertPoi(PeclPoiEntity(name = newPoiName), selectedProgramsForAdd.toList())
-                            showAddPoiDialog = false
-                            newPoiName = ""
-                            selectedProgramsForAdd = emptySet()
-                            Toast.makeText(context, "POI added successfully", Toast.LENGTH_SHORT).show()
+                            try {
+                                adminViewModel.insertPoi(PeclPoiEntity(name = newPoiName), selectedProgramsForAdd.toList())
+                                showAddPoiDialog = false
+                                newPoiName = ""
+                                selectedProgramsForAdd = emptySet()
+                                Toast.makeText(context, "POI added successfully", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Log.e("PoisTab", "Error adding POI: ${e.message}", e)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error adding POI: ${e.message}")
+                                }
+                            }
                         } else {
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar("POI name and at least one program are required")
@@ -207,11 +217,18 @@ fun PoisTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHostS
                 Button(
                     onClick = {
                         if (editPoiName.isNotBlank() && selectedProgramsForEdit.isNotEmpty()) {
-                            adminViewModel.updatePoi(poiWithPrograms.poi.copy(name = editPoiName), selectedProgramsForEdit.toList())
-                            showEditPoiDialog = null
-                            editPoiName = ""
-                            selectedProgramsForEdit = emptySet()
-                            Toast.makeText(context, "POI updated successfully", Toast.LENGTH_SHORT).show()
+                            try {
+                                adminViewModel.updatePoi(poiWithPrograms.poi.copy(name = editPoiName), selectedProgramsForEdit.toList())
+                                showEditPoiDialog = null
+                                editPoiName = ""
+                                selectedProgramsForEdit = emptySet()
+                                Toast.makeText(context, "POI updated successfully", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Log.e("PoisTab", "Error updating POI: ${e.message}", e)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error updating POI: ${e.message}")
+                                }
+                            }
                         } else {
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar("POI name and at least one program are required")
@@ -245,9 +262,16 @@ fun PoisTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHostS
             confirmButton = {
                 Button(
                     onClick = {
-                        adminViewModel.deletePoi(poi)
-                        selectedPoiToDelete = null
-                        Toast.makeText(context, "POI deleted successfully", Toast.LENGTH_SHORT).show()
+                        try {
+                            adminViewModel.deletePoi(poi)
+                            selectedPoiToDelete = null
+                            Toast.makeText(context, "POI deleted successfully", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Log.e("PoisTab", "Error deleting POI: ${e.message}", e)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Error deleting POI: ${e.message}")
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)

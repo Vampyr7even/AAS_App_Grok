@@ -1,37 +1,16 @@
 package com.example.aas_app.ui.screens.pecl
 
+import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,25 +19,24 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.ScaleEntity
+import com.example.aas_app.data.entity.TaskWithPois
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.QuestionWithTask
-import com.example.aas_app.viewmodel.TaskWithPois
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHostState: SnackbarHostState, coroutineScope: CoroutineScope) {
     val context = LocalContext.current
-    val questionsWithTasksState by adminViewModel.questionsWithTasksState.observeAsState(AppState.Success(emptyList<QuestionWithTask>()))
-    val scalesState by adminViewModel.scalesState.observeAsState(AppState.Success(emptyList<ScaleEntity>()))
-    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Success(emptyList<TaskWithPois>()))
+    val questionsWithTasksState by adminViewModel.questionsState.observeAsState(AppState.Loading)
+    val scalesState by adminViewModel.scalesState.observeAsState(AppState.Loading)
+    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Loading)
     var showAddQuestionDialog by remember { mutableStateOf(false) }
     var newSubTask by remember { mutableStateOf("") }
     var newControlType by remember { mutableStateOf("") }
     var newScale by remember { mutableStateOf("") }
-    var newCriticalTask by remember { mutableStateOf("") }
+    var newCriticalTask by remember { mutable stateOf("") }
     var newTaskId by remember { mutableStateOf<Long?>(null) }
     var showEditQuestionDialog by remember { mutableStateOf<PeclQuestionEntity?>(null) }
     var editSubTask by remember { mutableStateOf("") }
@@ -74,16 +52,18 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
     var expandedScaleEdit by remember { mutableStateOf(false) }
     var expandedTaskEdit by remember { mutableStateOf(false) }
     var expandedControlTypeEdit by remember { mutableStateOf(false) }
-    var expandedCriticalTaskEdit by remember { mutableStateOf(false) }
+    var expandedCriticalTaskEdit by remember { mutable stateOf(false) }
     val controlTypeOptions = listOf("CheckBox", "ComboBox", "Comment", "ListBox", "OptionButton", "ScoreBox", "TextBox")
     val criticalTaskOptions = listOf("No", "Yes")
 
     LaunchedEffect(Unit) {
+        Log.d("SubTasksTab", "Loading questions, scales, and tasks")
         try {
-            adminViewModel.loadAllQuestionsWithTasks()
+            adminViewModel.loadQuestions()
             adminViewModel.loadScales()
-            adminViewModel.loadAllTasksWithPois()
+            adminViewModel.loadTasks()
         } catch (e: Exception) {
+            Log.e("SubTasksTab", "Error loading subtasks: ${e.message}", e)
             coroutineScope.launch {
                 snackbarHostState.showSnackbar("Error loading subtasks: ${e.message}")
             }
@@ -129,7 +109,7 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = questionWithTask.question.subTask)
-                                Text(text = "Task: ${questionWithTask.taskName}, ControlType: ${questionWithTask.question.controlType}, Scale: ${questionWithTask.question.scale}, CriticalTask: ${questionWithTask.question.criticalTask}", style = MaterialTheme.typography.bodySmall)
+                                Text(text = "Task: ${questionWithTask.task?.name ?: "None"}, ControlType: ${questionWithTask.question.controlType}, Scale: ${questionWithTask.question.scale}, CriticalTask: ${questionWithTask.question.criticalTask}", style = MaterialTheme.typography.bodySmall)
                             }
                             IconButton(onClick = { showEditQuestionDialog = questionWithTask.question }) {
                                 Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
@@ -204,7 +184,7 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                             ) {
                                 when (val state = scalesState) {
                                     is AppState.Loading -> Text("Loading scales...")
-                                    is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { scale ->
+                                    is AppState.Success<List<ScaleEntity>> -> state.data.sortedBy { it.scaleName }.forEach { scale ->
                                         DropdownMenuItem(
                                             text = { Text(scale.scaleName) },
                                             onClick = {
@@ -225,7 +205,7 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                         TextField(
                             readOnly = true,
                             value = if (tasksState is AppState.Success) {
-                                (tasksState as AppState.Success<List<TaskWithPois>>).data.sortedBy { it.task.name }.find { it.task.id == newTaskId }?.task?.name ?: ""
+                                (tasksState as AppState.Success<List<PeclTaskEntity>>).data.sortedBy { it.name }.find { it.id == newTaskId }?.name ?: ""
                             } else "",
                             onValueChange = { },
                             label = { Text("Assign to Task") },
@@ -239,11 +219,11 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                         ) {
                             when (val state = tasksState) {
                                 is AppState.Loading -> Text("Loading tasks...")
-                                is AppState.Success -> state.data.sortedBy { it.task.name }.forEach { taskWithPois ->
+                                is AppState.Success<List<PeclTaskEntity>> -> state.data.sortedBy { it.name }.forEach { task ->
                                     DropdownMenuItem(
-                                        text = { Text(taskWithPois.task.name) },
+                                        text = { Text(task.name) },
                                         onClick = {
-                                            newTaskId = taskWithPois.task.id
+                                            newTaskId = task.id
                                             expandedTaskAdd = false
                                         }
                                     )
@@ -288,14 +268,21 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                         val taskIdValue = newTaskId
                         if (taskIdValue != null) {
                             if (newSubTask.isNotBlank()) {
-                                adminViewModel.insertQuestion(PeclQuestionEntity(subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), taskIdValue)
-                                showAddQuestionDialog = false
-                                newSubTask = ""
-                                newControlType = ""
-                                newScale = ""
-                                newCriticalTask = ""
-                                newTaskId = null
-                                Toast.makeText(context, "Question added successfully", Toast.LENGTH_SHORT).show()
+                                try {
+                                    adminViewModel.insertQuestion(PeclQuestionEntity(subTask = newSubTask, controlType = newControlType, scale = newScale, criticalTask = newCriticalTask), taskIdValue)
+                                    showAddQuestionDialog = false
+                                    newSubTask = ""
+                                    newControlType = ""
+                                    newScale = ""
+                                    newCriticalTask = ""
+                                    newTaskId = null
+                                    Toast.makeText(context, "Question added successfully", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Log.e("SubTasksTab", "Error adding question: ${e.message}", e)
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Error adding question: ${e.message}")
+                                    }
+                                }
                             } else {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Sub task is required")
@@ -385,7 +372,7 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                             ) {
                                 when (val state = scalesState) {
                                     is AppState.Loading -> Text("Loading scales...")
-                                    is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { scale ->
+                                    is AppState.Success<List<ScaleEntity>> -> state.data.sortedBy { it.scaleName }.forEach { scale ->
                                         DropdownMenuItem(
                                             text = { Text(scale.scaleName) },
                                             onClick = {
@@ -406,7 +393,7 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                         TextField(
                             readOnly = true,
                             value = if (tasksState is AppState.Success) {
-                                (tasksState as AppState.Success<List<TaskWithPois>>).data.sortedBy { it.task.name }.find { it.task.id == editTaskId }?.task?.name ?: ""
+                                (tasksState as AppState.Success<List<PeclTaskEntity>>).data.sortedBy { it.name }.find { it.id == editTaskId }?.name ?: ""
                             } else "",
                             onValueChange = { },
                             label = { Text("Assign to Task") },
@@ -420,11 +407,11 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                         ) {
                             when (val state = tasksState) {
                                 is AppState.Loading -> Text("Loading tasks...")
-                                is AppState.Success -> state.data.sortedBy { it.task.name }.forEach { taskWithPois ->
+                                is AppState.Success<List<PeclTaskEntity>> -> state.data.sortedBy { it.name }.forEach { task ->
                                     DropdownMenuItem(
-                                        text = { Text(taskWithPois.task.name) },
+                                        text = { Text(task.name) },
                                         onClick = {
-                                            editTaskId = taskWithPois.task.id
+                                            editTaskId = task.id
                                             expandedTaskEdit = false
                                         }
                                     )
@@ -469,14 +456,21 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                         val taskIdValue = editTaskId
                         if (taskIdValue != null) {
                             if (editSubTask.isNotBlank()) {
-                                adminViewModel.updateQuestion(question.copy(subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), taskIdValue)
-                                showEditQuestionDialog = null
-                                editSubTask = ""
-                                editControlType = ""
-                                editScale = ""
-                                editCriticalTask = ""
-                                editTaskId = null
-                                Toast.makeText(context, "Question updated successfully", Toast.LENGTH_SHORT).show()
+                                try {
+                                    adminViewModel.updateQuestion(question.copy(subTask = editSubTask, controlType = editControlType, scale = editScale, criticalTask = editCriticalTask), taskIdValue)
+                                    showEditQuestionDialog = null
+                                    editSubTask = ""
+                                    editControlType = ""
+                                    editScale = ""
+                                    editCriticalTask = ""
+                                    editTaskId = null
+                                    Toast.makeText(context, "Question updated successfully", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Log.e("SubTasksTab", "Error updating question: ${e.message}", e)
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Error updating question: ${e.message}")
+                                    }
+                                }
                             } else {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Sub task is required")
@@ -515,9 +509,16 @@ fun SubTasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
             confirmButton = {
                 Button(
                     onClick = {
-                        adminViewModel.deleteQuestion(question)
-                        selectedQuestionToDelete = null
-                        Toast.makeText(context, "Question deleted successfully", Toast.LENGTH_SHORT).show()
+                        try {
+                            adminViewModel.deleteQuestion(question)
+                            selectedQuestionToDelete = null
+                            Toast.makeText(context, "Question deleted successfully", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Log.e("SubTasksTab", "Error deleting question: ${e.message}", e)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Error deleting question: ${e.message}")
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)

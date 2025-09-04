@@ -52,3 +52,4 @@ hiltAndroid = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "compose-compiler" }
 room = { id = "androidx.room", version.ref = "room" }
+kotlinKapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }

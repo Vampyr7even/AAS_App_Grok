@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens.pecl
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,7 +46,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHostState: SnackbarHostState, coroutineScope: CoroutineScope) {
     val context = LocalContext.current
-    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Success(emptyList<TaskWithPois>()))
+    val tasksState by adminViewModel.tasksState.observeAsState(AppState.Loading)
     val poisSimple by adminViewModel.poisSimple.observeAsState(emptyList())
     var showAddTaskDialog by remember { mutableStateOf(false) }
     var newTaskName by remember { mutableStateOf("") }
@@ -58,10 +58,12 @@ fun TasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHost
     var showTaskDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        Log.d("TasksTab", "Loading tasks and POIs")
         try {
             adminViewModel.loadAllPois()
             adminViewModel.loadAllTasksWithPois()
         } catch (e: Exception) {
+            Log.e("TasksTab", "Error loading tasks: ${e.message}", e)
             coroutineScope.launch {
                 snackbarHostState.showSnackbar("Error loading tasks: ${e.message}")
             }
@@ -146,11 +148,18 @@ fun TasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHost
                 Button(
                     onClick = {
                         if (newTaskName.isNotBlank() && selectedPoisForAdd.isNotEmpty()) {
-                            adminViewModel.insertTask(PeclTaskEntity(name = newTaskName), selectedPoisForAdd.toList())
-                            showAddTaskDialog = false
-                            newTaskName = ""
-                            selectedPoisForAdd = emptySet()
-                            Toast.makeText(context, "POI Task added successfully", Toast.LENGTH_SHORT).show()
+                            try {
+                                adminViewModel.insertTask(PeclTaskEntity(name = newTaskName), selectedPoisForAdd.toList())
+                                showAddTaskDialog = false
+                                newTaskName = ""
+                                selectedPoisForAdd = emptySet()
+                                Toast.makeText(context, "POI Task added successfully", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Log.e("TasksTab", "Error adding task: ${e.message}", e)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error adding task: ${e.message}")
+                                }
+                            }
                         } else {
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar("Task name and at least one POI are required")
@@ -211,11 +220,18 @@ fun TasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHost
                 Button(
                     onClick = {
                         if (editTaskName.isNotBlank() && selectedPoisForEdit.isNotEmpty()) {
-                            adminViewModel.updateTask(taskWithPois.task.copy(name = editTaskName), selectedPoisForEdit.toList())
-                            showEditTaskDialog = null
-                            editTaskName = ""
-                            selectedPoisForEdit = emptySet()
-                            Toast.makeText(context, "Task updated successfully", Toast.LENGTH_SHORT).show()
+                            try {
+                                adminViewModel.updateTask(taskWithPois.task.copy(name = editTaskName), selectedPoisForEdit.toList())
+                                showEditTaskDialog = null
+                                editTaskName = ""
+                                selectedPoisForEdit = emptySet()
+                                Toast.makeText(context, "Task updated successfully", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Log.e("TasksTab", "Error updating task: ${e.message}", e)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error updating task: ${e.message}")
+                                }
+                            }
                         } else {
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar("Task name and at least one POI are required")
@@ -249,9 +265,16 @@ fun TasksTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHost
             confirmButton = {
                 Button(
                     onClick = {
-                        selectedTaskToDelete?.let { adminViewModel.deleteTask(it) }
-                        showTaskDeleteDialog = false
-                        Toast.makeText(context, "Task deleted successfully", Toast.LENGTH_SHORT).show()
+                        try {
+                            selectedTaskToDelete?.let { adminViewModel.deleteTask(it) }
+                            showTaskDeleteDialog = false
+                            Toast.makeText(context, "Task deleted successfully", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Log.e("TasksTab", "Error deleting task: ${e.message}", e)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Error deleting task: ${e.message}")
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.room)
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
+    alias(libs.plugins.kotlinKapt)
 }
 
 android {
@@ -70,7 +71,7 @@ dependencies {
     ksp(libs.room.compiler)
 
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
     implementation(libs.androidx.navigation.compose)
