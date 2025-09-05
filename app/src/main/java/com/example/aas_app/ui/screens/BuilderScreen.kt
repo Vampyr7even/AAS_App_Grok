@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -14,32 +15,40 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
+import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BuilderScreen(navController: NavController) {
-    val viewModel = hiltViewModel<AdminViewModel>()
+fun BuilderScreen(
+    navController: NavController,
+    coroutineScope: CoroutineScope,
+    snackbarHostState: SnackbarHostState
+) {
+    val viewModel: AdminViewModel = hiltViewModel()
     val poisState by viewModel.poisState.observeAsState(AppState.Success(emptyList()))
+    val programsState by viewModel.programsState.observeAsState(AppState.Success(emptyList()))
+    var showAddPoiDialog by remember { mutableStateOf(false) }
     var newPoiName by remember { mutableStateOf("") }
-    val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    var selectedProgramsForAdd by remember { mutableStateOf(setOf<Long>()) }
+    var showDeleteDialog by remember { mutableStateOf<PeclPoiEntity?>(null) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        viewModel.loadPois()
+        viewModel.loadPoisForProgram(0L)
+        viewModel.loadPrograms()
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -49,86 +58,181 @@ fun BuilderScreen(navController: NavController) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        when (val state = poisState) {
-            is AppState.Loading -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Program of Instruction",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { showAddPoiDialog = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Add POI")
             }
-            is AppState.Success<*> -> {
-                val pois = (state as AppState.Success<List<PeclPoiEntity>>).data
-                LazyColumn {
-                    items(pois) { poi: PeclPoiEntity ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = poi.name)
-                            Row {
-                                IconButton(onClick = { navController.navigate("editPoi/${poi.id}") }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit POI")
-                                }
-                                IconButton(onClick = {
+            Text("Add POI", modifier = Modifier.padding(start = 4.dp))
+        }
+
+        when (val state = poisState) {
+            is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is AppState.Success -> {
+                if (state.data.isEmpty()) {
+                    Text("No POIs have been entered in the database. Add POIs to begin.")
+                } else {
+                    LazyColumn {
+                        items(state.data) { poi ->
+                            val programsForPoi = remember { mutableStateOf<List<PeclProgramEntity>>(emptyList()) }
+                            LaunchedEffect(poi.id) {
+                                try {
+                                    programsForPoi.value = viewModel.getProgramsForPoi(poi.id).first()
+                                } catch (e: Exception) {
                                     coroutineScope.launch {
-                                        try {
-                                            viewModel.deletePoi(poi)
-                                            snackbarHostState.showSnackbar("POI deleted successfully")
-                                        } catch (e: Exception) {
-                                            Log.e("BuilderScreen", "Error deleting POI: ${e.message}", e)
-                                            snackbarHostState.showSnackbar("Error deleting POI: ${e.message}")
-                                        }
+                                        snackbarHostState.showSnackbar("Error loading programs for POI: ${e.message}")
                                     }
-                                }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete POI")
+                                }
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = poi.name)
+                                    Text(
+                                        text = "Programs: ${programsForPoi.value.joinToString(", ") { it.name }}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                IconButton(onClick = { navController.navigate("editPois/${poi.id}") }) {
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                                }
+                                IconButton(onClick = { showDeleteDialog = poi }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
                                 }
                             }
                         }
                     }
                 }
             }
-            is AppState.Error -> {
-                Text(
-                    text = "Error: ${state.message}",
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            is AppState.Error -> Text(
+                text = "Error: ${state.message}",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        TextField(
-            value = newPoiName,
-            onValueChange = { newPoiName = it },
-            label = { Text("New POI Name") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = {
-                if (newPoiName.isNotBlank()) {
-                    coroutineScope.launch {
-                        try {
-                            viewModel.insertPoi(PeclPoiEntity(name = newPoiName), emptyList())
-                            newPoiName = ""
-                            snackbarHostState.showSnackbar("POI added successfully")
-                        } catch (e: Exception) {
-                            Log.e("BuilderScreen", "Error adding POI: ${e.message}", e)
-                            snackbarHostState.showSnackbar("Error adding POI: ${e.message}")
+        if (showAddPoiDialog) {
+            AlertDialog(
+                onDismissRequest = { showAddPoiDialog = false },
+                title = { Text("Add POI") },
+                text = {
+                    Column {
+                        TextField(
+                            value = newPoiName,
+                            onValueChange = { newPoiName = it },
+                            label = { Text("POI Name") }
+                        )
+                        Text(text = "Select Programs:")
+                        LazyColumn {
+                            items(programsState.data) { program: PeclProgramEntity ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = selectedProgramsForAdd.contains(program.id),
+                                        onCheckedChange = { checked ->
+                                            selectedProgramsForAdd = if (checked) {
+                                                selectedProgramsForAdd + program.id
+                                            } else {
+                                                selectedProgramsForAdd - program.id
+                                            }
+                                        }
+                                    )
+                                    Text(text = program.name)
+                                }
+                            }
                         }
                     }
-                } else {
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("POI name cannot be blank")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (newPoiName.isNotBlank() && selectedProgramsForAdd.isNotEmpty()) {
+                                coroutineScope.launch {
+                                    try {
+                                        viewModel.insertPoi(PeclPoiEntity(name = newPoiName), selectedProgramsForAdd.toList())
+                                        showAddPoiDialog = false
+                                        newPoiName = ""
+                                        selectedProgramsForAdd = emptySet()
+                                        Toast.makeText(context, "POI added successfully", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Log.e("BuilderScreen", "Error adding POI: ${e.message}", e)
+                                        snackbarHostState.showSnackbar("Error adding POI: ${e.message}")
+                                    }
+                                }
+                            } else {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("POI name and at least one program are required")
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        shape = RoundedCornerShape(4.dp),
+                        enabled = newPoiName.isNotBlank() && selectedProgramsForAdd.isNotEmpty()
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = { showAddPoiDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("Cancel")
                     }
                 }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-            shape = RoundedCornerShape(4.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Add POI")
+            )
         }
+
+        if (showDeleteDialog != null) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = null },
+                title = { Text("Confirm Delete") },
+                text = { Text("Delete this POI?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                try {
+                                    showDeleteDialog?.let { viewModel.deletePoi(it) }
+                                    snackbarHostState.showSnackbar("POI deleted successfully")
+                                } catch (e: Exception) {
+                                    Log.e("BuilderScreen", "Error deleting POI: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error deleting POI: ${e.message}")
+                                }
+                            }
+                            showDeleteDialog = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = { showDeleteDialog = null },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("No")
+                    }
+                }
+            )
+        }
+
         SnackbarHost(hostState = snackbarHostState)
     }
 }

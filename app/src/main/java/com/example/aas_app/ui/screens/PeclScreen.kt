@@ -15,19 +15,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.aas_app.ui.screens.pecl.EvaluateTab
-import com.example.aas_app.ui.screens.pecl.InstructorsTab
-import com.example.aas_app.ui.screens.pecl.PoisTab
-import com.example.aas_app.ui.screens.pecl.ProgramsTab
-import com.example.aas_app.ui.screens.pecl.StudentsTab
-import com.example.aas_app.ui.screens.pecl.SubTasksTab
-import com.example.aas_app.ui.screens.pecl.TasksTab
+import com.example.aas_app.ui.screens.pecl.*
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.DemographicsViewModel
 import com.example.aas_app.viewmodel.PeclViewModel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeclScreen(navController: NavController, instructorId: Long) {
     val adminViewModel: AdminViewModel = hiltViewModel()
@@ -116,39 +109,36 @@ fun PeclScreen(navController: NavController, instructorId: Long) {
 
         SnackbarHost(hostState = snackbarHostState)
 
-        if (selectedTab == null) {
-            Text("Please select a tab to view content")
-        } else {
-            when (selectedTab) {
-                "Evaluate" -> {
-                    Log.d("PeclScreen", "Rendering EvaluateTab")
-                    EvaluateTab(navController, errorMessage, snackbarHostState, coroutineScope)
-                }
-                "Programs" -> {
-                    Log.d("PeclScreen", "Rendering ProgramsTab")
-                    ProgramsTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
-                }
-                "POI" -> {
-                    Log.d("PeclScreen", "Rendering PoisTab")
-                    PoisTab(navController, 0L)
-                }
-                "Tasks" -> {
-                    Log.d("PeclScreen", "Rendering TasksTab")
-                    TasksTab(navController, 0L)
-                }
-                "Sub Tasks" -> {
-                    Log.d("PeclScreen", "Rendering SubTasksTab")
-                    SubTasksTab(navController, 0L)
-                }
-                "Instructors" -> {
-                    Log.d("PeclScreen", "Rendering InstructorsTab")
-                    InstructorsTab(navController, demographicsViewModel, peclViewModel, errorMessage, snackbarHostState, coroutineScope)
-                }
-                "Students" -> {
-                    Log.d("PeclScreen", "Rendering StudentsTab")
-                    StudentsTab(navController, instructorId, 0L)
-                }
+        when (selectedTab) {
+            "Evaluate" -> {
+                Log.d("PeclScreen", "Rendering EvaluateTab")
+                EvaluateTab(navController, errorMessage, snackbarHostState, coroutineScope)
             }
+            "Programs" -> {
+                Log.d("PeclScreen", "Rendering ProgramsTab")
+                ProgramsTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
+            }
+            "POI" -> {
+                Log.d("PeclScreen", "Rendering PoisTab")
+                PoisTab(navController, 0L)
+            }
+            "Tasks" -> {
+                Log.d("PeclScreen", "Rendering TasksTab")
+                TasksTab(navController, 0L)
+            }
+            "Sub Tasks" -> {
+                Log.d("PeclScreen", "Rendering SubTasksTab")
+                SubTasksTab(navController, 0L, adminViewModel, errorMessage, snackbarHostState, coroutineScope)
+            }
+            "Instructors" -> {
+                Log.d("PeclScreen", "Rendering InstructorsTab")
+                InstructorsTab(navController, demographicsViewModel, peclViewModel, errorMessage, snackbarHostState, coroutineScope)
+            }
+            "Students" -> {
+                Log.d("PeclScreen", "Rendering StudentsTab")
+                StudentsTab(navController, instructorId, 0L)
+            }
+            null -> {}
         }
     }
 }

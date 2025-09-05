@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -39,7 +40,7 @@ fun StudentsTab(
         Log.d("StudentsTab", "Loading students for instructorId=$instructorId, programId=$programId")
         try {
             if (programId == 0L) {
-                viewModel.loadStudentsForInstructor(instructorId) // Load all students if no programId
+                viewModel.loadStudentsForInstructor(instructorId)
             } else {
                 viewModel.loadStudentsForInstructorAndProgram(instructorId, programId)
             }
@@ -63,6 +64,33 @@ fun StudentsTab(
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Students",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = {
+                try {
+                    Log.d("StudentsTab", "Navigating to addStudent")
+                    navController.navigate("addStudent")
+                } catch (e: Exception) {
+                    Log.e("StudentsTab", "Navigation error to addStudent: ${e.message}", e)
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Navigation failed: ${e.message}")
+                    }
+                }
+            }) {
+                Icon(Icons.Filled.Add, contentDescription = "Add Student")
+            }
+            Text("Add Student", modifier = Modifier.padding(start = 4.dp))
+        }
 
         when (val state = studentsState) {
             is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -95,7 +123,13 @@ fun StudentsTab(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = student.fullName)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = student.fullName)
+                                    Text(
+                                        text = "Program: $programName",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                                 Row {
                                     IconButton(onClick = {
                                         try {

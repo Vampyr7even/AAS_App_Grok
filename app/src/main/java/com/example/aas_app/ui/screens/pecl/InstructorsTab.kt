@@ -1,6 +1,6 @@
 package com.example.aas_app.ui.screens.pecl
 
-import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,274 +9,542 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.DemographicsViewModel
+import com.example.aas_app.viewmodel.PeclViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InstructorsTab(navController: NavController, demographicsViewModel: DemographicsViewModel, peclViewModel: com.example.aas_app.viewmodel.PeclViewModel, errorMessage: String?, snackbarHostState: SnackbarHostState, coroutineScope: CoroutineScope) {
-    val viewModel = hiltViewModel<DemographicsViewModel>()
-    val instructorsState by viewModel.instructorsState.observeAsState(AppState.Loading)
-    val programsState by viewModel.programsState.observeAsState(AppState.Loading)
-    val instructorAssignmentsState by viewModel.instructorAssignmentsState.observeAsState(AppState.Loading)
-    val instructorProgramAssignmentsState by viewModel.instructorProgramAssignmentsState.observeAsState(AppState.Loading)
-    var newFirstName by remember { mutableStateOf("") }
-    var newLastName by remember { mutableStateOf("") }
-    var newPin by remember { mutableStateOf("") }
-    var showDialog by remember { mutableStateOf(false) }
-    var instructorToDelete by remember { mutableStateOf<UserEntity?>(null) }
-    var selectedProgram by remember { mutableStateOf<PeclProgramEntity?>(null) }
-    var showProgramDialog by remember { mutableStateOf(false) }
+fun InstructorsTab(
+    navController: NavController,
+    demographicsViewModel: DemographicsViewModel,
+    peclViewModel: PeclViewModel,
+    errorMessage: String?,
+    snackbarHostState: SnackbarHostState,
+    coroutineScope: CoroutineScope
+) {
+    val context = LocalContext.current
+    val instructorsState by demographicsViewModel.instructorsState.observeAsState(AppState.Success(emptyList()))
+    val programsState by demographicsViewModel.programsState.observeAsState(AppState.Success(emptyList()))
+    val studentsState by peclViewModel.studentsState.observeAsState(AppState.Success(emptyList()))
+    var showInstructorDeleteDialog by remember { mutableStateOf(false) }
+    var showAddInstructorDialog by remember { mutableStateOf(false) }
+    var newInstructorName by remember { mutableStateOf("") }
+    var selectedStudentsForAddInstructor by remember { mutableStateOf(setOf<Long>()) }
+    var selectedProgramForAddInstructor by remember { mutableStateOf<Long?>(null) }
+    var expandedProgramAddInstructor by remember { mutableStateOf(false) }
+    var showEditInstructorDialog by remember { mutableStateOf(false) }
+    var editInstructorName by remember { mutableStateOf("") }
+    var selectedStudentsForEdit by remember { mutableStateOf(setOf<Long>()) }
+    var selectedProgramForEditInstructor by remember { mutableStateOf<Long?>(null) }
+    var expandedProgramEditInstructor by remember { mutableStateOf(false) }
+    var selectedInstructorToDelete by remember { mutableStateOf<UserEntity?>(null) }
+    var editInstructor by remember { mutableStateOf<UserEntity?>(null) }
+    var showDeleteErrorDialog by remember { mutableStateOf(false) }
+    var showAssignDialog by remember { mutableStateOf(false) }
+    var selectedInstructorForAssign by remember { mutableStateOf<UserEntity?>(null) }
+    var selectedStudentsForAssign by remember { mutableStateOf(setOf<Long>()) }
+    var selectedProgramForAssign by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(Unit) {
-        viewModel.loadInstructors()
-        viewModel.loadPrograms()
+        try {
+            demographicsViewModel.loadInstructors()
+            demographicsViewModel.loadPrograms()
+            peclViewModel.loadStudents()
+        } catch (e: Exception) {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Error loading instructors: ${e.message}")
+            }
+        }
     }
 
-    Column(
+    LaunchedEffect(editInstructor) {
+        editInstructor?.let { instructor: UserEntity ->
+            editInstructorName = instructor.fullName
+            coroutineScope.launch {
+                try {
+                    val assignments = demographicsViewModel.getAssignmentsForInstructorSync(instructor.id)
+                    selectedStudentsForEdit = assignments.map { it.student_id }.toSet()
+                    val programIds = demographicsViewModel.getProgramIdsForInstructorSync(instructor.id)
+                    selectedProgramForEditInstructor = programIds.firstOrNull()
+                } catch (e: Exception) {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Error loading assignments: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(selectedInstructorForAssign) {
+        selectedInstructorForAssign?.let { instructor: UserEntity ->
+            coroutineScope.launch {
+                try {
+                    val assignments = demographicsViewModel.getAssignmentsForInstructorSync(instructor.id)
+                    selectedStudentsForAssign = assignments.map { it.student_id }.toSet()
+                    val programIds = demographicsViewModel.getProgramIdsForInstructorSync(instructor.id)
+                    selectedProgramForAssign = programIds.firstOrNull()
+                } catch (e: Exception) {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Error loading assignments: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    Row(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Manage Instructors",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 16.dp)
+            text = "Instructors",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f)
         )
+        IconButton(onClick = { showAddInstructorDialog = true }) {
+            Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Instructor")
+        }
+        Text("Add Instructors", modifier = Modifier.padding(start = 4.dp))
+    }
 
-        when (val state = instructorsState) {
-            is AppState.Loading -> CircularProgressIndicator()
-            is AppState.Success -> {
-                if (state.data.isEmpty()) {
-                    Text(
-                        text = "No instructors available.",
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    LazyColumn {
-                        items(state.data.sortedBy { instructor -> instructor.fullName }) { instructor ->
-                            val assignments = remember { mutableStateOf<List<InstructorStudentAssignmentEntity>>(emptyList()) }
-                            val programIds = remember { mutableStateOf<List<Long>>(emptyList()) }
-                            val programsForInstructor = remember { mutableStateOf<List<PeclProgramEntity>>(emptyList()) }
-                            coroutineScope.launch {
-                                try {
-                                    assignments.value = viewModel.getAssignmentsForInstructorSync(instructor.id)
-                                    programIds.value = viewModel.getProgramIdsForInstructorSync(instructor.id)
-                                    val programState = programsState
-                                    if (programState is AppState.Success) {
-                                        programsForInstructor.value = programState.data.filter { it.id in programIds.value }.sortedBy { program -> program.name }
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("InstructorsTab", "Error loading assignments or programs: ${e.message}", e)
-                                    snackbarHostState.showSnackbar("Error loading data: ${e.message}")
+    when (val state = instructorsState) {
+        is AppState.Loading -> CircularProgressIndicator()
+        is AppState.Success -> {
+            if (state.data.isEmpty()) {
+                Text("No Instructors have been entered in the database. Add Instructors to begin.")
+            } else {
+                LazyColumn {
+                    items(state.data.sortedBy { it.fullName }) { instructor ->
+                        val programIds = remember { mutableStateOf<List<Long>>(emptyList()) }
+                        val programsForInstructor = remember { mutableStateOf<List<PeclProgramEntity>>(emptyList()) }
+                        LaunchedEffect(instructor.id) {
+                            try {
+                                programIds.value = demographicsViewModel.getProgramIdsForInstructorSync(instructor.id)
+                                programsForInstructor.value = programsState.data.filter { it.id in programIds.value }.sortedBy { it.name }
+                            } catch (e: Exception) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error loading programs: ${e.message}")
                                 }
                             }
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = instructor.fullName)
                                 Text(
-                                    text = instructor.fullName,
-                                    modifier = Modifier.weight(1f)
+                                    text = "Programs: ${programsForInstructor.value.joinToString { it.name } ?: "None"}",
+                                    style = MaterialTheme.typography.bodySmall
                                 )
-                                Text(
-                                    text = programsForInstructor.value.joinToString { program -> program.name },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                IconButton(onClick = {
-                                    navController.navigate("editUser/${instructor.id}/instructor")
-                                }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Edit Instructor")
-                                }
-                                IconButton(onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            if (viewModel.canDeleteInstructor(instructor.id)) {
-                                                instructorToDelete = instructor
-                                                showDialog = true
-                                            } else {
-                                                snackbarHostState.showSnackbar("Cannot delete instructor with assigned students or programs")
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e("InstructorsTab", "Error checking deletion: ${e.message}", e)
-                                            snackbarHostState.showSnackbar("Error: ${e.message}")
+                            }
+                            IconButton(onClick = {
+                                editInstructor = instructor
+                                showEditInstructorDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                            }
+                            IconButton(onClick = {
+                                selectedInstructorForAssign = instructor
+                                showAssignDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Filled.Person, contentDescription = "Assign Students")
+                            }
+                            IconButton(onClick = {
+                                selectedInstructorToDelete = instructor
+                                showInstructorDeleteDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        is AppState.Error -> Text("Error: ${state.message}")
+    }
+
+    if (showInstructorDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showInstructorDeleteDialog = false },
+            title = { Text("Confirm Delete") },
+            text = { Text("Delete this instructor?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            selectedInstructorToDelete?.let { instructor ->
+                                val hasProgram = selectedProgramForEditInstructor != null
+                                if (hasProgram) {
+                                    showDeleteErrorDialog = true
+                                } else {
+                                    val canDelete = demographicsViewModel.canDeleteInstructor(instructor.id)
+                                    if (canDelete) {
+                                        demographicsViewModel.deleteUser(instructor)
+                                        demographicsViewModel.loadInstructors()
+                                        Toast.makeText(context, "Instructor deleted successfully", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Cannot delete instructor with assigned students.")
                                         }
                                     }
-                                }) {
-                                    Icon(Icons.Filled.Delete, contentDescription = "Delete Instructor")
                                 }
                             }
+                            showInstructorDeleteDialog = false
                         }
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showInstructorDeleteDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("No")
                 }
             }
-            is AppState.Error -> Text("Error: ${state.message}")
-        }
+        )
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        TextField(
-            value = newFirstName,
-            onValueChange = { newFirstName = it },
-            label = { Text("First Name") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        TextField(
-            value = newLastName,
-            onValueChange = { newLastName = it },
-            label = { Text("Last Name") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        TextField(
-            value = newPin,
-            onValueChange = { newPin = it },
-            label = { Text("Pin") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        ExposedDropdownMenuBox(
-            expanded = showProgramDialog,
-            onExpandedChange = { showProgramDialog = !showProgramDialog }
-        ) {
-            TextField(
-                value = selectedProgram?.name ?: "Select Program",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Assign Program") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showProgramDialog) },
-                modifier = Modifier.menuAnchor()
-            )
-            ExposedDropdownMenu(
-                expanded = showProgramDialog,
-                onDismissRequest = { showProgramDialog = false }
-            ) {
-                when (val state = programsState) {
-                    is AppState.Success -> {
-                        state.data.forEach { program ->
-                            DropdownMenuItem(
-                                text = { Text(program.name) },
-                                onClick = {
-                                    selectedProgram = program
-                                    showProgramDialog = false
+    if (showDeleteErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteErrorDialog = false },
+            title = { Text("Remove Assignment?") },
+            text = { Text("This instructor is assigned to a program. Remove the assignment and proceed with deletion?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            selectedInstructorToDelete?.let { instructor ->
+                                demographicsViewModel.deleteInstructorProgramAssignmentsForInstructor(instructor.id)
+                                val canDelete = demographicsViewModel.canDeleteInstructor(instructor.id)
+                                if (canDelete) {
+                                    demographicsViewModel.deleteUser(instructor)
+                                    demographicsViewModel.loadInstructors()
+                                    Toast.makeText(context, "Instructor deleted successfully", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Cannot delete instructor with assigned students.")
+                                    }
                                 }
-                            )
+                            }
+                            showDeleteErrorDialog = false
                         }
-                    }
-                    else -> {}
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showDeleteErrorDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("No")
                 }
             }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = {
-                if (newFirstName.isNotBlank() && newLastName.isNotBlank()) {
-                    coroutineScope.launch {
-                        try {
-                            val newUserId = viewModel.insertUserSync(
-                                UserEntity(
-                                    firstName = newFirstName,
-                                    lastName = newLastName,
-                                    fullName = "$newLastName, $newFirstName",
-                                    grade = "",
-                                    pin = newPin.toIntOrNull(),
-                                    role = "instructor"
-                                )
-                            )
-                            if (newUserId != -1L && selectedProgram != null) {
-                                viewModel.insertInstructorProgramAssignment(
-                                    InstructorProgramAssignmentEntity(
-                                        instructor_id = newUserId,
-                                        program_id = selectedProgram!!.id
-                                    )
+        )
+    }
+
+    if (showAddInstructorDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddInstructorDialog = false },
+            title = { Text("Add Instructor") },
+            text = {
+                Column {
+                    TextField(
+                        value = newInstructorName,
+                        onValueChange = { newInstructorName = it },
+                        label = { Text("Instructor Name") }
+                    )
+                    Text(text = "Select Students:")
+                    when (val state = studentsState) {
+                        is AppState.Loading -> Text("Loading...")
+                        is AppState.Success -> {
+                            LazyColumn {
+                                items(state.data) { student: PeclStudentEntity ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedStudentsForAddInstructor.contains(student.id),
+                                            onCheckedChange = { checked ->
+                                                selectedStudentsForAddInstructor = if (checked) selectedStudentsForAddInstructor + student.id else selectedStudentsForAddInstructor - student.id
+                                            }
+                                        )
+                                        Text(student.fullName)
+                                    }
+                                }
+                            }
+                        }
+                        is AppState.Error -> Text("Error: ${state.message}")
+                    }
+                    ExposedDropdownMenuBox(
+                        expanded = expandedProgramAddInstructor,
+                        onExpandedChange = { expandedProgramAddInstructor = !expandedProgramAddInstructor }
+                    ) {
+                        TextField(
+                            readOnly = true,
+                            value = programsState.data.find { it.id == selectedProgramForAddInstructor }?.name ?: "",
+                            onValueChange = { },
+                            label = { Text("Select Program") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProgramAddInstructor) },
+                            colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedProgramAddInstructor,
+                            onDismissRequest = { expandedProgramAddInstructor = false }
+                        ) {
+                            programsState.data.forEach { program ->
+                                DropdownMenuItem(
+                                    text = { Text(program.name) },
+                                    onClick = {
+                                        selectedProgramForAddInstructor = program.id
+                                        expandedProgramAddInstructor = false
+                                    }
                                 )
                             }
-                            newFirstName = ""
-                            newLastName = ""
-                            newPin = ""
-                            selectedProgram = null
-                            snackbarHostState.showSnackbar("Instructor added successfully")
-                        } catch (e: Exception) {
-                            Log.e("InstructorsTab", "Error adding instructor: ${e.message}", e)
-                            snackbarHostState.showSnackbar("Error adding instructor: ${e.message}")
                         }
-                    }
-                } else {
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("First and last name cannot be blank")
                     }
                 }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-            shape = RoundedCornerShape(4.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Add Instructor")
-        }
-
-        if (showDialog) {
-            AlertDialog(
-                onDismissRequest = { showDialog = false },
-                title = { Text("Confirm Delete") },
-                text = { Text("Are you sure you want to delete this instructor?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            instructorToDelete?.let { instructor ->
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            val fullName = newInstructorName
+                            if (fullName.isNotBlank()) {
+                                val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
+                                val instructorId = demographicsViewModel.insertUserSync(newUser)
+                                selectedStudentsForAddInstructor.forEach { studentId ->
+                                    if (selectedProgramForAddInstructor != null) {
+                                        demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAddInstructor!!))
+                                    }
+                                }
+                                if (selectedProgramForAddInstructor != null) {
+                                    demographicsViewModel.insertInstructorProgramAssignment(InstructorProgramAssignmentEntity(instructor_id = instructorId, program_id = selectedProgramForAddInstructor!!))
+                                }
+                                demographicsViewModel.loadInstructors()
+                                showAddInstructorDialog = false
+                                newInstructorName = ""
+                                selectedStudentsForAddInstructor = emptySet()
+                                selectedProgramForAddInstructor = null
+                                Toast.makeText(context, "Instructor added successfully", Toast.LENGTH_SHORT).show()
+                            } else {
                                 coroutineScope.launch {
-                                    try {
-                                        viewModel.deleteInstructorProgramAssignmentsForInstructor(instructor.id)
-                                        if (viewModel.canDeleteInstructor(instructor.id)) {
-                                            viewModel.deleteUser(instructor)
-                                        }
-                                        showDialog = false
-                                        snackbarHostState.showSnackbar("Instructor deleted successfully")
-                                    } catch (e: Exception) {
-                                        Log.e("InstructorsTab", "Error deleting instructor: ${e.message}", e)
-                                        snackbarHostState.showSnackbar("Error deleting instructor: ${e.message}")
+                                    snackbarHostState.showSnackbar("Instructor name is required")
+                                }
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showAddInstructorDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showEditInstructorDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditInstructorDialog = false },
+            title = { Text("Edit Instructor") },
+            text = {
+                Column {
+                    TextField(
+                        value = editInstructorName,
+                        onValueChange = { editInstructorName = it },
+                        label = { Text("Instructor Name") }
+                    )
+                    Text(text = "Select Students:")
+                    when (val state = studentsState) {
+                        is AppState.Loading -> Text("Loading...")
+                        is AppState.Success -> {
+                            LazyColumn {
+                                items(state.data) { student: PeclStudentEntity ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedStudentsForEdit.contains(student.id),
+                                            onCheckedChange = { checked ->
+                                                selectedStudentsForEdit = if (checked) selectedStudentsForEdit + student.id else selectedStudentsForEdit - student.id
+                                            }
+                                        )
+                                        Text(student.fullName)
                                     }
                                 }
                             }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text("Yes")
+                        }
+                        is AppState.Error -> Text("Error: ${state.message}")
                     }
-                },
-                dismissButton = {
-                    Button(
-                        onClick = { showDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                        shape = RoundedCornerShape(4.dp)
+                    ExposedDropdownMenuBox(
+                        expanded = expandedProgramEditInstructor,
+                        onExpandedChange = { expandedProgramEditInstructor = !expandedProgramEditInstructor }
                     ) {
-                        Text("No")
+                        TextField(
+                            readOnly = true,
+                            value = programsState.data.find { it.id == selectedProgramForEditInstructor }?.name ?: "",
+                            onValueChange = { },
+                            label = { Text("Select Program") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProgramEditInstructor) },
+                            colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedProgramEditInstructor,
+                            onDismissRequest = { expandedProgramEditInstructor = false }
+                        ) {
+                            programsState.data.forEach { program ->
+                                DropdownMenuItem(
+                                    text = { Text(program.name) },
+                                    onClick = {
+                                        selectedProgramForEditInstructor = program.id
+                                        expandedProgramEditInstructor = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
-            )
-        }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            editInstructor?.let { instructor ->
+                                val updatedUser = instructor.copy(fullName = editInstructorName)
+                                demographicsViewModel.updateUser(updatedUser)
+                                demographicsViewModel.deleteAssignmentsForInstructor(instructor.id)
+                                selectedStudentsForEdit.forEach { studentId ->
+                                    if (selectedProgramForEditInstructor != null) {
+                                        demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructor.id, student_id = studentId, program_id = selectedProgramForEditInstructor!!))
+                                    }
+                                }
+                                if (selectedProgramForEditInstructor != null) {
+                                    demographicsViewModel.insertInstructorProgramAssignment(InstructorProgramAssignmentEntity(instructor_id = instructor.id, program_id = selectedProgramForEditInstructor!!))
+                                }
+                                showEditInstructorDialog = false
+                                Toast.makeText(context, "Instructor updated successfully", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showEditInstructorDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
-        SnackbarHost(hostState = snackbarHostState)
+    if (showAssignDialog) {
+        AlertDialog(
+            onDismissRequest = { showAssignDialog = false },
+            title = { Text("Assign Students to ${selectedInstructorForAssign?.fullName}") },
+            text = {
+                Column {
+                    Text(text = "Select Students:")
+                    when (val state = studentsState) {
+                        is AppState.Loading -> Text("Loading...")
+                        is AppState.Success -> {
+                            LazyColumn {
+                                items(state.data) { student: PeclStudentEntity ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedStudentsForAssign.contains(student.id),
+                                            onCheckedChange = { checked ->
+                                                selectedStudentsForAssign = if (checked) selectedStudentsForAssign + student.id else selectedStudentsForAssign - student.id
+                                            }
+                                        )
+                                        Text(student.fullName)
+                                    }
+                                }
+                            }
+                        }
+                        is AppState.Error -> Text("Error: ${state.message}")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            selectedInstructorForAssign?.let { instructor: UserEntity ->
+                                val instructorProgramId = selectedProgramForAssign
+                                if (instructorProgramId == null) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Instructor has no assigned program")
+                                    }
+                                    return@launch
+                                }
+                                demographicsViewModel.deleteAssignmentsForInstructor(instructor.id)
+                                selectedStudentsForAssign.forEach { studentId ->
+                                    demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructor.id, student_id = studentId, program_id = instructorProgramId))
+                                }
+                                demographicsViewModel.loadInstructors()
+                                showAssignDialog = false
+                                selectedStudentsForAssign = emptySet()
+                                Toast.makeText(context, "Students assigned successfully", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showAssignDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

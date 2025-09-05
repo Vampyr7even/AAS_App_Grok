@@ -6,6 +6,7 @@ import com.example.aas_app.data.dao.*
 import com.example.aas_app.data.entity.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -540,51 +541,70 @@ class AppRepository @Inject constructor(
         runBlocking {
             appDatabase.withTransaction {
                 try {
-                    // Example data for programs
-                    peclProgramDao.insertProgram(PeclProgramEntity(id = 0, name = "Program A"))
-                    peclProgramDao.insertProgram(PeclProgramEntity(id = 0, name = "Program B"))
+                    // Insert Programs from ProgramData
+                    ProgramData.programData.forEach { name ->
+                        peclProgramDao.insertProgram(PeclProgramEntity(name = name))
+                    }
 
-                    // Example data for POIs
-                    val poiId1 = peclPoiDao.insertPoi(PeclPoiEntity(id = 0, name = "POI 1"))
-                    val poiId2 = peclPoiDao.insertPoi(PeclPoiEntity(id = 0, name = "POI 2"))
-                    poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poiId1, program_id = 1))
-                    poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poiId2, program_id = 2))
+                    // Insert POIs and assignments from PoiData
+                    val programs = peclProgramDao.getAllPrograms().first()
+                    PoiData.poiData.forEach { (name, programNames) ->
+                        val poiId = peclPoiDao.insertPoi(PeclPoiEntity(name = name))
+                        programNames.forEach { programName ->
+                            val programId = programs.find { it.name == programName }?.id ?: 0L
+                            if (programId != 0L) {
+                                poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poiId, program_id = programId))
+                            }
+                        }
+                    }
 
-                    // Example data for tasks
-                    val taskId1 = peclTaskDao.insertTask(PeclTaskEntity(id = 0, name = "Task 1"))
-                    val taskId2 = peclTaskDao.insertTask(PeclTaskEntity(id = 0, name = "Task 2"))
-                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId1, poi_id = poiId1))
-                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId2, poi_id = poiId2))
+                    // Insert Tasks and assignments from TaskData
+                    val pois = peclPoiDao.getAllPois().first()
+                    TaskData.taskData.forEach { (name, poiNames) ->
+                        val taskId = peclTaskDao.insertTask(PeclTaskEntity(name = name))
+                        poiNames.forEach { poiName ->
+                            val poiId = pois.find { it.name == poiName }?.id ?: 0L
+                            if (poiId != 0L) {
+                                taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId, poi_id = poiId))
+                            }
+                        }
+                    }
 
-                    // Example data for questions
-                    val questionId1 = questionDao.insertQuestion(PeclQuestionEntity(id = 0, subTask = "SubTask 1", controlType = "ComboBox", scale = "Scale_PECL", criticalTask = "YES"))
-                    val questionId2 = questionDao.insertQuestion(PeclQuestionEntity(id = 0, subTask = "SubTask 2", controlType = "TextBox", scale = "Scale_Yes_No", criticalTask = "NO"))
-                    questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = questionId1, task_id = taskId1))
-                    questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = questionId2, task_id = taskId2))
+                    // Insert Questions and assignments from QuestionData
+                    val tasks = peclTaskDao.getAllTasks().first()
+                    QuestionData.questionData.forEach { (questionEntity, taskName) ->
+                        val questionId = questionDao.insertQuestion(questionEntity)
+                        val taskId = tasks.find { it.name == taskName }?.id ?: 0L
+                        if (taskId != 0L) {
+                            questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = questionId, task_id = taskId))
+                        }
+                    }
 
-                    // Example data for students
-                    peclStudentDao.insertStudent(PeclStudentEntity(id = 0, firstName = "John", lastName = "Doe", fullName = "Doe, John", grade = "A", pin = 1234))
-                    peclStudentDao.insertStudent(PeclStudentEntity(id = 0, firstName = "Jane", lastName = "Smith", fullName = "Smith, Jane", grade = "B", pin = 5678))
+                    // Insert Scales from ScaleData
+                    ScaleData.scaleData.forEach { scale ->
+                        scaleDao.insertScale(scale)
+                    }
 
-                    // Example data for instructors
-                    val instructorId = userDao.insertUser(UserEntity(id = 0, firstName = "Instructor", lastName = "One", fullName = "One, Instructor", grade = "", pin = null, role = "instructor"))
-                    instructorStudentAssignmentDao.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = 1, program_id = 1))
+                    // Insert Instructors from PeclInstructorData as users with role 'instructor'
+                    val instructorPrograms = peclProgramDao.getAllPrograms().first()
+                    PeclInstructorData.instructorData.forEach { (fullName, programName) ->
+                        val names = fullName.split(" ")
+                        val firstName = names[0]
+                        val lastName = names.getOrElse(1) { "" }
+                        val userId = userDao.insertUser(UserEntity(firstName = firstName, lastName = lastName, fullName = fullName, grade = "", pin = null, role = "instructor"))
+                        val programId = instructorPrograms.find { it.name == programName }?.id ?: 0L
+                        if (programId != 0L) {
+                            instructorProgramAssignmentDao.insertAssignment(InstructorProgramAssignmentEntity(instructor_id = userId, program_id = programId))
+                        }
+                    }
 
-                    // Example data for demo templates
-                    demoTemplatesDao.insert(DemoTemplateEntity(templateName = "Template A", selectedItems = "1,2,3"))
-                    demoTemplatesDao.insert(DemoTemplateEntity(templateName = "Template B", selectedItems = "4,5"))
+                    // Insert Students from PeclStudentData
+                    PeclStudentData.studentData.forEach { student ->
+                        peclStudentDao.insertStudent(student)
+                    }
 
-                    // Example data for projects
-                    projectDao.insert(ProjectEntity(projectName = "Project X"))
-                    projectDao.insert(ProjectEntity(projectName = "Project Y"))
+                    // Example assignments if needed
 
-                    // Example data for question repository
-                    questionRepositoryDao.insert(QuestionRepositoryEntity(field = "Question 1", inputType = "TextBox", options = ""))
-                    questionRepositoryDao.insert(QuestionRepositoryEntity(field = "Question 2", inputType = "ComboBox", options = "Yes,No"))
-
-                    // Example data for responses
-                    responseDao.insert(ResponseEntity(userId = 1, questionId = 1, answer = "Response 1", surveyDate = "2025-09-05"))
-                    responseDao.insert(ResponseEntity(userId = 1, questionId = 2, answer = "Yes", surveyDate = "2025-09-05"))
                 } catch (e: Exception) {
                     Log.e("AppRepository", "Error pre-populating database: ${e.message}", e)
                     throw e
