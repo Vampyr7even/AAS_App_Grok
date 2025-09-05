@@ -85,14 +85,8 @@ fun PeclScreen(navController: NavController, instructorId: Long) {
             horizontalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             PeclModuleNavButton("Evaluate", selectedTab == "Evaluate") {
-                try {
-                    Log.d("PeclScreen", "Navigating to pecl/evaluate")
-                    navController.navigate("pecl/evaluate")
-                    selectedTab = "Evaluate"
-                } catch (e: Exception) {
-                    Log.e("PeclScreen", "Navigation error to pecl/evaluate: ${e.message}", e)
-                    errorMessage = "Navigation failed: ${e.message}"
-                }
+                Log.d("PeclScreen", "Selected Evaluate tab")
+                selectedTab = "Evaluate"
             }
             PeclModuleNavButton("Programs", selectedTab == "Programs") {
                 Log.d("PeclScreen", "Selected Programs tab")
@@ -148,7 +142,7 @@ fun PeclScreen(navController: NavController, instructorId: Long) {
                 }
                 "Instructors" -> {
                     Log.d("PeclScreen", "Rendering InstructorsTab")
-                    InstructorsTab(demographicsViewModel, peclViewModel, errorMessage, snackbarHostState, coroutineScope)
+                    InstructorsTab(navController, demographicsViewModel, peclViewModel, errorMessage, snackbarHostState, coroutineScope)
                 }
                 "Students" -> {
                     Log.d("PeclScreen", "Rendering StudentsTab")

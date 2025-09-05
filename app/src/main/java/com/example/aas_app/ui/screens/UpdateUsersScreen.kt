@@ -86,14 +86,23 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                when (val state = instructorsState.value) {
+                when (val state = instructorsState) {
                     is AppState.Loading -> CircularProgressIndicator()
                     is AppState.Success -> {
-                        val instructorAssignments = viewModel.getAssignmentsForInstructorSync(selectedInstructor?.id ?: 0L)
-                        val assignedStudentIds = instructorAssignments.map { assignment -> assignment.student_id }.toSet()
-                        val programIds = viewModel.getProgramIdsForInstructorSync(selectedInstructor?.id ?: 0L)
-                        val programs = when (val programState = programsState.value) {
-                            is AppState.Success -> programState.data.filter { it.id in programIds }.sortedBy { it.name }
+                        val instructorAssignments = mutableListOf<InstructorStudentAssignmentEntity>()
+                        val programIds = mutableListOf<Long>()
+                        coroutineScope.launch {
+                            try {
+                                instructorAssignments.addAll(viewModel.getAssignmentsForInstructorSync(selectedInstructor?.id ?: 0L))
+                                programIds.addAll(viewModel.getProgramIdsForInstructorSync(selectedInstructor?.id ?: 0L))
+                            } catch (e: Exception) {
+                                Log.e("UpdateUsersScreen", "Error loading assignments or program IDs: ${e.message}", e)
+                                snackbarHostState.showSnackbar("Error loading data: ${e.message}")
+                            }
+                        }
+                        val assignedStudentIds = instructorAssignments.map { it.student_id }.toSet()
+                        val programs = when (val programState = programsState) {
+                            is AppState.Success -> programState.data.filter { it.id in programIds }.sortedBy { program -> program.name }
                             else -> emptyList()
                         }
                         if (state.data.isEmpty()) {
@@ -104,16 +113,19 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                             )
                         } else {
                             LazyColumn {
-                                items(state.data.sortedBy { it.fullName }) { instructor ->
+                                items(state.data.sortedBy { instructor -> instructor.fullName }) { instructor ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(text = instructor.fullName, modifier = Modifier.weight(1f))
                                         Text(
-                                            text = programs.joinToString { it.name },
+                                            text = instructor.fullName,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            text = programs.joinToString { program -> program.name },
                                             modifier = Modifier.weight(1f)
                                         )
                                         IconButton(onClick = {
@@ -123,11 +135,16 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                                         }
                                         IconButton(onClick = {
                                             coroutineScope.launch {
-                                                if (viewModel.canDeleteInstructor(instructor.id)) {
-                                                    userToDelete = instructor
-                                                    showDialog = true
-                                                } else {
-                                                    snackbarHostState.showSnackbar("Cannot delete instructor with assigned students or programs")
+                                                try {
+                                                    if (viewModel.canDeleteInstructor(instructor.id)) {
+                                                        userToDelete = instructor
+                                                        showDialog = true
+                                                    } else {
+                                                        snackbarHostState.showSnackbar("Cannot delete instructor with assigned students or programs")
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Log.e("UpdateUsersScreen", "Error checking deletion: ${e.message}", e)
+                                                    snackbarHostState.showSnackbar("Error: ${e.message}")
                                                 }
                                             }
                                         }) {
@@ -157,7 +174,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                         expanded = showProgramDialog,
                         onDismissRequest = { showProgramDialog = false }
                     ) {
-                        when (val state = programsState.value) {
+                        when (val state = programsState) {
                             is AppState.Success -> {
                                 state.data.forEach { program ->
                                     DropdownMenuItem(
@@ -199,27 +216,34 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                     onClick = {
                         if (newFirstName.isNotBlank() && newLastName.isNotBlank()) {
                             coroutineScope.launch {
-                                val newUserId = viewModel.insertUserSync(
-                                    UserEntity(
-                                        firstName = newFirstName,
-                                        lastName = newLastName,
-                                        fullName = "$newLastName, $newFirstName",
-                                        role = "instructor",
-                                        pin = newPin.toIntOrNull()
-                                    )
-                                )
-                                if (newUserId != -1L && selectedProgram != null) {
-                                    viewModel.insertInstructorProgramAssignment(
-                                        InstructorProgramAssignmentEntity(
-                                            instructor_id = newUserId,
-                                            program_id = selectedProgram!!.id
+                                try {
+                                    val newUserId = viewModel.insertUserSync(
+                                        UserEntity(
+                                            firstName = newFirstName,
+                                            lastName = newLastName,
+                                            fullName = "$newLastName, $newFirstName",
+                                            grade = "",
+                                            role = "instructor",
+                                            pin = newPin.toIntOrNull()
                                         )
                                     )
+                                    if (newUserId != -1L && selectedProgram != null) {
+                                        viewModel.insertInstructorProgramAssignment(
+                                            InstructorProgramAssignmentEntity(
+                                                instructor_id = newUserId,
+                                                program_id = selectedProgram!!.id
+                                            )
+                                        )
+                                    }
+                                    newFirstName = ""
+                                    newLastName = ""
+                                    newPin = ""
+                                    selectedProgram = null
+                                    snackbarHostState.showSnackbar("Instructor added successfully")
+                                } catch (e: Exception) {
+                                    Log.e("UpdateUsersScreen", "Error adding instructor: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error adding instructor: ${e.message}")
                                 }
-                                newFirstName = ""
-                                newLastName = ""
-                                newPin = ""
-                                selectedProgram = null
                             }
                         } else {
                             coroutineScope.launch {
@@ -240,10 +264,10 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                when (val state = studentsState.value) {
+                when (val state = studentsState) {
                     is AppState.Loading -> CircularProgressIndicator()
                     is AppState.Success -> {
-                        val students = state.data.sortedBy { it.fullName }
+                        val students = state.data.sortedBy { student -> student.fullName }
                         if (students.isEmpty()) {
                             Text(
                                 text = "No students available.",
@@ -259,7 +283,10 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                                             .padding(vertical = 4.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(text = student.fullName, modifier = Modifier.weight(1f))
+                                        Text(
+                                            text = student.fullName,
+                                            modifier = Modifier.weight(1f)
+                                        )
                                         IconButton(onClick = {
                                             navController.navigate("editStudent/${student.id}")
                                         }) {
@@ -295,7 +322,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                         expanded = showStudentDialog,
                         onDismissRequest = { showStudentDialog = false }
                     ) {
-                        when (val state = instructorsState.value) {
+                        when (val state = instructorsState) {
                             is AppState.Success -> {
                                 state.data.forEach { instructor ->
                                     DropdownMenuItem(
@@ -328,7 +355,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                         expanded = showProgramDialog,
                         onDismissRequest = { showProgramDialog = false }
                     ) {
-                        when (val state = programsState.value) {
+                        when (val state = programsState) {
                             is AppState.Success -> {
                                 state.data.forEach { program ->
                                     DropdownMenuItem(
@@ -370,28 +397,34 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                     onClick = {
                         if (newFirstName.isNotBlank() && newLastName.isNotBlank()) {
                             coroutineScope.launch {
-                                val student = PeclStudentEntity(
-                                    firstName = newFirstName,
-                                    lastName = newLastName,
-                                    fullName = "$newLastName, $newFirstName",
-                                    grade = "",
-                                    pin = newPin.toIntOrNull() ?: 0
-                                )
-                                viewModel.insertPeclStudent(student)
-                                if (selectedInstructor != null && selectedProgram != null) {
-                                    viewModel.insertAssignment(
-                                        InstructorStudentAssignmentEntity(
-                                            instructor_id = selectedInstructor!!.id,
-                                            student_id = student.id,
-                                            program_id = selectedProgram!!.id
-                                        )
+                                try {
+                                    val student = PeclStudentEntity(
+                                        firstName = newFirstName,
+                                        lastName = newLastName,
+                                        fullName = "$newLastName, $newFirstName",
+                                        grade = "",
+                                        pin = newPin.toIntOrNull() ?: 0
                                     )
+                                    viewModel.insertPeclStudent(student)
+                                    if (selectedInstructor != null && selectedProgram != null) {
+                                        viewModel.insertAssignment(
+                                            InstructorStudentAssignmentEntity(
+                                                instructor_id = selectedInstructor!!.id,
+                                                student_id = student.id,
+                                                program_id = selectedProgram!!.id
+                                            )
+                                        )
+                                    }
+                                    newFirstName = ""
+                                    newLastName = ""
+                                    newPin = ""
+                                    selectedInstructor = null
+                                    selectedProgram = null
+                                    snackbarHostState.showSnackbar("Student added successfully")
+                                } catch (e: Exception) {
+                                    Log.e("UpdateUsersScreen", "Error adding student: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error adding student: ${e.message}")
                                 }
-                                newFirstName = ""
-                                newLastName = ""
-                                newPin = ""
-                                selectedInstructor = null
-                                selectedProgram = null
                             }
                         } else {
                             coroutineScope.launch {
@@ -412,18 +445,21 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                when (val state = usersState.value) {
+                when (val state = usersState) {
                     is AppState.Loading -> CircularProgressIndicator()
                     is AppState.Success -> {
                         LazyColumn {
-                            items(state.data.sortedBy { it.fullName }) { user ->
+                            items(state.data.sortedBy { user -> user.fullName }) { user ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(text = user.fullName, modifier = Modifier.weight(1f))
+                                    Text(
+                                        text = user.fullName,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                     IconButton(onClick = {
                                         navController.navigate("editUser/${user.id}/${user.role}")
                                     }) {
@@ -452,12 +488,20 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                 confirmButton = {
                     Button(
                         onClick = {
-                            if (role == "student") {
-                                studentToDelete?.let { viewModel.deletePeclStudent(it) }
-                            } else {
-                                userToDelete?.let { viewModel.deleteUser(it) }
+                            coroutineScope.launch {
+                                try {
+                                    if (role == "student") {
+                                        studentToDelete?.let { viewModel.deletePeclStudent(it) }
+                                    } else {
+                                        userToDelete?.let { viewModel.deleteUser(it) }
+                                    }
+                                    showDialog = false
+                                    snackbarHostState.showSnackbar("Deleted successfully")
+                                } catch (e: Exception) {
+                                    Log.e("UpdateUsersScreen", "Error deleting: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error deleting: ${e.message}")
+                                }
                             }
-                            showDialog = false
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                         shape = RoundedCornerShape(4.dp)

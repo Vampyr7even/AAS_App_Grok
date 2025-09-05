@@ -25,11 +25,12 @@ import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.DemographicsViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InstructorsTab(navController: NavController) {
+fun InstructorsTab(navController: NavController, demographicsViewModel: DemographicsViewModel, peclViewModel: com.example.aas_app.viewmodel.PeclViewModel, errorMessage: String?, snackbarHostState: SnackbarHostState, coroutineScope: CoroutineScope) {
     val viewModel = hiltViewModel<DemographicsViewModel>()
     val instructorsState by viewModel.instructorsState.observeAsState(AppState.Loading)
     val programsState by viewModel.programsState.observeAsState(AppState.Loading)
@@ -42,8 +43,6 @@ fun InstructorsTab(navController: NavController) {
     var instructorToDelete by remember { mutableStateOf<UserEntity?>(null) }
     var selectedProgram by remember { mutableStateOf<PeclProgramEntity?>(null) }
     var showProgramDialog by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.loadInstructors()
@@ -63,14 +62,9 @@ fun InstructorsTab(navController: NavController) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        when (val state = instructorsState.value) {
+        when (val state = instructorsState) {
             is AppState.Loading -> CircularProgressIndicator()
             is AppState.Success -> {
-                val programIds = viewModel.getProgramIdsForInstructorSync(instructorToDelete?.id ?: 0L)
-                val programs = when (val programState = programsState.value) {
-                    is AppState.Success -> programState.data.filter { it.id in programIds }.sortedBy { it.name }
-                    else -> emptyList()
-                }
                 if (state.data.isEmpty()) {
                     Text(
                         text = "No instructors available.",
@@ -79,13 +73,22 @@ fun InstructorsTab(navController: NavController) {
                     )
                 } else {
                     LazyColumn {
-                        items(state.data.sortedBy { it.fullName }) { instructor ->
-                            val assignments = viewModel.getAssignmentsForInstructorSync(instructor.id)
-                            val assignedIds = assignments.map { assignment -> assignment.student_id }.toSet()
-                            val programIdsForInstructor = viewModel.getProgramIdsForInstructorSync(instructor.id)
-                            val programsForInstructor = when (val programState = programsState.value) {
-                                is AppState.Success -> programState.data.filter { it.id in programIdsForInstructor }.sortedBy { it.name }
-                                else -> emptyList()
+                        items(state.data.sortedBy { instructor -> instructor.fullName }) { instructor ->
+                            val assignments = remember { mutableStateOf<List<InstructorStudentAssignmentEntity>>(emptyList()) }
+                            val programIds = remember { mutableStateOf<List<Long>>(emptyList()) }
+                            val programsForInstructor = remember { mutableStateOf<List<PeclProgramEntity>>(emptyList()) }
+                            coroutineScope.launch {
+                                try {
+                                    assignments.value = viewModel.getAssignmentsForInstructorSync(instructor.id)
+                                    programIds.value = viewModel.getProgramIdsForInstructorSync(instructor.id)
+                                    val programState = programsState
+                                    if (programState is AppState.Success) {
+                                        programsForInstructor.value = programState.data.filter { it.id in programIds.value }.sortedBy { program -> program.name }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("InstructorsTab", "Error loading assignments or programs: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error loading data: ${e.message}")
+                                }
                             }
                             Row(
                                 modifier = Modifier
@@ -98,7 +101,7 @@ fun InstructorsTab(navController: NavController) {
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(
-                                    text = programsForInstructor.joinToString { it.name },
+                                    text = programsForInstructor.value.joinToString { program -> program.name },
                                     modifier = Modifier.weight(1f)
                                 )
                                 IconButton(onClick = {
@@ -108,11 +111,16 @@ fun InstructorsTab(navController: NavController) {
                                 }
                                 IconButton(onClick = {
                                     coroutineScope.launch {
-                                        if (viewModel.canDeleteInstructor(instructor.id)) {
-                                            instructorToDelete = instructor
-                                            showDialog = true
-                                        } else {
-                                            snackbarHostState.showSnackbar("Cannot delete instructor with assigned students or programs")
+                                        try {
+                                            if (viewModel.canDeleteInstructor(instructor.id)) {
+                                                instructorToDelete = instructor
+                                                showDialog = true
+                                            } else {
+                                                snackbarHostState.showSnackbar("Cannot delete instructor with assigned students or programs")
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("InstructorsTab", "Error checking deletion: ${e.message}", e)
+                                            snackbarHostState.showSnackbar("Error: ${e.message}")
                                         }
                                     }
                                 }) {
@@ -164,7 +172,7 @@ fun InstructorsTab(navController: NavController) {
                 expanded = showProgramDialog,
                 onDismissRequest = { showProgramDialog = false }
             ) {
-                when (val state = programsState.value) {
+                when (val state = programsState) {
                     is AppState.Success -> {
                         state.data.forEach { program ->
                             DropdownMenuItem(
@@ -185,27 +193,34 @@ fun InstructorsTab(navController: NavController) {
             onClick = {
                 if (newFirstName.isNotBlank() && newLastName.isNotBlank()) {
                     coroutineScope.launch {
-                        val newUserId = viewModel.insertUserSync(
-                            UserEntity(
-                                firstName = newFirstName,
-                                lastName = newLastName,
-                                fullName = "$newLastName, $newFirstName",
-                                role = "instructor",
-                                pin = newPin.toIntOrNull()
-                            )
-                        )
-                        if (newUserId != -1L && selectedProgram != null) {
-                            viewModel.insertInstructorProgramAssignment(
-                                InstructorProgramAssignmentEntity(
-                                    instructor_id = newUserId,
-                                    program_id = selectedProgram!!.id
+                        try {
+                            val newUserId = viewModel.insertUserSync(
+                                UserEntity(
+                                    firstName = newFirstName,
+                                    lastName = newLastName,
+                                    fullName = "$newLastName, $newFirstName",
+                                    grade = "",
+                                    pin = newPin.toIntOrNull(),
+                                    role = "instructor"
                                 )
                             )
+                            if (newUserId != -1L && selectedProgram != null) {
+                                viewModel.insertInstructorProgramAssignment(
+                                    InstructorProgramAssignmentEntity(
+                                        instructor_id = newUserId,
+                                        program_id = selectedProgram!!.id
+                                    )
+                                )
+                            }
+                            newFirstName = ""
+                            newLastName = ""
+                            newPin = ""
+                            selectedProgram = null
+                            snackbarHostState.showSnackbar("Instructor added successfully")
+                        } catch (e: Exception) {
+                            Log.e("InstructorsTab", "Error adding instructor: ${e.message}", e)
+                            snackbarHostState.showSnackbar("Error adding instructor: ${e.message}")
                         }
-                        newFirstName = ""
-                        newLastName = ""
-                        newPin = ""
-                        selectedProgram = null
                     }
                 } else {
                     coroutineScope.launch {
@@ -230,11 +245,17 @@ fun InstructorsTab(navController: NavController) {
                         onClick = {
                             instructorToDelete?.let { instructor ->
                                 coroutineScope.launch {
-                                    viewModel.deleteInstructorProgramAssignmentsForInstructor(instructor.id)
-                                    if (viewModel.canDeleteInstructor(instructor.id)) {
-                                        viewModel.deleteUser(instructor)
+                                    try {
+                                        viewModel.deleteInstructorProgramAssignmentsForInstructor(instructor.id)
+                                        if (viewModel.canDeleteInstructor(instructor.id)) {
+                                            viewModel.deleteUser(instructor)
+                                        }
+                                        showDialog = false
+                                        snackbarHostState.showSnackbar("Instructor deleted successfully")
+                                    } catch (e: Exception) {
+                                        Log.e("InstructorsTab", "Error deleting instructor: ${e.message}", e)
+                                        snackbarHostState.showSnackbar("Error deleting instructor: ${e.message}")
                                     }
-                                    showDialog = false
                                 }
                             }
                         },
