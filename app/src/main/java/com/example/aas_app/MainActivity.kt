@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -148,11 +150,17 @@ fun AppNavigation() {
             )
         }
         composable(
-            route = "peclDashboard/{instructorId}",
-            arguments = listOf(navArgument("instructorId") { type = NavType.LongType })
+            route = "peclDashboard/{programId}/{poiId}/{instructorId}",
+            arguments = listOf(
+                navArgument("programId") { type = NavType.LongType },
+                navArgument("poiId") { type = NavType.LongType },
+                navArgument("instructorId") { type = NavType.LongType }
+            )
         ) { backStackEntry ->
             PeclDashboardScreen(
                 navController = navController,
+                programId = backStackEntry.arguments?.getLong("programId") ?: 0L,
+                poiId = backStackEntry.arguments?.getLong("poiId") ?: 0L,
                 instructorId = backStackEntry.arguments?.getLong("instructorId") ?: 0L
             )
         }

@@ -1,6 +1,7 @@
 package com.example.aas_app.ui.screens
 
 import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,7 @@ import com.example.aas_app.data.entity.CommentEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.UserEntity
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PeclViewModel
@@ -96,7 +98,7 @@ fun PeclDashboardScreen(
                 tasks.forEach { task ->
                     val key = Pair(student.id, task.id)
                     taskGradesByStudentTask[key] = null
-                    viewModel.getTaskGradeForStudent(student.id, task.id).collect { grade ->
+                    viewModel.getTaskGradeForStudent(student.id, task.id).collect { grade: Double? ->
                         taskGradesByStudentTask[key] = grade
                     }
                 }

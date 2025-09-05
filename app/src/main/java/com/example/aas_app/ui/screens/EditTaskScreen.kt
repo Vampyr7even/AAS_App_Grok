@@ -2,6 +2,7 @@ package com.example.aas_app.ui.screens
 
 import android.util.Log
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,10 +24,13 @@ fun EditTaskScreen(navController: NavController, taskId: Long, poiId: Long) {
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) {
-        viewModel.getTaskById(taskId) { task ->
-            task?.let {
-                taskName = it.name
+    LaunchedEffect(taskId) {
+        val task = viewModel.getTaskById(taskId)
+        task?.let {
+            taskName = it.name
+        } ?: run {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Error loading task")
             }
         }
     }

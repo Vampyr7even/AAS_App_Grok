@@ -1,11 +1,13 @@
 package com.example.aas_app.di
 
-import android.app.Application
+import android.content.Context
 import com.example.aas_app.data.AppDatabase
+import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.dao.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -15,75 +17,153 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAppDatabase(app: Application): AppDatabase {
-        return AppDatabase.getDatabase(app)
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        return AppDatabase.getDatabase(context)
     }
 
     @Provides
     @Singleton
-    fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
+    fun provideAppRepository(
+        database: AppDatabase,
+        userDao: UserDao,
+        peclProgramDao: PeclProgramDao,
+        peclPoiDao: PeclPoiDao,
+        peclTaskDao: PeclTaskDao,
+        questionDao: QuestionDao,
+        scaleDao: ScaleDao,
+        peclStudentDao: PeclStudentDao,
+        commentDao: CommentDao,
+        evaluationResultDao: EvaluationResultDao,
+        instructorStudentAssignmentDao: InstructorStudentAssignmentDao,
+        instructorProgramAssignmentDao: InstructorProgramAssignmentDao,
+        poiProgramAssignmentDao: PoiProgramAssignmentDao,
+        taskPoiAssignmentDao: TaskPoiAssignmentDao,
+        demoTemplatesDao: DemoTemplatesDao,
+        projectDao: ProjectDao,
+        questionRepositoryDao: QuestionRepositoryDao,
+        responseDao: ResponseDao
+    ): AppRepository {
+        return AppRepository(
+            database,
+            userDao,
+            peclProgramDao,
+            peclPoiDao,
+            peclTaskDao,
+            questionDao,
+            scaleDao,
+            peclStudentDao,
+            commentDao,
+            evaluationResultDao,
+            instructorStudentAssignmentDao,
+            instructorProgramAssignmentDao,
+            poiProgramAssignmentDao,
+            taskPoiAssignmentDao,
+            demoTemplatesDao,
+            projectDao,
+            questionRepositoryDao,
+            responseDao
+        )
+    }
 
     @Provides
     @Singleton
-    fun providePeclProgramDao(db: AppDatabase): PeclProgramDao = db.peclProgramDao()
+    fun provideUserDao(database: AppDatabase): UserDao {
+        return database.userDao()
+    }
 
     @Provides
     @Singleton
-    fun providePeclPoiDao(db: AppDatabase): PeclPoiDao = db.peclPoiDao()
+    fun providePeclProgramDao(database: AppDatabase): PeclProgramDao {
+        return database.peclProgramDao()
+    }
 
     @Provides
     @Singleton
-    fun providePeclTaskDao(db: AppDatabase): PeclTaskDao = db.peclTaskDao()
+    fun providePeclPoiDao(database: AppDatabase): PeclPoiDao {
+        return database.peclPoiDao()
+    }
 
     @Provides
     @Singleton
-    fun provideQuestionDao(db: AppDatabase): QuestionDao = db.questionDao()
+    fun providePeclTaskDao(database: AppDatabase): PeclTaskDao {
+        return database.peclTaskDao()
+    }
 
     @Provides
     @Singleton
-    fun provideScaleDao(db: AppDatabase): ScaleDao = db.scaleDao()
+    fun provideQuestionDao(database: AppDatabase): QuestionDao {
+        return database.questionDao()
+    }
 
     @Provides
     @Singleton
-    fun providePeclStudentDao(db: AppDatabase): PeclStudentDao = db.peclStudentDao()
+    fun provideScaleDao(database: AppDatabase): ScaleDao {
+        return database.scaleDao()
+    }
 
     @Provides
     @Singleton
-    fun provideCommentDao(db: AppDatabase): CommentDao = db.commentDao()
+    fun providePeclStudentDao(database: AppDatabase): PeclStudentDao {
+        return database.peclStudentDao()
+    }
 
     @Provides
     @Singleton
-    fun provideEvaluationResultDao(db: AppDatabase): EvaluationResultDao = db.evaluationResultDao()
+    fun provideCommentDao(database: AppDatabase): CommentDao {
+        return database.commentDao()
+    }
 
     @Provides
     @Singleton
-    fun provideInstructorStudentAssignmentDao(db: AppDatabase): InstructorStudentAssignmentDao = db.instructorStudentAssignmentDao()
+    fun provideEvaluationResultDao(database: AppDatabase): EvaluationResultDao {
+        return database.evaluationResultDao()
+    }
 
     @Provides
     @Singleton
-    fun provideInstructorProgramAssignmentDao(db: AppDatabase): InstructorProgramAssignmentDao = db.instructorProgramAssignmentDao()
+    fun provideInstructorStudentAssignmentDao(database: AppDatabase): InstructorStudentAssignmentDao {
+        return database.instructorStudentAssignmentDao()
+    }
 
     @Provides
     @Singleton
-    fun providePoiProgramAssignmentDao(db: AppDatabase): PoiProgramAssignmentDao = db.poiProgramAssignmentDao()
+    fun provideInstructorProgramAssignmentDao(database: AppDatabase): InstructorProgramAssignmentDao {
+        return database.instructorProgramAssignmentDao()
+    }
 
     @Provides
     @Singleton
-    fun provideTaskPoiAssignmentDao(db: AppDatabase): TaskPoiAssignmentDao = db.taskPoiAssignmentDao()
+    fun providePoiProgramAssignmentDao(database: AppDatabase): PoiProgramAssignmentDao {
+        return database.poiProgramAssignmentDao()
+    }
 
     @Provides
     @Singleton
-    fun provideDemoTemplatesDao(db: AppDatabase): DemoTemplatesDao = db.demoTemplatesDao()
+    fun provideTaskPoiAssignmentDao(database: AppDatabase): TaskPoiAssignmentDao {
+        return database.taskPoiAssignmentDao()
+    }
 
     @Provides
     @Singleton
-    fun provideProjectDao(db: AppDatabase): ProjectDao = db.projectDao()
+    fun provideDemoTemplatesDao(database: AppDatabase): DemoTemplatesDao {
+        return database.demoTemplatesDao()
+    }
 
     @Provides
     @Singleton
-    fun provideQuestionRepositoryDao(db: AppDatabase): QuestionRepositoryDao = db.questionRepositoryDao()
+    fun provideProjectDao(database: AppDatabase): ProjectDao {
+        return database.projectDao()
+    }
 
     @Provides
     @Singleton
-    fun provideResponseDao(db: AppDatabase): ResponseDao = db.responseDao()
+    fun provideQuestionRepositoryDao(database: AppDatabase): QuestionRepositoryDao {
+        return database.questionRepositoryDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideResponseDao(database: AppDatabase): ResponseDao {
+        return database.responseDao()
+    }
 }

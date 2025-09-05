@@ -9,6 +9,7 @@ import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.entity.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -262,6 +263,10 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
                 _evaluationsForStudentAndTaskState.postValue(AppState.Error(e.message ?: "Error loading evaluations"))
             }
         }
+    }
+
+    fun getTaskGradeForStudent(studentId: Long, taskId: Long): Flow<Double?> {
+        return repository.getTaskGradeForStudent(studentId, taskId)
     }
 
     fun insertEvaluationResult(result: PeclEvaluationResultEntity) {

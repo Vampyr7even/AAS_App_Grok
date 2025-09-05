@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens.pecl
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -23,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -34,20 +38,21 @@ import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
-import com.example.aas_app.viewmodel.TaskWithPois
+import kotlinx.coroutines.launch
 
 @Composable
 fun TasksTab(navController: NavController, poiId: Long) {
     val viewModel = hiltViewModel<AdminViewModel>()
     val tasksState by viewModel.tasksState.observeAsState(AppState.Loading)
+    var showDialog by remember { mutableStateOf(false) }
+    var selectedTask by remember { mutableStateOf<PeclTaskEntity?>(null) }
+    var newTaskName by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(poiId) {
         viewModel.loadTasksForPoi(poiId)
     }
-
-    var showDialog by remember { mutableStateOf(false) }
-    var selectedTask by remember { mutableStateOf<TaskWithPois?>(null) }
-    var newTaskName by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -57,13 +62,13 @@ fun TasksTab(navController: NavController, poiId: Long) {
             is AppState.Loading -> Text("Loading...")
             is AppState.Success -> {
                 LazyColumn {
-                    items(state.data) { taskWithPois ->
+                    items(state.data) { task: PeclTaskEntity ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(taskWithPois.task.name, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { /* Edit */ }) {
+                            Text(text = task.name, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { navController.navigate("editTask/${task.id}/$poiId") }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
-                            IconButton(onClick = { selectedTask = taskWithPois; showDialog = true }) {
+                            IconButton(onClick = { selectedTask = task; showDialog = true }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete")
                             }
                         }
@@ -80,34 +85,59 @@ fun TasksTab(navController: NavController, poiId: Long) {
         )
         Button(
             onClick = {
-                viewModel.insertTask(PeclTaskEntity(name = newTaskName), listOf(poiId))
-                newTaskName = ""
+                if (newTaskName.isNotBlank()) {
+                    coroutineScope.launch {
+                        try {
+                            viewModel.insertTask(PeclTaskEntity(name = newTaskName), listOf(poiId))
+                            newTaskName = ""
+                            snackbarHostState.showSnackbar("Task added successfully")
+                        } catch (e: Exception) {
+                            Log.e("TasksTab", "Error adding task: ${e.message}", e)
+                            snackbarHostState.showSnackbar("Error adding task: ${e.message}")
+                        }
+                    }
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Task name cannot be blank")
+                    }
+                }
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {
             Text("Add Task")
         }
-    }
+        SnackbarHost(hostState = snackbarHostState)
 
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Confirm Delete") },
-            text = { Text("Delete this task?") },
-            confirmButton = {
-                Button(onClick = {
-                    selectedTask?.let { viewModel.deleteTask(it.task) }
-                    showDialog = false
-                }) {
-                    Text("Yes")
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Confirm Delete") },
+                text = { Text("Delete this task?") },
+                confirmButton = {
+                    Button(onClick = {
+                        selectedTask?.let { task ->
+                            coroutineScope.launch {
+                                try {
+                                    viewModel.deleteTask(task)
+                                    snackbarHostState.showSnackbar("Task deleted successfully")
+                                } catch (e: Exception) {
+                                    Log.e("TasksTab", "Error deleting task: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error deleting task: ${e.message}")
+                                }
+                            }
+                        }
+                        showDialog = false
+                    }) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { showDialog = false }) {
+                        Text("No")
+                    }
                 }
-            },
-            dismissButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("No")
-                }
-            }
-        )
+            )
+        }
     }
 }

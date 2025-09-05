@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens.pecl
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -23,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -34,19 +38,21 @@ import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import kotlinx.coroutines.launch
 
 @Composable
 fun PoisTab(navController: NavController, programId: Long) {
     val viewModel = hiltViewModel<AdminViewModel>()
     val poisState by viewModel.poisState.observeAsState(AppState.Loading)
-
-    LaunchedEffect(Unit) {
-        viewModel.loadPoisForProgram(programId)
-    }
-
     var showDialog by remember { mutableStateOf(false) }
     var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
     var newPoiName by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(programId) {
+        viewModel.loadPoisForProgram(programId)
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -56,10 +62,10 @@ fun PoisTab(navController: NavController, programId: Long) {
             is AppState.Loading -> Text("Loading...")
             is AppState.Success -> {
                 LazyColumn {
-                    items(state.data) { poi ->
+                    items(state.data) { poi: PeclPoiEntity ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(poi.name, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { /* Edit */ }) {
+                            Text(text = poi.name, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { navController.navigate("editPois/${poi.id}") }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
                             IconButton(onClick = { selectedPoi = poi; showDialog = true }) {
@@ -79,34 +85,59 @@ fun PoisTab(navController: NavController, programId: Long) {
         )
         Button(
             onClick = {
-                viewModel.insertPoi(PeclPoiEntity(name = newPoiName), listOf(programId))
-                newPoiName = ""
+                if (newPoiName.isNotBlank()) {
+                    coroutineScope.launch {
+                        try {
+                            viewModel.insertPoi(PeclPoiEntity(name = newPoiName), listOf(programId))
+                            newPoiName = ""
+                            snackbarHostState.showSnackbar("POI added successfully")
+                        } catch (e: Exception) {
+                            Log.e("PoisTab", "Error adding POI: ${e.message}", e)
+                            snackbarHostState.showSnackbar("Error adding POI: ${e.message}")
+                        }
+                    }
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("POI name cannot be blank")
+                    }
+                }
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp)
         ) {
             Text("Add POI")
         }
-    }
+        SnackbarHost(hostState = snackbarHostState)
 
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Confirm Delete") },
-            text = { Text("Delete this POI?") },
-            confirmButton = {
-                Button(onClick = {
-                    selectedPoi?.let { viewModel.deletePoi(it) }
-                    showDialog = false
-                }) {
-                    Text("Yes")
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Confirm Delete") },
+                text = { Text("Delete this POI?") },
+                confirmButton = {
+                    Button(onClick = {
+                        selectedPoi?.let { poi ->
+                            coroutineScope.launch {
+                                try {
+                                    viewModel.deletePoi(poi)
+                                    snackbarHostState.showSnackbar("POI deleted successfully")
+                                } catch (e: Exception) {
+                                    Log.e("PoisTab", "Error deleting POI: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error deleting POI: ${e.message}")
+                                }
+                            }
+                        }
+                        showDialog = false
+                    }) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { showDialog = false }) {
+                        Text("No")
+                    }
                 }
-            },
-            dismissButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("No")
-                }
-            }
-        )
+            )
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.example.aas_app.ui.screens
 
 import android.util.Log
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,11 +25,14 @@ fun EditScaleScreen(navController: NavController, scaleId: Long) {
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) {
-        viewModel.getScaleById(scaleId) { scale ->
-            scale?.let {
-                scaleName = it.name
-                options = it.options
+    LaunchedEffect(scaleId) {
+        val scale = viewModel.getScaleById(scaleId)
+        scale?.let {
+            scaleName = it.scaleName
+            options = it.options
+        } ?: run {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Error loading scale")
             }
         }
     }
@@ -68,7 +72,7 @@ fun EditScaleScreen(navController: NavController, scaleId: Long) {
                             viewModel.updateScale(
                                 ScaleEntity(
                                     id = scaleId,
-                                    name = scaleName,
+                                    scaleName = scaleName,
                                     options = options
                                 )
                             )

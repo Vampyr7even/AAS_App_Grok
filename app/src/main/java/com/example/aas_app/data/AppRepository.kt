@@ -2,9 +2,11 @@ package com.example.aas_app.data
 
 import android.util.Log
 import androidx.room.withTransaction
-import com.example.aas_app.data.entity.*
 import com.example.aas_app.data.dao.*
+import com.example.aas_app.data.entity.*
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,7 +29,13 @@ class AppRepository @Inject constructor(
     private val commentDao: CommentDao,
     private val evaluationResultDao: EvaluationResultDao,
     private val instructorStudentAssignmentDao: InstructorStudentAssignmentDao,
-    private val instructorProgramAssignmentDao: InstructorProgramAssignmentDao
+    private val instructorProgramAssignmentDao: InstructorProgramAssignmentDao,
+    private val poiProgramAssignmentDao: PoiProgramAssignmentDao,
+    private val taskPoiAssignmentDao: TaskPoiAssignmentDao,
+    private val demoTemplatesDao: DemoTemplatesDao,
+    private val projectDao: ProjectDao,
+    private val questionRepositoryDao: QuestionRepositoryDao,
+    private val responseDao: ResponseDao
 ) {
 
     suspend fun insertUser(user: UserEntity): Long {
@@ -99,7 +107,7 @@ class AppRepository @Inject constructor(
         return try {
             val poiId = peclPoiDao.insertPoi(poi)
             programIds.forEach { programId ->
-                peclPoiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId, program_id = programId))
+                poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poiId, program_id = programId))
             }
             AppResult.Success(Unit)
         } catch (e: Exception) {
@@ -117,7 +125,7 @@ class AppRepository @Inject constructor(
             peclPoiDao.updatePoi(poi)
             peclPoiDao.deletePoiProgramAssignmentsForPoi(poi.id)
             programIds.forEach { programId ->
-                peclPoiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poi.id, program_id = programId))
+                poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poi.id, program_id = programId))
             }
             AppResult.Success(Unit)
         } catch (e: Exception) {
@@ -140,7 +148,7 @@ class AppRepository @Inject constructor(
         return try {
             val taskId = peclTaskDao.insertTask(task)
             poiIds.forEach { poiId ->
-                peclTaskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId, poi_id = poiId))
+                taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId, poi_id = poiId))
             }
             AppResult.Success(Unit)
         } catch (e: Exception) {
@@ -159,7 +167,7 @@ class AppRepository @Inject constructor(
             if (poiIds != null) {
                 peclTaskDao.deleteTaskPoiAssignmentsForTask(task.id)
                 poiIds.forEach { poiId ->
-                    peclTaskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = task.id, poi_id = poiId))
+                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = task.id, poi_id = poiId))
                 }
             }
             AppResult.Success(Unit)
@@ -338,7 +346,14 @@ class AppRepository @Inject constructor(
 
     fun getAssignmentsForInstructor(instructorId: Long): Flow<List<InstructorStudentAssignmentEntity>> = instructorStudentAssignmentDao.getAssignmentsForInstructor(instructorId)
 
-    fun getAssignmentsForStudent(studentId: Long): Flow<List<InstructorStudentAssignmentEntity>> = instructorStudentAssignmentDao.getAssignmentsForStudent(studentId)
+    fun getAssignmentForStudent(studentId: Long): Flow<InstructorStudentAssignmentEntity?> = flow {
+        try {
+            emit(instructorStudentAssignmentDao.getAssignmentForStudent(studentId))
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error getting assignment for student: ${e.message}", e)
+            emit(null)
+        }
+    }
 
     suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity) {
         try {
@@ -395,6 +410,132 @@ class AppRepository @Inject constructor(
         }
     }
 
+    suspend fun insertDemoTemplate(template: DemoTemplateEntity): AppResult<Unit> {
+        return try {
+            demoTemplatesDao.insert(template)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting demo template: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error inserting demo template")
+        }
+    }
+
+    suspend fun getAllDemoTemplates(): List<DemoTemplateEntity> = demoTemplatesDao.getAllDemoTemplates()
+
+    suspend fun updateDemoTemplate(template: DemoTemplateEntity): AppResult<Unit> {
+        return try {
+            demoTemplatesDao.update(template)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating demo template: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error updating demo template")
+        }
+    }
+
+    suspend fun deleteDemoTemplate(template: DemoTemplateEntity): AppResult<Unit> {
+        return try {
+            demoTemplatesDao.delete(template)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting demo template: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error deleting demo template")
+        }
+    }
+
+    suspend fun getDemoTemplateById(id: Long): DemoTemplateEntity? = demoTemplatesDao.getTemplateById(id)
+
+    suspend fun insertProject(project: ProjectEntity): AppResult<Unit> {
+        return try {
+            projectDao.insert(project)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting project: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error inserting project")
+        }
+    }
+
+    suspend fun getAllProjects(): List<ProjectEntity> = projectDao.getAllProjects()
+
+    suspend fun updateProject(project: ProjectEntity): AppResult<Unit> {
+        return try {
+            projectDao.update(project)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating project: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error updating project")
+        }
+    }
+
+    suspend fun deleteProject(project: ProjectEntity): AppResult<Unit> {
+        return try {
+            projectDao.delete(project)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting project: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error deleting project")
+        }
+    }
+
+    suspend fun getProjectById(id: Long): ProjectEntity? = projectDao.getProjectById(id)
+
+    suspend fun deleteAllProjects(): AppResult<Unit> {
+        return try {
+            projectDao.deleteAll()
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting all projects: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error deleting all projects")
+        }
+    }
+
+    suspend fun insertQuestionRepository(question: QuestionRepositoryEntity): AppResult<Unit> {
+        return try {
+            questionRepositoryDao.insert(question)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting question repository: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error inserting question repository")
+        }
+    }
+
+    suspend fun updateQuestionRepository(question: QuestionRepositoryEntity): AppResult<Unit> {
+        return try {
+            questionRepositoryDao.update(question)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating question repository: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error updating question repository")
+        }
+    }
+
+    suspend fun deleteQuestionRepository(question: QuestionRepositoryEntity): AppResult<Unit> {
+        return try {
+            questionRepositoryDao.delete(question)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting question repository: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error deleting question repository")
+        }
+    }
+
+    suspend fun getAllQuestionsRepository(): List<QuestionRepositoryEntity> = questionRepositoryDao.getAllQuestions()
+
+    suspend fun getQuestionsRepositoryByIds(ids: List<Long>): List<QuestionRepositoryEntity> = questionRepositoryDao.getQuestionsByIds(ids)
+
+    suspend fun getQuestionRepositoryById(id: Long): QuestionRepositoryEntity? = questionRepositoryDao.getQuestionById(id)
+
+    suspend fun insertResponse(response: ResponseEntity): AppResult<Unit> {
+        return try {
+            responseDao.insert(response)
+            AppResult.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error inserting response: ${e.message}", e)
+            AppResult.Error(e.message ?: "Error inserting response")
+        }
+    }
+
+    suspend fun getResponsesForUser(userId: Long): List<ResponseEntity> = responseDao.getResponsesForUser(userId)
+
     fun prePopulateAll() {
         runBlocking {
             appDatabase.withTransaction {
@@ -406,14 +547,14 @@ class AppRepository @Inject constructor(
                     // Example data for POIs
                     val poiId1 = peclPoiDao.insertPoi(PeclPoiEntity(id = 0, name = "POI 1"))
                     val poiId2 = peclPoiDao.insertPoi(PeclPoiEntity(id = 0, name = "POI 2"))
-                    peclPoiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId1, program_id = 1))
-                    peclPoiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId2, program_id = 2))
+                    poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poiId1, program_id = 1))
+                    poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poiId2, program_id = 2))
 
                     // Example data for tasks
                     val taskId1 = peclTaskDao.insertTask(PeclTaskEntity(id = 0, name = "Task 1"))
                     val taskId2 = peclTaskDao.insertTask(PeclTaskEntity(id = 0, name = "Task 2"))
-                    peclTaskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId1, poi_id = poiId1))
-                    peclTaskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId2, poi_id = poiId2))
+                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId1, poi_id = poiId1))
+                    taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId2, poi_id = poiId2))
 
                     // Example data for questions
                     val questionId1 = questionDao.insertQuestion(PeclQuestionEntity(id = 0, subTask = "SubTask 1", controlType = "ComboBox", scale = "Scale_PECL", criticalTask = "YES"))
@@ -428,6 +569,22 @@ class AppRepository @Inject constructor(
                     // Example data for instructors
                     val instructorId = userDao.insertUser(UserEntity(id = 0, firstName = "Instructor", lastName = "One", fullName = "One, Instructor", grade = "", pin = null, role = "instructor"))
                     instructorStudentAssignmentDao.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = 1, program_id = 1))
+
+                    // Example data for demo templates
+                    demoTemplatesDao.insert(DemoTemplateEntity(templateName = "Template A", selectedItems = "1,2,3"))
+                    demoTemplatesDao.insert(DemoTemplateEntity(templateName = "Template B", selectedItems = "4,5"))
+
+                    // Example data for projects
+                    projectDao.insert(ProjectEntity(projectName = "Project X"))
+                    projectDao.insert(ProjectEntity(projectName = "Project Y"))
+
+                    // Example data for question repository
+                    questionRepositoryDao.insert(QuestionRepositoryEntity(field = "Question 1", inputType = "TextBox", options = ""))
+                    questionRepositoryDao.insert(QuestionRepositoryEntity(field = "Question 2", inputType = "ComboBox", options = "Yes,No"))
+
+                    // Example data for responses
+                    responseDao.insert(ResponseEntity(userId = 1, questionId = 1, answer = "Response 1", surveyDate = "2025-09-05"))
+                    responseDao.insert(ResponseEntity(userId = 1, questionId = 2, answer = "Yes", surveyDate = "2025-09-05"))
                 } catch (e: Exception) {
                     Log.e("AppRepository", "Error pre-populating database: ${e.message}", e)
                     throw e

@@ -57,6 +57,19 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
+    fun loadPoisForProgram(programId: Long) {
+        _poisState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getPoisForProgram(programId).first()
+                _poisState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading POIs for program: ${e.message}", e)
+                _poisState.postValue(AppState.Error(e.message ?: "Error loading POIs"))
+            }
+        }
+    }
+
     fun loadTasks() {
         _tasksState.value = AppState.Loading
         viewModelScope.launch {
@@ -70,6 +83,19 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
+    fun loadTasksForPoi(poiId: Long) {
+        _tasksState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getTasksForPoi(poiId).first()
+                _tasksState.postValue(AppState.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading tasks for POI: ${e.message}", e)
+                _tasksState.postValue(AppState.Error(e.message ?: "Error loading tasks"))
+            }
+        }
+    }
+
     fun loadQuestions() {
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
@@ -78,6 +104,19 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
                 _questionsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading questions: ${e.message}", e)
+                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions"))
+            }
+        }
+    }
+
+    fun loadQuestionsForTask(taskId: Long) {
+        _questionsState.value = AppState.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getQuestionsForTask(taskId).first()
+                _questionsState.postValue(AppState.Success(data.map { QuestionWithTask(it, null) }))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading questions for task: ${e.message}", e)
                 _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions"))
             }
         }
@@ -344,6 +383,33 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
                 Log.e("AdminViewModel", "Error loading POIs for task: ${e.message}", e)
                 _poisState.postValue(AppState.Error(e.message ?: "Error loading POIs for task"))
             }
+        }
+    }
+
+    suspend fun getQuestionById(id: Long): PeclQuestionEntity? {
+        return try {
+            repository.getQuestionById(id)
+        } catch (e: Exception) {
+            Log.e("AdminViewModel", "Error getting question by ID: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun getScaleById(id: Long): ScaleEntity? {
+        return try {
+            repository.getScaleById(id)
+        } catch (e: Exception) {
+            Log.e("AdminViewModel", "Error getting scale by ID: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun getTaskById(id: Long): PeclTaskEntity? {
+        return try {
+            repository.getTaskById(id)
+        } catch (e: Exception) {
+            Log.e("AdminViewModel", "Error getting task by ID: ${e.message}", e)
+            null
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,12 +17,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -60,7 +64,7 @@ fun RepositoryScreen(navController: NavController) {
                         val question = questionWithTask.question
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(question.subTask, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { navController.navigate("editQuestion/${question.id}/${questionWithTask.task.id}") }) {
+                            IconButton(onClick = { navController.navigate("editQuestion/${question.id}/${questionWithTask.task?.id ?: 0L}") }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
                             IconButton(onClick = {
