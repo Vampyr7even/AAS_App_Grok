@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface InstructorProgramAssignmentDao {
     @Insert
-    suspend fun insert(assignment: InstructorProgramAssignmentEntity): Long
+    suspend fun insertAssignment(assignment: InstructorProgramAssignmentEntity): Long
 
     @Query("DELETE FROM instructor_program_assignments WHERE instructor_id = :instructorId")
     suspend fun deleteAssignmentsForInstructor(instructorId: Long)

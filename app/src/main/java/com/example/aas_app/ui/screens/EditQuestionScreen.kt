@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -24,7 +23,6 @@ import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditQuestionScreen(navController: NavController, questionId: Long) {
     val viewModel: AdminViewModel = hiltViewModel()

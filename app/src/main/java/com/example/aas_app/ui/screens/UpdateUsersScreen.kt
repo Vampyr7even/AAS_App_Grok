@@ -316,11 +316,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                                             Checkbox(
                                                 checked = selectedStudentsForAdd.contains(student.id),
                                                 onCheckedChange = { checked ->
-                                                    if (checked) {
-                                                        selectedStudentsForAdd += student.id
-                                                    } else {
-                                                        selectedStudentsForAdd -= student.id
-                                                    }
+                                                    selectedStudentsForAdd = if (checked) selectedStudentsForAdd + student.id else selectedStudentsForAdd - student.id
                                                 }
                                             )
                                             Text(student.fullName)
@@ -365,15 +361,18 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                         onClick = {
                             coroutineScope.launch {
                                 val fullName = newInstructorName
-                                val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
-                                val instructorId = demographicsViewModel.insertUserSync(newUser)
-                                selectedStudentsForAdd.forEach { studentId ->
-                                    demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAdd))
+                                if (fullName.isNotBlank()) {
+                                    val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
+                                    val instructorId = demographicsViewModel.insertUserSync(newUser)
+                                    selectedStudentsForAdd.forEach { studentId ->
+                                        demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAdd))
+                                    }
+                                    showAddInstructorDialog = false
+                                    newInstructorName = ""
+                                    selectedStudentsForAdd = emptySet()
+                                    selectedProgramForAdd = null
+                                    Toast.makeText(context, "Instructor added successfully", Toast.LENGTH_SHORT).show()
                                 }
-                                showAddInstructorDialog = false
-                                newInstructorName = ""
-                                selectedStudentsForAdd = emptySet()
-                                selectedProgramForAdd = null
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
@@ -415,11 +414,7 @@ fun UpdateUsersScreen(navController: NavController, role: String? = null) {
                                             Checkbox(
                                                 checked = selectedStudentsForEdit.contains(student.id),
                                                 onCheckedChange = { checked ->
-                                                    if (checked) {
-                                                        selectedStudentsForEdit += student.id
-                                                    } else {
-                                                        selectedStudentsForEdit -= student.id
-                                                    }
+                                                    selectedStudentsForEdit = if (checked) selectedStudentsForEdit + student.id else selectedStudentsForEdit - student.id
                                                 }
                                             )
                                             Text(student.fullName)

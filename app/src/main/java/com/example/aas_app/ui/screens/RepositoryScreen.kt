@@ -23,28 +23,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import kotlinx.coroutines.launch
 
 @Composable
 fun RepositoryScreen(navController: NavController) {
-    val viewModel: AdminViewModel = hiltViewModel()
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading as AppState<List<PeclQuestionEntity>>)
-
-    LaunchedEffect(Unit) {
-        viewModel.loadAllQuestions()
-    }
-
+    val viewModel = hiltViewModel<AdminViewModel>()
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading)
     var showDialog by remember { mutableStateOf(false) }
     var selectedQuestion by remember { mutableStateOf<PeclQuestionEntity?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadQuestions()
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -54,13 +56,17 @@ fun RepositoryScreen(navController: NavController) {
             is AppState.Loading -> Text("Loading...")
             is AppState.Success -> {
                 LazyColumn {
-                    items(state.data) { question ->
+                    items(state.data) { questionWithTask ->
+                        val question = questionWithTask.question
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(question.subTask)
-                            IconButton(onClick = { /* Edit logic */ }) {
+                            Text(question.subTask, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { navController.navigate("editQuestion/${question.id}/${questionWithTask.task.id}") }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
-                            IconButton(onClick = { selectedQuestion = question; showDialog = true }) {
+                            IconButton(onClick = {
+                                selectedQuestion = question
+                                showDialog = true
+                            }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete")
                             }
                         }
@@ -79,26 +85,37 @@ fun RepositoryScreen(navController: NavController) {
         ) {
             Text("Add Question")
         }
-    }
 
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Confirm Delete") },
-            text = { Text("Delete this question?") },
-            confirmButton = {
-                Button(onClick = {
-                    selectedQuestion?.let { viewModel.deleteQuestion(it) }
-                    showDialog = false
-                }) {
-                    Text("Yes")
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Confirm Delete") },
+                text = { Text("Delete this question?") },
+                confirmButton = {
+                    Button(onClick = {
+                        selectedQuestion?.let {
+                            coroutineScope.launch {
+                                try {
+                                    viewModel.deleteQuestion(it)
+                                    snackbarHostState.showSnackbar("Question deleted successfully")
+                                } catch (e: Exception) {
+                                    Log.e("RepositoryScreen", "Error deleting question: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error deleting question: ${e.message}")
+                                }
+                            }
+                        }
+                        showDialog = false
+                    }) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { showDialog = false }) {
+                        Text("No")
+                    }
                 }
-            },
-            dismissButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("No")
-                }
-            }
-        )
+            )
+        }
+        SnackbarHost(hostState = snackbarHostState)
     }
 }

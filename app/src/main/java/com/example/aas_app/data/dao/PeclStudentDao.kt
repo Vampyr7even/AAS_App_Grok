@@ -25,4 +25,7 @@ interface PeclStudentDao {
 
     @Query("SELECT * FROM pecl_students WHERE id = :id")
     fun getStudentById(id: Long): Flow<PeclStudentEntity?>
+
+    @Query("SELECT s.* FROM pecl_students s INNER JOIN instructor_student_assignments isa ON s.id = isa.student_id WHERE isa.instructor_id = :instructorId AND isa.program_id = :programId")
+    fun getStudentsForInstructorAndProgram(instructorId: Long, programId: Long): Flow<List<PeclStudentEntity>>
 }

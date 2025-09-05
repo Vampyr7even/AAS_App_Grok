@@ -1,30 +1,15 @@
 package com.example.aas_app.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -43,15 +28,15 @@ fun SurveyScreen(navController: NavController) {
     val poisState by viewModel.poisState.observeAsState(AppState.Loading)
     val studentsState by viewModel.studentsState.observeAsState(AppState.Loading)
     val questionsState by viewModel.questionsState.observeAsState(AppState.Loading)
-    val coroutineScope = rememberCoroutineScope()
-
     var selectedPoi by remember { mutableStateOf<PeclPoiEntity?>(null) }
     var selectedStudent by remember { mutableStateOf<PeclStudentEntity?>(null) }
     var expandedPoi by remember { mutableStateOf(false) }
     var expandedStudent by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
-        viewModel.loadPoisForProgram(0L) // Load all or adjust
+        viewModel.loadPoisForProgram(0L)
         viewModel.loadStudents()
     }
 
@@ -78,10 +63,11 @@ fun SurveyScreen(navController: NavController) {
             ) {
                 when (val state = poisState) {
                     is AppState.Loading -> DropdownMenuItem(text = { Text("Loading...") }, onClick = {})
-                    is AppState.Success<List<PeclPoiEntity>> -> {
-                        state.data.forEach { poi ->
+                    is AppState.Success<*> -> {
+                        val pois = (state as AppState.Success<List<PeclPoiEntity>>).data
+                        pois.forEach { poi: PeclPoiEntity ->
                             DropdownMenuItem(
-                                text = { Text(text = poi.name) },
+                                text = { Text(poi.name) },
                                 onClick = {
                                     selectedPoi = poi
                                     expandedPoi = false
@@ -94,6 +80,8 @@ fun SurveyScreen(navController: NavController) {
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         ExposedDropdownMenuBox(
             expanded = expandedStudent,
@@ -114,10 +102,11 @@ fun SurveyScreen(navController: NavController) {
             ) {
                 when (val state = studentsState) {
                     is AppState.Loading -> DropdownMenuItem(text = { Text("Loading...") }, onClick = {})
-                    is AppState.Success<List<PeclStudentEntity>> -> {
-                        state.data.forEach { student ->
+                    is AppState.Success<*> -> {
+                        val students = (state as AppState.Success<List<PeclStudentEntity>>).data
+                        students.forEach { student: PeclStudentEntity ->
                             DropdownMenuItem(
-                                text = { Text(text = student.fullName) },
+                                text = { Text(student.fullName) },
                                 onClick = {
                                     selectedStudent = student
                                     expandedStudent = false
@@ -130,11 +119,14 @@ fun SurveyScreen(navController: NavController) {
             }
         }
 
-        when {
-            questionsState is AppState.Loading -> Text(text = "Loading questions...")
-            questionsState is AppState.Success<List<PeclQuestionEntity>> -> {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        when (val state = questionsState) {
+            is AppState.Loading -> Text(text = "Loading questions...")
+            is AppState.Success<*> -> {
+                val questions = (state as AppState.Success<List<PeclQuestionEntity>>).data
                 LazyColumn {
-                    items(questionsState.data) { question ->
+                    items(questions) { question: PeclQuestionEntity ->
                         Text(
                             text = question.subTask,
                             modifier = Modifier.padding(vertical = 4.dp)
@@ -143,9 +135,10 @@ fun SurveyScreen(navController: NavController) {
                     }
                 }
             }
-            questionsState is AppState.Error -> Text(text = "Error: ${questionsState.message}")
+            is AppState.Error -> Text(text = "Error: ${state.message}")
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
                 coroutineScope.launch {
@@ -160,6 +153,7 @@ fun SurveyScreen(navController: NavController) {
                                 timestamp = System.currentTimeMillis()
                             )
                             viewModel.insertEvaluationResult(result)
+                            snackbarHostState.showSnackbar("Responses saved successfully")
                         }
                     }
                 }
@@ -169,5 +163,6 @@ fun SurveyScreen(navController: NavController) {
         ) {
             Text("Save Responses")
         }
+        SnackbarHost(hostState = snackbarHostState)
     }
 }

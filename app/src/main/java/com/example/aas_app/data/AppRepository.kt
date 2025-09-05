@@ -2,10 +2,9 @@ package com.example.aas_app.data
 
 import android.util.Log
 import androidx.room.withTransaction
-import com.example.aas_app.data.dao.*
 import com.example.aas_app.data.entity.*
+import com.example.aas_app.data.dao.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,18 +16,18 @@ sealed class AppResult<out T> {
 
 @Singleton
 class AppRepository @Inject constructor(
+    private val appDatabase: AppDatabase,
     private val userDao: UserDao,
-    private val programDao: PeclProgramDao,
-    private val poiDao: PoiDao,
-    private val taskDao: TaskDao,
+    private val peclProgramDao: PeclProgramDao,
+    private val peclPoiDao: PeclPoiDao,
+    private val peclTaskDao: PeclTaskDao,
     private val questionDao: QuestionDao,
     private val scaleDao: ScaleDao,
-    private val studentDao: PeclStudentDao,
+    private val peclStudentDao: PeclStudentDao,
     private val commentDao: CommentDao,
     private val evaluationResultDao: EvaluationResultDao,
     private val instructorStudentAssignmentDao: InstructorStudentAssignmentDao,
-    private val instructorProgramAssignmentDao: InstructorProgramAssignmentDao,
-    private val appDatabase: AppDatabase
+    private val instructorProgramAssignmentDao: InstructorProgramAssignmentDao
 ) {
 
     suspend fun insertUser(user: UserEntity): Long {
@@ -66,7 +65,7 @@ class AppRepository @Inject constructor(
 
     suspend fun insertProgram(program: PeclProgramEntity): AppResult<Unit> {
         return try {
-            programDao.insertProgram(program)
+            peclProgramDao.insertProgram(program)
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting program: ${e.message}", e)
@@ -74,11 +73,11 @@ class AppRepository @Inject constructor(
         }
     }
 
-    fun getAllPrograms(): Flow<List<PeclProgramEntity>> = programDao.getAllPrograms()
+    fun getAllPrograms(): Flow<List<PeclProgramEntity>> = peclProgramDao.getAllPrograms()
 
     suspend fun updateProgram(program: PeclProgramEntity): AppResult<Unit> {
         return try {
-            programDao.updateProgram(program)
+            peclProgramDao.updateProgram(program)
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating program: ${e.message}", e)
@@ -88,7 +87,7 @@ class AppRepository @Inject constructor(
 
     suspend fun deleteProgram(program: PeclProgramEntity): AppResult<Unit> {
         return try {
-            programDao.deleteProgram(program)
+            peclProgramDao.deleteProgram(program)
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting program: ${e.message}", e)
@@ -98,9 +97,9 @@ class AppRepository @Inject constructor(
 
     suspend fun insertPoi(poi: PeclPoiEntity, programIds: List<Long>): AppResult<Unit> {
         return try {
-            val poiId = poiDao.insert(poi)
+            val poiId = peclPoiDao.insertPoi(poi)
             programIds.forEach { programId ->
-                poiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId, program_id = programId))
+                peclPoiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId, program_id = programId))
             }
             AppResult.Success(Unit)
         } catch (e: Exception) {
@@ -109,16 +108,16 @@ class AppRepository @Inject constructor(
         }
     }
 
-    fun getAllPois(): Flow<List<PeclPoiEntity>> = poiDao.getAllPois()
+    fun getAllPois(): Flow<List<PeclPoiEntity>> = peclPoiDao.getAllPois()
 
-    fun getPoisForProgram(programId: Long): Flow<List<PeclPoiEntity>> = poiDao.getPoisForProgram(programId)
+    fun getPoisForProgram(programId: Long): Flow<List<PeclPoiEntity>> = peclPoiDao.getPoisForProgram(programId)
 
     suspend fun updatePoi(poi: PeclPoiEntity, programIds: List<Long>): AppResult<Unit> {
         return try {
-            poiDao.update(poi)
-            poiDao.deletePoiProgramAssignmentsForPoi(poi.id)
+            peclPoiDao.updatePoi(poi)
+            peclPoiDao.deletePoiProgramAssignmentsForPoi(poi.id)
             programIds.forEach { programId ->
-                poiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poi.id, program_id = programId))
+                peclPoiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poi.id, program_id = programId))
             }
             AppResult.Success(Unit)
         } catch (e: Exception) {
@@ -129,7 +128,7 @@ class AppRepository @Inject constructor(
 
     suspend fun deletePoi(poi: PeclPoiEntity): AppResult<Unit> {
         return try {
-            poiDao.delete(poi)
+            peclPoiDao.deletePoi(poi)
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting POI: ${e.message}", e)
@@ -139,9 +138,9 @@ class AppRepository @Inject constructor(
 
     suspend fun insertTask(task: PeclTaskEntity, poiIds: List<Long>): AppResult<Unit> {
         return try {
-            val taskId = taskDao.insert(task)
+            val taskId = peclTaskDao.insertTask(task)
             poiIds.forEach { poiId ->
-                taskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId, poi_id = poiId))
+                peclTaskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId, poi_id = poiId))
             }
             AppResult.Success(Unit)
         } catch (e: Exception) {
@@ -150,17 +149,17 @@ class AppRepository @Inject constructor(
         }
     }
 
-    fun getAllTasks(): Flow<List<PeclTaskEntity>> = taskDao.getAllTasks()
+    fun getAllTasks(): Flow<List<PeclTaskEntity>> = peclTaskDao.getAllTasks()
 
-    fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>> = taskDao.getTasksForPoi(poiId)
+    fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>> = peclTaskDao.getTasksForPoi(poiId)
 
     suspend fun updateTask(task: PeclTaskEntity, poiIds: List<Long>?): AppResult<Unit> {
         return try {
-            taskDao.update(task)
+            peclTaskDao.updateTask(task)
             if (poiIds != null) {
-                taskDao.deleteTaskPoiAssignmentsForTask(task.id)
+                peclTaskDao.deleteTaskPoiAssignmentsForTask(task.id)
                 poiIds.forEach { poiId ->
-                    taskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = task.id, poi_id = poiId))
+                    peclTaskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = task.id, poi_id = poiId))
                 }
             }
             AppResult.Success(Unit)
@@ -172,7 +171,7 @@ class AppRepository @Inject constructor(
 
     suspend fun deleteTask(task: PeclTaskEntity): AppResult<Unit> {
         return try {
-            taskDao.delete(task)
+            peclTaskDao.deleteTask(task)
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting task: ${e.message}", e)
@@ -183,7 +182,7 @@ class AppRepository @Inject constructor(
     suspend fun insertQuestion(question: PeclQuestionEntity, taskId: Long): AppResult<Unit> {
         return try {
             val questionId = questionDao.insertQuestion(question)
-            questionDao.insertQuestionTaskAssignment(QuestionTaskAssignmentEntity(question_id = questionId, task_id = taskId))
+            questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = questionId, task_id = taskId))
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting question: ${e.message}", e)
@@ -201,7 +200,7 @@ class AppRepository @Inject constructor(
         return try {
             questionDao.updateQuestion(question)
             questionDao.deleteQuestionTaskAssignmentsForQuestion(question.id)
-            questionDao.insertQuestionTaskAssignment(QuestionTaskAssignmentEntity(question_id = question.id, task_id = taskId))
+            questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = question.id, task_id = taskId))
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating question: ${e.message}", e)
@@ -222,6 +221,8 @@ class AppRepository @Inject constructor(
     suspend fun getQuestionById(id: Long): PeclQuestionEntity? = questionDao.getQuestionById(id)
 
     suspend fun getTaskIdForQuestion(questionId: Long): Long? = questionDao.getTaskIdForQuestion(questionId)
+
+    fun getAllQuestionsWithTasks(): Flow<List<QuestionWithTask>> = questionDao.getAllQuestionsWithTasks()
 
     fun getAllScales(): Flow<List<ScaleEntity>> = scaleDao.getAllScales()
 
@@ -259,13 +260,13 @@ class AppRepository @Inject constructor(
 
     suspend fun getScaleByName(name: String): ScaleEntity? = scaleDao.getScaleByName(name)
 
-    suspend fun getTaskById(id: Long): PeclTaskEntity? = taskDao.getTaskById(id)
+    suspend fun getTaskById(id: Long): PeclTaskEntity? = peclTaskDao.getTaskById(id)
 
-    fun getAllPeclStudents(): Flow<List<PeclStudentEntity>> = studentDao.getAllStudents()
+    fun getAllPeclStudents(): Flow<List<PeclStudentEntity>> = peclStudentDao.getAllStudents()
 
     suspend fun insertPeclStudent(student: PeclStudentEntity): AppResult<Unit> {
         return try {
-            studentDao.insertStudent(student)
+            peclStudentDao.insertStudent(student)
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting student: ${e.message}", e)
@@ -275,7 +276,7 @@ class AppRepository @Inject constructor(
 
     suspend fun updatePeclStudent(student: PeclStudentEntity): AppResult<Unit> {
         return try {
-            studentDao.updateStudent(student)
+            peclStudentDao.updateStudent(student)
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating student: ${e.message}", e)
@@ -285,7 +286,7 @@ class AppRepository @Inject constructor(
 
     suspend fun deletePeclStudent(student: PeclStudentEntity): AppResult<Unit> {
         return try {
-            studentDao.deleteStudent(student)
+            peclStudentDao.deleteStudent(student)
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting student: ${e.message}", e)
@@ -293,9 +294,9 @@ class AppRepository @Inject constructor(
         }
     }
 
-    fun getPeclStudentById(studentId: Long): Flow<PeclStudentEntity?> = studentDao.getStudentById(studentId)
+    fun getPeclStudentById(studentId: Long): Flow<PeclStudentEntity?> = peclStudentDao.getStudentById(studentId)
 
-    fun getStudentsForInstructorAndProgram(instructorId: Long, programId: Long): Flow<List<PeclStudentEntity>> = instructorStudentAssignmentDao.getStudentsForInstructorAndProgram(instructorId, programId)
+    fun getStudentsForInstructorAndProgram(instructorId: Long, programId: Long): Flow<List<PeclStudentEntity>> = peclStudentDao.getStudentsForInstructorAndProgram(instructorId, programId)
 
     fun getCommentsForStudent(studentId: Long): Flow<List<CommentEntity>> = commentDao.getCommentsForStudent(studentId)
 
@@ -379,19 +380,15 @@ class AppRepository @Inject constructor(
 
     fun getProgramIdsForInstructor(instructorId: Long): Flow<List<Long>> = instructorProgramAssignmentDao.getProgramIdsForInstructor(instructorId)
 
-    suspend fun getProgramById(programId: Long): PeclProgramEntity? = programDao.getProgramById(programId)
+    suspend fun getProgramById(programId: Long): PeclProgramEntity? = peclProgramDao.getProgramById(programId)
 
-    fun getProgramsForPoi(poiId: Long): Flow<List<PeclProgramEntity>> = poiDao.getProgramsForPoi(poiId)
+    fun getProgramsForPoi(poiId: Long): Flow<List<PeclProgramEntity>> = peclPoiDao.getProgramsForPoi(poiId)
 
-    fun getPoisForTask(taskId: Long): Flow<List<PeclPoiEntity>> = taskDao.getPoisForTask(taskId)
-
-    fun getAllQuestionsWithTasks(): Flow<List<QuestionWithTask>> = questionDao.getAllQuestionsWithTasks()
-
-    fun getAssignmentForStudent(studentId: Long): Flow<List<InstructorStudentAssignmentEntity>> = instructorStudentAssignmentDao.getAssignmentsForStudent(studentId)
+    fun getPoisForTask(taskId: Long): Flow<List<PeclPoiEntity>> = peclTaskDao.getPoisForTask(taskId)
 
     suspend fun getInstructorName(instructorId: Long): String? {
         return try {
-            userDao.getUserById(instructorId).first()?.fullName
+            userDao.getInstructorName(instructorId)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error getting instructor name: ${e.message}", e)
             null
@@ -403,30 +400,30 @@ class AppRepository @Inject constructor(
             appDatabase.withTransaction {
                 try {
                     // Example data for programs
-                    programDao.insertProgram(PeclProgramEntity(id = 0, name = "Program A"))
-                    programDao.insertProgram(PeclProgramEntity(id = 0, name = "Program B"))
+                    peclProgramDao.insertProgram(PeclProgramEntity(id = 0, name = "Program A"))
+                    peclProgramDao.insertProgram(PeclProgramEntity(id = 0, name = "Program B"))
 
                     // Example data for POIs
-                    val poiId1 = poiDao.insert(PeclPoiEntity(id = 0, name = "POI 1"))
-                    val poiId2 = poiDao.insert(PeclPoiEntity(id = 0, name = "POI 2"))
-                    poiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId1, program_id = 1))
-                    poiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId2, program_id = 2))
+                    val poiId1 = peclPoiDao.insertPoi(PeclPoiEntity(id = 0, name = "POI 1"))
+                    val poiId2 = peclPoiDao.insertPoi(PeclPoiEntity(id = 0, name = "POI 2"))
+                    peclPoiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId1, program_id = 1))
+                    peclPoiDao.insertPoiProgramAssignment(PoiProgramAssignmentEntity(poi_id = poiId2, program_id = 2))
 
                     // Example data for tasks
-                    val taskId1 = taskDao.insert(PeclTaskEntity(id = 0, name = "Task 1"))
-                    val taskId2 = taskDao.insert(PeclTaskEntity(id = 0, name = "Task 2"))
-                    taskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId1, poi_id = poiId1))
-                    taskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId2, poi_id = poiId2))
+                    val taskId1 = peclTaskDao.insertTask(PeclTaskEntity(id = 0, name = "Task 1"))
+                    val taskId2 = peclTaskDao.insertTask(PeclTaskEntity(id = 0, name = "Task 2"))
+                    peclTaskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId1, poi_id = poiId1))
+                    peclTaskDao.insertTaskPoiAssignment(TaskPoiAssignmentEntity(task_id = taskId2, poi_id = poiId2))
 
                     // Example data for questions
                     val questionId1 = questionDao.insertQuestion(PeclQuestionEntity(id = 0, subTask = "SubTask 1", controlType = "ComboBox", scale = "Scale_PECL", criticalTask = "YES"))
                     val questionId2 = questionDao.insertQuestion(PeclQuestionEntity(id = 0, subTask = "SubTask 2", controlType = "TextBox", scale = "Scale_Yes_No", criticalTask = "NO"))
-                    questionDao.insertQuestionTaskAssignment(QuestionTaskAssignmentEntity(question_id = questionId1, task_id = taskId1))
-                    questionDao.insertQuestionTaskAssignment(QuestionTaskAssignmentEntity(question_id = questionId2, task_id = taskId2))
+                    questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = questionId1, task_id = taskId1))
+                    questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = questionId2, task_id = taskId2))
 
                     // Example data for students
-                    studentDao.insertStudent(PeclStudentEntity(id = 0, firstName = "John", lastName = "Doe", fullName = "Doe, John", grade = "A", pin = 1234))
-                    studentDao.insertStudent(PeclStudentEntity(id = 0, firstName = "Jane", lastName = "Smith", fullName = "Smith, Jane", grade = "B", pin = 5678))
+                    peclStudentDao.insertStudent(PeclStudentEntity(id = 0, firstName = "John", lastName = "Doe", fullName = "Doe, John", grade = "A", pin = 1234))
+                    peclStudentDao.insertStudent(PeclStudentEntity(id = 0, firstName = "Jane", lastName = "Smith", fullName = "Smith, Jane", grade = "B", pin = 5678))
 
                     // Example data for instructors
                     val instructorId = userDao.insertUser(UserEntity(id = 0, firstName = "Instructor", lastName = "One", fullName = "One, Instructor", grade = "", pin = null, role = "instructor"))

@@ -6,7 +6,9 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.TaskPoiAssignmentEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -31,4 +33,13 @@ interface PeclTaskDao {
 
     @Query("SELECT * FROM pecl_tasks WHERE name = :name")
     suspend fun getTaskByName(name: String): PeclTaskEntity?
+
+    @Insert
+    suspend fun insertTaskPoiAssignment(assignment: TaskPoiAssignmentEntity)
+
+    @Query("DELETE FROM task_poi_assignments WHERE task_id = :taskId")
+    suspend fun deleteTaskPoiAssignmentsForTask(taskId: Long)
+
+    @Query("SELECT p.* FROM pecl_pois p INNER JOIN task_poi_assignments tpa ON p.id = tpa.poi_id WHERE tpa.task_id = :taskId")
+    fun getPoisForTask(taskId: Long): Flow<List<PeclPoiEntity>>
 }

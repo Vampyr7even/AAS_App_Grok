@@ -5,22 +5,22 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
-import com.example.aas_app.data.entity.DemoTemplatesEntity
+import com.example.aas_app.data.entity.DemoTemplateEntity
 
 @Dao
 interface DemoTemplatesDao {
     @Insert
-    suspend fun insert(template: DemoTemplatesEntity)
+    suspend fun insert(template: DemoTemplateEntity)
 
     @Update
-    suspend fun update(template: DemoTemplatesEntity)
+    suspend fun update(template: DemoTemplateEntity)
 
     @Delete
-    suspend fun delete(template: DemoTemplatesEntity)
+    suspend fun delete(template: DemoTemplateEntity)
 
-    @Query("SELECT * FROM demotemplates")
-    suspend fun getAllDemoTemplates(): List<DemoTemplatesEntity>
+    @Query("SELECT * FROM demo_templates")
+    suspend fun getAllDemoTemplates(): List<DemoTemplateEntity>
 
-    @Query("SELECT * FROM demotemplates WHERE id = :id")
-    suspend fun getTemplateById(id: Long): DemoTemplatesEntity?
+    @Query("SELECT * FROM demo_templates WHERE id = :id")
+    suspend fun getTemplateById(id: Long): DemoTemplateEntity?
 }

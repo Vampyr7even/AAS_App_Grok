@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.room)
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
-    alias(libs.plugins.kotlinKapt)
 }
 
 android {
@@ -66,17 +65,18 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.coroutines.core)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
-
-    implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
-    implementation(libs.hilt.navigation.compose)
-
-    implementation(libs.androidx.navigation.compose)
-
-    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.androidx.foundation)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.8")
+    implementation("androidx.compose.material:material-icons-extended")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
@@ -85,8 +85,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation(libs.androidx.foundation)
-    implementation(libs.lifecycle.viewmodel.compose)
-    implementation("androidx.compose.runtime:runtime-livedata:1.6.8")
-    implementation("androidx.compose.material:material-icons-extended")
+}
+
+ksp {
+    arg("room.generateKotlin", "true")
 }

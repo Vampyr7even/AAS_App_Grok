@@ -6,7 +6,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aas_app.data.AppRepository
+import com.example.aas_app.data.entity.InstructorProgramAssignmentEntity
 import com.example.aas_app.data.entity.InstructorStudentAssignmentEntity
+import com.example.aas_app.data.entity.InstructorWithProgram
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.UserEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,8 +44,8 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
             try {
                 val instructorList = repository.getUsersByRole("instructor").first()
                 val instructorsWithPrograms = instructorList.map { instructor ->
-                    val programNames = repository.getProgramsForInstructor(instructor.id).first().joinToString(", ")
-                    InstructorWithProgram(instructor, if (programNames.isEmpty()) null else programNames)
+                    val program = repository.getProgramsForInstructor(instructor.id).first().firstOrNull()?.name
+                    InstructorWithProgram(instructor, program)
                 }.sortedBy { it.instructor.fullName }
                 _instructorsWithPrograms.postValue(instructorsWithPrograms)
             } catch (e: Exception) {
@@ -173,37 +175,49 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 
+    fun getProgramsForInstructor(instructorId: Long): LiveData<List<PeclProgramEntity>> {
+        val programsLiveData = MutableLiveData<List<PeclProgramEntity>>()
+        viewModelScope.launch {
+            try {
+                val programList = repository.getProgramsForInstructor(instructorId).first()
+                programsLiveData.postValue(programList)
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error loading programs for instructor: ${e.message}", e)
+            }
+        }
+        return programsLiveData
+    }
+
     suspend fun canDeleteInstructor(instructorId: Long): Boolean {
-        try {
+        return try {
             val studentAssignments = repository.getAssignmentsForInstructor(instructorId).first()
             val programAssignments = repository.getProgramsForInstructor(instructorId).first()
-            val noStudents = studentAssignments.isEmpty()
-            val noPrograms = programAssignments.isEmpty()
-            Log.d("DemographicsViewModel", "canDeleteInstructor: instructorId=$instructorId, studentAssignmentsCount=${studentAssignments.size}, programAssignmentsCount=${programAssignments.size}, noStudents=$noStudents, noPrograms=$noPrograms")
-            if (studentAssignments.isNotEmpty()) {
-                Log.d("DemographicsViewModel", "Student assignments IDs: ${studentAssignments.map { it.id }}")
-            }
-            if (programAssignments.isNotEmpty()) {
-                Log.d("DemographicsViewModel", "Program assignments: $programAssignments")
-            }
-            return noStudents && noPrograms
+            studentAssignments.isEmpty() && programAssignments.isEmpty()
         } catch (e: Exception) {
             Log.e("DemographicsViewModel", "Error checking if instructor can be deleted: ${e.message}", e)
-            return false
+            false
         }
     }
 
     suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? {
         return try {
-            repository.getAssignmentForStudent(studentId).first().firstOrNull()
+            repository.getAssignmentsForStudent(studentId).first().firstOrNull()
         } catch (e: Exception) {
             Log.e("DemographicsViewModel", "Error getting assignment for student: ${e.message}", e)
             null
         }
     }
 
-    suspend fun getInstructorName(instructorId: Long): String? {
-        return repository.getInstructorName(instructorId)
+    fun getInstructorName(instructorId: Long): String? {
+        var name: String? = null
+        viewModelScope.launch {
+            try {
+                name = repository.getInstructorName(instructorId)
+            } catch (e: Exception) {
+                Log.e("DemographicsViewModel", "Error getting instructor name: ${e.message}", e)
+            }
+        }
+        return name
     }
 
     suspend fun getProgramIdsForInstructorSync(instructorId: Long): List<Long> {
@@ -215,8 +229,3 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 }
-
-data class InstructorWithProgram(
-    val instructor: UserEntity,
-    val programName: String?
-)

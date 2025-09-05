@@ -33,7 +33,7 @@ fun PeclScreen(navController: NavController, instructorId: Long) {
     val adminViewModel: AdminViewModel = hiltViewModel()
     val demographicsViewModel: DemographicsViewModel = hiltViewModel()
     val peclViewModel: PeclViewModel = hiltViewModel()
-    var selectedTab by remember { mutableStateOf<String?>(null) } // No default tab
+    var selectedTab by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -55,7 +55,7 @@ fun PeclScreen(navController: NavController, instructorId: Long) {
             coroutineScope.launch {
                 snackbarHostState.showSnackbar(it)
             }
-            errorMessage = null // Reset after showing
+            errorMessage = null
         }
     }
 
@@ -136,15 +136,15 @@ fun PeclScreen(navController: NavController, instructorId: Long) {
                 }
                 "POI" -> {
                     Log.d("PeclScreen", "Rendering PoisTab")
-                    PoisTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
+                    PoisTab(navController, 0L)
                 }
                 "Tasks" -> {
                     Log.d("PeclScreen", "Rendering TasksTab")
-                    TasksTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
+                    TasksTab(navController, 0L)
                 }
                 "Sub Tasks" -> {
                     Log.d("PeclScreen", "Rendering SubTasksTab")
-                    SubTasksTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
+                    SubTasksTab(navController, 0L)
                 }
                 "Instructors" -> {
                     Log.d("PeclScreen", "Rendering InstructorsTab")
@@ -152,7 +152,7 @@ fun PeclScreen(navController: NavController, instructorId: Long) {
                 }
                 "Students" -> {
                     Log.d("PeclScreen", "Rendering StudentsTab")
-                    StudentsTab(navController, instructorId, 0L) // Default programId
+                    StudentsTab(navController, instructorId, 0L)
                 }
             }
         }
