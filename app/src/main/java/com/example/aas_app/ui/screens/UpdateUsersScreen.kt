@@ -1,6 +1,7 @@
 package com.example.aas_app.ui.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -53,15 +54,19 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
-        if (role == "instructor") {
-            viewModel.loadInstructors()
-            viewModel.loadPrograms()
-        } else if (role == "student") {
-            viewModel.loadStudents()
-            viewModel.loadInstructors()
-            viewModel.loadPrograms()
-        } else {
-            viewModel.loadUsers()
+        when (role) {
+            "instructor" -> {
+                viewModel.loadInstructors()
+                viewModel.loadPrograms()
+            }
+            "student" -> {
+                viewModel.loadStudents()
+                viewModel.loadInstructors()
+                viewModel.loadPrograms()
+            }
+            else -> {
+                viewModel.loadUsers()
+            }
         }
     }
 
@@ -97,12 +102,14 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                                 programIds.addAll(viewModel.getProgramIdsForInstructorSync(selectedInstructor?.id ?: 0L))
                             } catch (e: Exception) {
                                 Log.e("UpdateUsersScreen", "Error loading assignments or program IDs: ${e.message}", e)
-                                snackbarHostState.showSnackbar("Error loading data: ${e.message}")
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error loading data: ${e.message}")
+                                }
                             }
                         }
                         val assignedStudentIds = instructorAssignments.map { it.student_id }.toSet()
                         val programs = when (val programState = programsState) {
-                            is AppState.Success -> programState.data.filter { it.id in programIds }.sortedBy { program -> program.name }
+                            is AppState.Success -> programState.data.filter { it.id in programIds }.sortedBy { it.name }
                             else -> emptyList()
                         }
                         if (state.data.isEmpty()) {
@@ -113,7 +120,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                             )
                         } else {
                             LazyColumn {
-                                items(state.data.sortedBy { instructor -> instructor.fullName }) { instructor ->
+                                items(state.data.sortedBy { it.fullName }) { instructor ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -125,7 +132,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                                             modifier = Modifier.weight(1f)
                                         )
                                         Text(
-                                            text = programs.joinToString { program -> program.name },
+                                            text = programs.joinToString { it.name },
                                             modifier = Modifier.weight(1f)
                                         )
                                         IconButton(onClick = {
@@ -155,7 +162,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                             }
                         }
                     }
-                    is AppState.Error -> Text("Error: ${state.message}")
+                    is AppState.Error -> Text(text = "Error: ${state.message}")
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 ExposedDropdownMenuBox(
@@ -166,7 +173,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                         value = selectedProgram?.name ?: "Select Program",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Assign Program") },
+                        label = { Text(text = "Assign Program") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showProgramDialog) },
                         modifier = Modifier.menuAnchor()
                     )
@@ -178,7 +185,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                             is AppState.Success -> {
                                 state.data.forEach { program ->
                                     DropdownMenuItem(
-                                        text = { Text(program.name) },
+                                        text = { Text(text = program.name) },
                                         onClick = {
                                             selectedProgram = program
                                             showProgramDialog = false
@@ -194,21 +201,21 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                 TextField(
                     value = newFirstName,
                     onValueChange = { newFirstName = it },
-                    label = { Text("First Name") },
+                    label = { Text(text = "First Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
                     value = newLastName,
                     onValueChange = { newLastName = it },
-                    label = { Text("Last Name") },
+                    label = { Text(text = "Last Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
                     value = newPin,
                     onValueChange = { newPin = it },
-                    label = { Text("Pin") },
+                    label = { Text(text = "Pin") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -239,7 +246,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                                     newLastName = ""
                                     newPin = ""
                                     selectedProgram = null
-                                    snackbarHostState.showSnackbar("Instructor added successfully")
+                                    Toast.makeText(context, "Instructor added successfully", Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
                                     Log.e("UpdateUsersScreen", "Error adding instructor: ${e.message}", e)
                                     snackbarHostState.showSnackbar("Error adding instructor: ${e.message}")
@@ -255,7 +262,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Add Instructor")
+                    Text(text = "Add Instructor")
                 }
             }
             "student" -> {
@@ -267,7 +274,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                 when (val state = studentsState) {
                     is AppState.Loading -> CircularProgressIndicator()
                     is AppState.Success -> {
-                        val students = state.data.sortedBy { student -> student.fullName }
+                        val students = state.data.sortedBy { it.fullName }
                         if (students.isEmpty()) {
                             Text(
                                 text = "No students available.",
@@ -303,7 +310,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                             }
                         }
                     }
-                    is AppState.Error -> Text("Error: ${state.message}")
+                    is AppState.Error -> Text(text = "Error: ${state.message}")
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 ExposedDropdownMenuBox(
@@ -314,7 +321,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                         value = selectedInstructor?.fullName ?: "Select Instructor",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Assign Instructor") },
+                        label = { Text(text = "Assign Instructor") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showStudentDialog) },
                         modifier = Modifier.menuAnchor()
                     )
@@ -326,7 +333,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                             is AppState.Success -> {
                                 state.data.forEach { instructor ->
                                     DropdownMenuItem(
-                                        text = { Text(instructor.fullName) },
+                                        text = { Text(text = instructor.fullName) },
                                         onClick = {
                                             selectedInstructor = instructor
                                             showStudentDialog = false
@@ -347,7 +354,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                         value = selectedProgram?.name ?: "Select Program",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Assign Program") },
+                        label = { Text(text = "Assign Program") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showProgramDialog) },
                         modifier = Modifier.menuAnchor()
                     )
@@ -359,7 +366,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                             is AppState.Success -> {
                                 state.data.forEach { program ->
                                     DropdownMenuItem(
-                                        text = { Text(program.name) },
+                                        text = { Text(text = program.name) },
                                         onClick = {
                                             selectedProgram = program
                                             showProgramDialog = false
@@ -375,21 +382,21 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                 TextField(
                     value = newFirstName,
                     onValueChange = { newFirstName = it },
-                    label = { Text("First Name") },
+                    label = { Text(text = "First Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
                     value = newLastName,
                     onValueChange = { newLastName = it },
-                    label = { Text("Last Name") },
+                    label = { Text(text = "Last Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
                     value = newPin,
                     onValueChange = { newPin = it },
-                    label = { Text("Pin") },
+                    label = { Text(text = "Pin") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -420,7 +427,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                                     newPin = ""
                                     selectedInstructor = null
                                     selectedProgram = null
-                                    snackbarHostState.showSnackbar("Student added successfully")
+                                    Toast.makeText(context, "Student added successfully", Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
                                     Log.e("UpdateUsersScreen", "Error adding student: ${e.message}", e)
                                     snackbarHostState.showSnackbar("Error adding student: ${e.message}")
@@ -436,7 +443,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Add Student")
+                    Text(text = "Add Student")
                 }
             }
             else -> {
@@ -449,7 +456,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                     is AppState.Loading -> CircularProgressIndicator()
                     is AppState.Success -> {
                         LazyColumn {
-                            items(state.data.sortedBy { user -> user.fullName }) { user ->
+                            items(state.data.sortedBy { it.fullName }) { user ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -475,7 +482,7 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                             }
                         }
                     }
-                    is AppState.Error -> Text("Error: ${state.message}")
+                    is AppState.Error -> Text(text = "Error: ${state.message}")
                 }
             }
         }
@@ -483,8 +490,8 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
-                title = { Text("Confirm Delete") },
-                text = { Text("Are you sure you want to delete this ${if (role == "student") "student" else "user"}?") },
+                title = { Text(text = "Confirm Delete") },
+                text = { Text(text = "Are you sure you want to delete this ${if (role == "student") "student" else "user"}?") },
                 confirmButton = {
                     Button(
                         onClick = {
@@ -496,7 +503,9 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                                         userToDelete?.let { viewModel.deleteUser(it) }
                                     }
                                     showDialog = false
-                                    snackbarHostState.showSnackbar("Deleted successfully")
+                                    userToDelete = null
+                                    studentToDelete = null
+                                    Toast.makeText(context, "Deleted successfully", Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
                                     Log.e("UpdateUsersScreen", "Error deleting: ${e.message}", e)
                                     snackbarHostState.showSnackbar("Error deleting: ${e.message}")
@@ -506,16 +515,16 @@ fun UpdateUsersScreen(navController: NavController, role: String?) {
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                         shape = RoundedCornerShape(4.dp)
                     ) {
-                        Text("Yes")
+                        Text(text = "Yes")
                     }
                 },
                 dismissButton = {
                     Button(
                         onClick = { showDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                         shape = RoundedCornerShape(4.dp)
                     ) {
-                        Text("No")
+                        Text(text = "No")
                     }
                 }
             )

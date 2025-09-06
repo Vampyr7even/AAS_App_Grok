@@ -8,13 +8,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 sealed class AppResult<out T> {
     data class Success<out T>(val data: T) : AppResult<T>()
-    data class Error(val message: String) : AppResult<Nothing>()
+    data class Error(val exception: Exception) : AppResult<Nothing>()
 }
 
 @Singleton
@@ -72,13 +72,13 @@ class AppRepository @Inject constructor(
         }
     }
 
-    suspend fun insertProgram(program: PeclProgramEntity): AppResult<Unit> {
+    suspend fun insertProgram(program: PeclProgramEntity): AppResult<Long> {
         return try {
-            peclProgramDao.insertProgram(program)
-            AppResult.Success(Unit)
+            val id = peclProgramDao.insertProgram(program)
+            AppResult.Success(id)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting program: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting program")
+            AppResult.Error(e)
         }
     }
 
@@ -90,7 +90,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating program: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating program")
+            AppResult.Error(e)
         }
     }
 
@@ -100,7 +100,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting program: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting program")
+            AppResult.Error(e)
         }
     }
 
@@ -113,7 +113,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting POI: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting POI")
+            AppResult.Error(e)
         }
     }
 
@@ -131,7 +131,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating POI: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating POI")
+            AppResult.Error(e)
         }
     }
 
@@ -141,7 +141,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting POI: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting POI")
+            AppResult.Error(e)
         }
     }
 
@@ -154,7 +154,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting task: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting task")
+            AppResult.Error(e)
         }
     }
 
@@ -174,7 +174,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating task: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating task")
+            AppResult.Error(e)
         }
     }
 
@@ -184,7 +184,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting task: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting task")
+            AppResult.Error(e)
         }
     }
 
@@ -195,7 +195,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting question: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting question")
+            AppResult.Error(e)
         }
     }
 
@@ -213,7 +213,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating question: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating question")
+            AppResult.Error(e)
         }
     }
 
@@ -223,7 +223,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting question: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting question")
+            AppResult.Error(e)
         }
     }
 
@@ -241,7 +241,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting scale: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting scale")
+            AppResult.Error(e)
         }
     }
 
@@ -251,7 +251,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating scale: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating scale")
+            AppResult.Error(e)
         }
     }
 
@@ -261,7 +261,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting scale: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting scale")
+            AppResult.Error(e)
         }
     }
 
@@ -279,7 +279,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting student: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting student")
+            AppResult.Error(e)
         }
     }
 
@@ -289,7 +289,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating student: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating student")
+            AppResult.Error(e)
         }
     }
 
@@ -299,7 +299,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting student: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting student")
+            AppResult.Error(e)
         }
     }
 
@@ -319,7 +319,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting evaluation result: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting evaluation result")
+            AppResult.Error(e)
         }
     }
 
@@ -329,7 +329,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting comment: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting comment")
+            AppResult.Error(e)
         }
     }
 
@@ -341,7 +341,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting evaluations: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting evaluations")
+            AppResult.Error(e)
         }
     }
 
@@ -349,7 +349,8 @@ class AppRepository @Inject constructor(
 
     fun getAssignmentForStudent(studentId: Long): Flow<InstructorStudentAssignmentEntity?> = flow {
         try {
-            emit(instructorStudentAssignmentDao.getAssignmentForStudent(studentId))
+            val assignment = instructorStudentAssignmentDao.getAssignmentForStudent(studentId)
+            emit(assignment)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error getting assignment for student: ${e.message}", e)
             emit(null)
@@ -417,7 +418,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting demo template: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting demo template")
+            AppResult.Error(e)
         }
     }
 
@@ -429,7 +430,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating demo template: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating demo template")
+            AppResult.Error(e)
         }
     }
 
@@ -439,7 +440,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting demo template: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting demo template")
+            AppResult.Error(e)
         }
     }
 
@@ -451,7 +452,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting project: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting project")
+            AppResult.Error(e)
         }
     }
 
@@ -463,7 +464,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating project: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating project")
+            AppResult.Error(e)
         }
     }
 
@@ -473,7 +474,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting project: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting project")
+            AppResult.Error(e)
         }
     }
 
@@ -485,7 +486,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting all projects: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting all projects")
+            AppResult.Error(e)
         }
     }
 
@@ -495,7 +496,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting question repository: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting question repository")
+            AppResult.Error(e)
         }
     }
 
@@ -505,7 +506,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error updating question repository: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error updating question repository")
+            AppResult.Error(e)
         }
     }
 
@@ -515,7 +516,7 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error deleting question repository: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error deleting question repository")
+            AppResult.Error(e)
         }
     }
 
@@ -531,84 +532,79 @@ class AppRepository @Inject constructor(
             AppResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("AppRepository", "Error inserting response: ${e.message}", e)
-            AppResult.Error(e.message ?: "Error inserting response")
+            AppResult.Error(e)
         }
     }
 
     suspend fun getResponsesForUser(userId: Long): List<ResponseEntity> = responseDao.getResponsesForUser(userId)
 
-    fun prePopulateAll() {
-        runBlocking {
-            appDatabase.withTransaction {
-                try {
-                    // Insert Programs from ProgramData
-                    ProgramData.programData.forEach { name ->
-                        peclProgramDao.insertProgram(PeclProgramEntity(name = name))
-                    }
-
-                    // Insert POIs and assignments from PoiData
-                    val programs = peclProgramDao.getAllPrograms().first()
-                    PoiData.poiData.forEach { (name, programNames) ->
-                        val poiId = peclPoiDao.insertPoi(PeclPoiEntity(name = name))
-                        programNames.forEach { programName ->
-                            val programId = programs.find { it.name == programName }?.id ?: 0L
-                            if (programId != 0L) {
-                                poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poiId, program_id = programId))
-                            }
-                        }
-                    }
-
-                    // Insert Tasks and assignments from TaskData
-                    val pois = peclPoiDao.getAllPois().first()
-                    TaskData.taskData.forEach { (name, poiNames) ->
-                        val taskId = peclTaskDao.insertTask(PeclTaskEntity(name = name))
-                        poiNames.forEach { poiName ->
-                            val poiId = pois.find { it.name == poiName }?.id ?: 0L
-                            if (poiId != 0L) {
-                                taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId, poi_id = poiId))
-                            }
-                        }
-                    }
-
-                    // Insert Questions and assignments from QuestionData
-                    val tasks = peclTaskDao.getAllTasks().first()
-                    QuestionData.questionData.forEach { (questionEntity, taskName) ->
-                        val questionId = questionDao.insertQuestion(questionEntity)
-                        val taskId = tasks.find { it.name == taskName }?.id ?: 0L
-                        if (taskId != 0L) {
-                            questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = questionId, task_id = taskId))
-                        }
-                    }
-
-                    // Insert Scales from ScaleData
-                    ScaleData.scaleData.forEach { scale ->
-                        scaleDao.insertScale(scale)
-                    }
-
-                    // Insert Instructors from PeclInstructorData as users with role 'instructor'
-                    val instructorPrograms = peclProgramDao.getAllPrograms().first()
-                    PeclInstructorData.instructorData.forEach { (fullName, programName) ->
-                        val names = fullName.split(" ")
-                        val firstName = names[0]
-                        val lastName = names.getOrElse(1) { "" }
-                        val userId = userDao.insertUser(UserEntity(firstName = firstName, lastName = lastName, fullName = fullName, grade = "", pin = null, role = "instructor"))
-                        val programId = instructorPrograms.find { it.name == programName }?.id ?: 0L
-                        if (programId != 0L) {
-                            instructorProgramAssignmentDao.insertAssignment(InstructorProgramAssignmentEntity(instructor_id = userId, program_id = programId))
-                        }
-                    }
-
-                    // Insert Students from PeclStudentData
-                    PeclStudentData.studentData.forEach { student ->
-                        peclStudentDao.insertStudent(student)
-                    }
-
-                    // Example assignments if needed
-
-                } catch (e: Exception) {
-                    Log.e("AppRepository", "Error pre-populating database: ${e.message}", e)
-                    throw e
+    suspend fun prePopulateAll() {
+        appDatabase.withTransaction {
+            try {
+                // Insert Programs from ProgramData
+                ProgramData.programData.forEach { name ->
+                    peclProgramDao.insertProgram(PeclProgramEntity(name = name))
                 }
+
+                // Insert POIs and assignments from PoiData
+                val programs = peclProgramDao.getAllPrograms().first()
+                PoiData.poiData.forEach { (name, programNames) ->
+                    val poiId = peclPoiDao.insertPoi(PeclPoiEntity(name = name))
+                    programNames.forEach { programName ->
+                        val programId = programs.firstOrNull { it.name == programName }?.id ?: 0L
+                        if (programId != 0L) {
+                            poiProgramAssignmentDao.insertAssignment(PoiProgramAssignmentEntity(poi_id = poiId, program_id = programId))
+                        }
+                    }
+                }
+
+                // Insert Tasks and assignments from TaskData
+                val pois = peclPoiDao.getAllPois().first()
+                TaskData.taskData.forEach { (name, poiNames) ->
+                    val taskId = peclTaskDao.insertTask(PeclTaskEntity(name = name))
+                    poiNames.forEach { poiName ->
+                        val poiId = pois.firstOrNull { it.name == poiName }?.id ?: 0L
+                        if (poiId != 0L) {
+                            taskPoiAssignmentDao.insertAssignment(TaskPoiAssignmentEntity(task_id = taskId, poi_id = poiId))
+                        }
+                    }
+                }
+
+                // Insert Questions and assignments from QuestionData
+                val tasks = peclTaskDao.getAllTasks().first()
+                QuestionData.questionData.forEach { (questionEntity, taskName) ->
+                    val questionId = questionDao.insertQuestion(questionEntity)
+                    val taskId = tasks.firstOrNull { it.name == taskName }?.id ?: 0L
+                    if (taskId != 0L) {
+                        questionDao.insertQuestionAssignment(QuestionAssignmentEntity(question_id = questionId, task_id = taskId))
+                    }
+                }
+
+                // Insert Scales from ScaleData
+                ScaleData.scaleData.forEach { scale ->
+                    scaleDao.insertScale(scale)
+                }
+
+                // Insert Instructors from PeclInstructorData as users with role 'instructor'
+                val instructorPrograms = peclProgramDao.getAllPrograms().first()
+                PeclInstructorData.instructorData.forEach { (fullName, programName) ->
+                    val names = fullName.split(" ")
+                    val firstName = names[0]
+                    val lastName = names.getOrElse(1) { "" }
+                    val userId = userDao.insertUser(UserEntity(firstName = firstName, lastName = lastName, fullName = fullName, grade = "", pin = null, role = "instructor"))
+                    val programId = instructorPrograms.firstOrNull { it.name == programName }?.id ?: 0L
+                    if (programId != 0L) {
+                        instructorProgramAssignmentDao.insertAssignment(InstructorProgramAssignmentEntity(instructor_id = userId, program_id = programId))
+                    }
+                }
+
+                // Insert Students from PeclStudentData
+                PeclStudentData.studentData.forEach { student ->
+                    peclStudentDao.insertStudent(student)
+                }
+            } catch (e: Exception) {
+                Log.e("AppRepository", "Error pre-populating database: ${e.message}", e)
+                throw e
             }
         }
     }

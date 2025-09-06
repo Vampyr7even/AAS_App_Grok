@@ -21,6 +21,7 @@ import com.example.aas_app.viewmodel.DemographicsViewModel
 import com.example.aas_app.viewmodel.PeclViewModel
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeclScreen(navController: NavController, instructorId: Long) {
     val adminViewModel: AdminViewModel = hiltViewModel()
@@ -112,31 +113,66 @@ fun PeclScreen(navController: NavController, instructorId: Long) {
         when (selectedTab) {
             "Evaluate" -> {
                 Log.d("PeclScreen", "Rendering EvaluateTab")
-                EvaluateTab(navController, errorMessage, snackbarHostState, coroutineScope)
+                EvaluateTab(
+                    navController = navController,
+                    errorMessage = errorMessage,
+                    snackbarHostState = snackbarHostState,
+                    coroutineScope = coroutineScope
+                )
             }
             "Programs" -> {
                 Log.d("PeclScreen", "Rendering ProgramsTab")
-                ProgramsTab(adminViewModel, errorMessage, snackbarHostState, coroutineScope)
+                ProgramsTab(
+                    adminViewModel = adminViewModel,
+                    snackbarHostState = snackbarHostState,
+                    coroutineScope = coroutineScope
+                )
             }
             "POI" -> {
                 Log.d("PeclScreen", "Rendering PoisTab")
-                PoisTab(navController, 0L)
+                PoisTab(
+                    navController = navController,
+                    programId = 0L // Default to 0L, user can select a program
+                )
             }
             "Tasks" -> {
                 Log.d("PeclScreen", "Rendering TasksTab")
-                TasksTab(navController, 0L)
+                TasksTab(
+                    navController = navController,
+                    poiId = 0L // Default to 0L, user can select a POI
+                )
             }
             "Sub Tasks" -> {
                 Log.d("PeclScreen", "Rendering SubTasksTab")
-                SubTasksTab(navController, 0L, adminViewModel, errorMessage, snackbarHostState, coroutineScope)
+                SubTasksTab(
+                    navController = navController,
+                    taskId = 0L, // Default to 0L, user can select a task
+                    adminViewModel = adminViewModel,
+                    errorMessage = errorMessage,
+                    snackbarHostState = snackbarHostState,
+                    coroutineScope = coroutineScope
+                )
             }
             "Instructors" -> {
                 Log.d("PeclScreen", "Rendering InstructorsTab")
-                InstructorsTab(navController, demographicsViewModel, peclViewModel, errorMessage, snackbarHostState, coroutineScope)
+                InstructorsTab(
+                    navController = navController,
+                    demographicsViewModel = demographicsViewModel,
+                    peclViewModel = peclViewModel,
+                    errorMessage = errorMessage,
+                    snackbarHostState = snackbarHostState,
+                    coroutineScope = coroutineScope
+                )
             }
             "Students" -> {
                 Log.d("PeclScreen", "Rendering StudentsTab")
-                StudentsTab(navController, instructorId, 0L)
+                StudentsTab(
+                    navController = navController,
+                    peclViewModel = peclViewModel,
+                    errorMessage = errorMessage,
+                    snackbarHostState = snackbarHostState,
+                    coroutineScope = coroutineScope
+                )
             }
             null -> {}
         }
@@ -151,7 +187,8 @@ fun PeclModuleNavButton(text: String, isSelected: Boolean, onClick: () -> Unit) 
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) Color(0xFFE57373) else Color.Transparent,
             contentColor = if (isSelected) Color.White else Color.Black
-        )
+        ),
+        modifier = Modifier.height(48.dp)
     ) {
         Text(text)
     }

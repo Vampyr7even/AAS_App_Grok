@@ -1,6 +1,7 @@
 package com.example.aas_app.ui.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +25,7 @@ import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -136,22 +138,28 @@ fun BuilderScreen(
                             label = { Text("POI Name") }
                         )
                         Text(text = "Select Programs:")
-                        LazyColumn {
-                            items(programsState.data) { program: PeclProgramEntity ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(
-                                        checked = selectedProgramsForAdd.contains(program.id),
-                                        onCheckedChange = { checked ->
-                                            selectedProgramsForAdd = if (checked) {
-                                                selectedProgramsForAdd + program.id
-                                            } else {
-                                                selectedProgramsForAdd - program.id
-                                            }
+                        when (val state = programsState) {
+                            is AppState.Loading -> Text("Loading programs...")
+                            is AppState.Success -> {
+                                LazyColumn {
+                                    items(state.data) { program ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = selectedProgramsForAdd.contains(program.id),
+                                                onCheckedChange = { checked ->
+                                                    selectedProgramsForAdd = if (checked) {
+                                                        selectedProgramsForAdd + program.id
+                                                    } else {
+                                                        selectedProgramsForAdd - program.id
+                                                    }
+                                                }
+                                            )
+                                            Text(text = program.name)
                                         }
-                                    )
-                                    Text(text = program.name)
+                                    }
                                 }
                             }
+                            is AppState.Error -> Text("Error loading programs: ${state.message}")
                         }
                     }
                 },

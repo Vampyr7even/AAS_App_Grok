@@ -25,10 +25,10 @@ import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPoisScreen(
     navController: NavController,
@@ -58,8 +58,8 @@ fun EditPoisScreen(
             editPoiName = poi.name
             coroutineScope.launch {
                 try {
-                    val programIds = viewModel.getProgramsForPoi(poi.id).first().map { program -> program.id }.toSet()
-                    selectedProgramsForEdit = programIds
+                    val programsForPoi = viewModel.getProgramsForPoi(poi.id).first()
+                    selectedProgramsForEdit = programsForPoi.map { it.id }.toSet<Long>()
                 } catch (e: Exception) {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar("Error loading programs for POI: ${e.message}")
@@ -131,10 +131,10 @@ fun EditPoisScreen(
                                     )
                                 }
                                 IconButton(onClick = { showEditPoiDialog = poi }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit POI")
                                 }
                                 IconButton(onClick = { showDeleteDialog = poi }) {
-                                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete POI")
                                 }
                             }
                         }
@@ -160,22 +160,28 @@ fun EditPoisScreen(
                             label = { Text("POI Name") }
                         )
                         Text(text = "Select Programs:")
-                        LazyColumn {
-                            items(programsState.data) { program: PeclProgramEntity ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(
-                                        checked = selectedProgramsForAdd.contains(program.id),
-                                        onCheckedChange = { checked ->
-                                            selectedProgramsForAdd = if (checked) {
-                                                selectedProgramsForAdd + program.id
-                                            } else {
-                                                selectedProgramsForAdd - program.id
-                                            }
+                        when (val state = programsState) {
+                            is AppState.Loading -> Text("Loading programs...")
+                            is AppState.Success -> {
+                                LazyColumn {
+                                    items(state.data) { program ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = selectedProgramsForAdd.contains(program.id),
+                                                onCheckedChange = { checked ->
+                                                    selectedProgramsForAdd = if (checked) {
+                                                        selectedProgramsForAdd + program.id
+                                                    } else {
+                                                        selectedProgramsForAdd - program.id
+                                                    }
+                                                }
+                                            )
+                                            Text(text = program.name)
                                         }
-                                    )
-                                    Text(text = program.name)
+                                    }
                                 }
                             }
+                            is AppState.Error -> Text("Error loading programs: ${state.message}")
                         }
                     }
                 },
@@ -232,22 +238,28 @@ fun EditPoisScreen(
                             label = { Text("POI Name") }
                         )
                         Text(text = "Select Programs:")
-                        LazyColumn {
-                            items(programsState.data) { program: PeclProgramEntity ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(
-                                        checked = selectedProgramsForEdit.contains(program.id),
-                                        onCheckedChange = { checked ->
-                                            selectedProgramsForEdit = if (checked) {
-                                                selectedProgramsForEdit + program.id
-                                            } else {
-                                                selectedProgramsForEdit - program.id
-                                            }
+                        when (val state = programsState) {
+                            is AppState.Loading -> Text("Loading programs...")
+                            is AppState.Success -> {
+                                LazyColumn {
+                                    items(state.data) { program ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = selectedProgramsForEdit.contains(program.id),
+                                                onCheckedChange = { checked ->
+                                                    selectedProgramsForEdit = if (checked) {
+                                                        selectedProgramsForEdit + program.id
+                                                    } else {
+                                                        selectedProgramsForEdit - program.id
+                                                    }
+                                                }
+                                            )
+                                            Text(text = program.name)
                                         }
-                                    )
-                                    Text(text = program.name)
+                                    }
                                 }
                             }
+                            is AppState.Error -> Text("Error loading programs: ${state.message}")
                         }
                     }
                 },
@@ -302,7 +314,7 @@ fun EditPoisScreen(
                         onClick = {
                             coroutineScope.launch {
                                 try {
-                                    showDeleteDialog?.let { viewModel.deletePoi(it) }
+                                    viewModel.deletePoi(showDeleteDialog!!)
                                     snackbarHostState.showSnackbar("POI deleted successfully")
                                 } catch (e: Exception) {
                                     Log.e("EditPoisScreen", "Error deleting POI: ${e.message}", e)

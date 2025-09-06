@@ -27,6 +27,7 @@ import com.example.aas_app.data.entity.QuestionWithTask
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,7 +115,7 @@ fun EditQuestionsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = questionWithTask.question.subTask)
                                     Text(
-                                        text = "Task: ${questionWithTask.taskName ?: "None"}, ControlType: ${questionWithTask.question.controlType}, Scale: ${questionWithTask.question.scale}, CriticalTask: ${questionWithTask.question.criticalTask}",
+                                        text = "Task: ${questionWithTask.task?.name ?: "None"}, ControlType: ${questionWithTask.question.controlType}, Scale: ${questionWithTask.question.scale}, CriticalTask: ${questionWithTask.question.criticalTask}",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }

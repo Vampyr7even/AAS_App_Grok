@@ -9,6 +9,7 @@ import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.entity.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -89,19 +90,6 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 
-    fun loadProgramIdsForInstructor(instructorId: Long) {
-        _programIdsState.value = AppState.Loading
-        viewModelScope.launch {
-            try {
-                val data = repository.getProgramIdsForInstructor(instructorId).first()
-                _programIdsState.postValue(AppState.Success(data))
-            } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error loading program IDs: ${e.message}", e)
-                _programIdsState.postValue(AppState.Error(e.message ?: "Error loading program IDs"))
-            }
-        }
-    }
-
     fun loadInstructorAssignments(instructorId: Long) {
         _instructorAssignmentsState.value = AppState.Loading
         viewModelScope.launch {
@@ -115,27 +103,15 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 
-    fun loadInstructorProgramAssignments(instructorId: Long) {
-        _instructorProgramAssignmentsState.value = AppState.Loading
+    fun loadProgramIdsForInstructor(instructorId: Long) {
+        _programIdsState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getProgramsForInstructor(instructorId).first()
-                _instructorProgramAssignmentsState.postValue(AppState.Success(data.map { InstructorProgramAssignmentEntity(program_id = it.id, instructor_id = instructorId) }))
+                val data = repository.getProgramIdsForInstructor(instructorId).first()
+                _programIdsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error loading instructor program assignments: ${e.message}", e)
-                _instructorProgramAssignmentsState.postValue(AppState.Error(e.message ?: "Error loading program assignments"))
-            }
-        }
-    }
-
-    fun insertUser(user: UserEntity) {
-        viewModelScope.launch {
-            try {
-                repository.insertUser(user)
-                loadUsers()
-            } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error inserting user: ${e.message}", e)
-                _usersState.postValue(AppState.Error(e.message ?: "Error inserting user"))
+                Log.e("DemographicsViewModel", "Error loading program IDs: ${e.message}", e)
+                _programIdsState.postValue(AppState.Error(e.message ?: "Error loading program IDs"))
             }
         }
     }
@@ -144,32 +120,8 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         return try {
             repository.insertUser(user)
         } catch (e: Exception) {
-            Log.e("DemographicsViewModel", "Error inserting user synchronously: ${e.message}", e)
+            Log.e("DemographicsViewModel", "Error inserting user: ${e.message}", e)
             -1L
-        }
-    }
-
-    fun updateUser(user: UserEntity) {
-        viewModelScope.launch {
-            try {
-                repository.updateUser(user)
-                loadUsers()
-            } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error updating user: ${e.message}", e)
-                _usersState.postValue(AppState.Error(e.message ?: "Error updating user"))
-            }
-        }
-    }
-
-    fun deleteUser(user: UserEntity) {
-        viewModelScope.launch {
-            try {
-                repository.deleteUser(user)
-                loadUsers()
-            } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error deleting user: ${e.message}", e)
-                _usersState.postValue(AppState.Error(e.message ?: "Error deleting user"))
-            }
         }
     }
 
@@ -178,7 +130,7 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
             try {
                 when (val result = repository.insertPeclStudent(student)) {
                     is AppResult.Success -> loadStudents()
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.exception.message ?: "Error inserting student"))
                 }
             } catch (e: Exception) {
                 Log.e("DemographicsViewModel", "Error inserting student: ${e.message}", e)
@@ -192,7 +144,7 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
             try {
                 when (val result = repository.updatePeclStudent(student)) {
                     is AppResult.Success -> loadStudents()
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.exception.message ?: "Error updating student"))
                 }
             } catch (e: Exception) {
                 Log.e("DemographicsViewModel", "Error updating student: ${e.message}", e)
@@ -206,7 +158,7 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
             try {
                 when (val result = repository.deletePeclStudent(student)) {
                     is AppResult.Success -> loadStudents()
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.exception.message ?: "Error deleting student"))
                 }
             } catch (e: Exception) {
                 Log.e("DemographicsViewModel", "Error deleting student: ${e.message}", e)
@@ -215,88 +167,99 @@ class DemographicsViewModel @Inject constructor(private val repository: AppRepos
         }
     }
 
-    fun insertAssignment(assignment: InstructorStudentAssignmentEntity) {
+    fun updateUser(user: UserEntity) {
         viewModelScope.launch {
             try {
-                repository.insertAssignment(assignment)
-                loadInstructorAssignments(assignment.instructor_id)
+                repository.updateUser(user)
+                loadInstructors()
             } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error inserting assignment: ${e.message}", e)
-                _instructorAssignmentsState.postValue(AppState.Error(e.message ?: "Error inserting assignment"))
+                Log.e("DemographicsViewModel", "Error updating user: ${e.message}", e)
+                _instructorsState.postValue(AppState.Error(e.message ?: "Error updating user"))
             }
         }
     }
 
-    fun deleteAssignmentsForInstructor(instructorId: Long) {
+    fun deleteUser(user: UserEntity) {
         viewModelScope.launch {
             try {
-                repository.deleteAssignmentsForInstructor(instructorId)
-                loadInstructorAssignments(instructorId)
+                repository.deleteUser(user)
+                loadInstructors()
             } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error deleting assignments: ${e.message}", e)
-                _instructorAssignmentsState.postValue(AppState.Error(e.message ?: "Error deleting assignments"))
+                Log.e("DemographicsViewModel", "Error deleting user: ${e.message}", e)
+                _instructorsState.postValue(AppState.Error(e.message ?: "Error deleting user"))
             }
         }
+    }
+
+    fun getAssignmentsForInstructor(instructorId: Long): Flow<List<InstructorStudentAssignmentEntity>> {
+        return repository.getAssignmentsForInstructor(instructorId)
     }
 
     suspend fun getAssignmentsForInstructorSync(instructorId: Long): List<InstructorStudentAssignmentEntity> {
         return try {
             repository.getAssignmentsForInstructor(instructorId).first()
         } catch (e: Exception) {
-            Log.e("DemographicsViewModel", "Error getting assignments synchronously: ${e.message}", e)
+            Log.e("DemographicsViewModel", "Error getting assignments: ${e.message}", e)
             emptyList()
         }
+    }
+
+    fun getProgramIdsForInstructor(instructorId: Long): Flow<List<Long>> {
+        return repository.getProgramIdsForInstructor(instructorId)
     }
 
     suspend fun getProgramIdsForInstructorSync(instructorId: Long): List<Long> {
         return try {
             repository.getProgramIdsForInstructor(instructorId).first()
         } catch (e: Exception) {
-            Log.e("DemographicsViewModel", "Error getting program IDs synchronously: ${e.message}", e)
+            Log.e("DemographicsViewModel", "Error getting program IDs: ${e.message}", e)
             emptyList()
+        }
+    }
+
+    suspend fun insertAssignment(assignment: InstructorStudentAssignmentEntity) {
+        try {
+            repository.insertAssignment(assignment)
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error inserting assignment: ${e.message}", e)
+            throw e
+        }
+    }
+
+    suspend fun deleteAssignmentsForInstructor(instructorId: Long) {
+        try {
+            repository.deleteAssignmentsForInstructor(instructorId)
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error deleting assignments: ${e.message}", e)
+            throw e
+        }
+    }
+
+    suspend fun insertInstructorProgramAssignment(assignment: InstructorProgramAssignmentEntity) {
+        try {
+            repository.insertInstructorProgramAssignment(assignment)
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error inserting instructor program assignment: ${e.message}", e)
+            throw e
+        }
+    }
+
+    suspend fun deleteInstructorProgramAssignmentsForInstructor(instructorId: Long) {
+        try {
+            repository.deleteInstructorProgramAssignmentsForInstructor(instructorId)
+        } catch (e: Exception) {
+            Log.e("DemographicsViewModel", "Error deleting instructor program assignments: ${e.message}", e)
+            throw e
         }
     }
 
     suspend fun canDeleteInstructor(instructorId: Long): Boolean {
         return try {
-            val assignments = repository.getAssignmentsForInstructor(instructorId).first()
+            val assignments = getAssignmentsForInstructorSync(instructorId)
             assignments.isEmpty()
         } catch (e: Exception) {
             Log.e("DemographicsViewModel", "Error checking if instructor can be deleted: ${e.message}", e)
             false
-        }
-    }
-
-    fun insertInstructorProgramAssignment(assignment: InstructorProgramAssignmentEntity) {
-        viewModelScope.launch {
-            try {
-                repository.insertInstructorProgramAssignment(assignment)
-                loadInstructorProgramAssignments(assignment.instructor_id)
-            } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error inserting program assignment: ${e.message}", e)
-                _instructorProgramAssignmentsState.postValue(AppState.Error(e.message ?: "Error inserting program assignment"))
-            }
-        }
-    }
-
-    fun deleteInstructorProgramAssignmentsForInstructor(instructorId: Long) {
-        viewModelScope.launch {
-            try {
-                repository.deleteInstructorProgramAssignmentsForInstructor(instructorId)
-                loadInstructorProgramAssignments(instructorId)
-            } catch (e: Exception) {
-                Log.e("DemographicsViewModel", "Error deleting program assignments: ${e.message}", e)
-                _instructorProgramAssignmentsState.postValue(AppState.Error(e.message ?: "Error deleting program assignments"))
-            }
-        }
-    }
-
-    suspend fun getAssignmentForStudent(studentId: Long): InstructorStudentAssignmentEntity? {
-        return try {
-            repository.getAssignmentForStudent(studentId).first()
-        } catch (e: Exception) {
-            Log.e("DemographicsViewModel", "Error getting assignment for student: ${e.message}", e)
-            null
         }
     }
 }

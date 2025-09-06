@@ -2,10 +2,7 @@ package com.example.aas_app.ui.screens.pecl
 
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,28 +12,14 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.aas_app.data.ProgramData
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
@@ -44,7 +27,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
-fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarHostState: SnackbarHostState, coroutineScope: CoroutineScope) {
+fun ProgramsTab(
+    adminViewModel: AdminViewModel,
+    errorMessage: String?,
+    snackbarHostState: SnackbarHostState,
+    coroutineScope: CoroutineScope
+) {
     val context = LocalContext.current
     val programsState by adminViewModel.programsState.observeAsState(AppState.Success(emptyList<PeclProgramEntity>()))
     var showAddProgram by remember { mutableStateOf(false) }
@@ -79,6 +67,7 @@ fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
         }
         Text("Add Program", modifier = Modifier.padding(start = 4.dp))
     }
+
     when (val state = programsState) {
         is AppState.Loading -> Text("Loading...")
         is AppState.Success -> {
@@ -120,10 +109,10 @@ fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
                                 isEditing = true
                                 editName = program.name
                             }) {
-                                Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                                Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit Program")
                             }
                             IconButton(onClick = { selectedProgramToDelete = program }) {
-                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete Program")
                             }
                         }
                     }
@@ -143,14 +132,14 @@ fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
             )
             IconButton(onClick = {
                 if (newProgramName.isNotBlank()) {
-                    try {
-                        adminViewModel.insertProgram(PeclProgramEntity(0L, newProgramName))
-                        newProgramName = ""
-                        showAddProgram = false
-                        Toast.makeText(context, "Program added successfully", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Log.e("ProgramsTab", "Error adding program: ${e.message}", e)
-                        coroutineScope.launch {
+                    coroutineScope.launch {
+                        try {
+                            adminViewModel.insertProgram(PeclProgramEntity(0L, newProgramName))
+                            newProgramName = ""
+                            showAddProgram = false
+                            Toast.makeText(context, "Program added successfully", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Log.e("ProgramsTab", "Error adding program: ${e.message}", e)
                             snackbarHostState.showSnackbar("Error adding program: ${e.message}")
                         }
                     }
@@ -201,4 +190,6 @@ fun ProgramsTab(adminViewModel: AdminViewModel, errorMessage: String?, snackbarH
             }
         )
     }
+
+    SnackbarHost(hostState = snackbarHostState)
 }

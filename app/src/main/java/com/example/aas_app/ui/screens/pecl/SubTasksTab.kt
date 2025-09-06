@@ -22,8 +22,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
-import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.data.entity.QuestionWithTask
+import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 import kotlinx.coroutines.CoroutineScope
@@ -55,7 +55,7 @@ fun SubTasksTab(
     var editScale by remember { mutableStateOf("") }
     var editCriticalTask by remember { mutableStateOf("") }
     var editTaskId by remember { mutableStateOf<Long?>(null) }
-    var selectedQuestionToDelete by remember { mutableStateOf<PeclQuestionEntity?>(null) }
+    var showDeleteDialog by remember { mutableStateOf<PeclQuestionEntity?>(null) }
     var expandedScaleAdd by remember { mutableStateOf(false) }
     var expandedTaskAdd by remember { mutableStateOf(false) }
     var expandedControlTypeAdd by remember { mutableStateOf(false) }
@@ -68,7 +68,6 @@ fun SubTasksTab(
     val criticalTaskOptions = listOf("No", "Yes")
 
     LaunchedEffect(Unit) {
-        Log.d("SubTasksTab", "Loading questions, scales, and tasks")
         try {
             adminViewModel.loadQuestionsForTask(taskId)
             adminViewModel.loadScales()
@@ -121,15 +120,15 @@ fun SubTasksTab(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = questionWithTask.question.subTask)
                                 Text(
-                                    text = "Task: ${questionWithTask.taskName ?: "None"}, ControlType: ${questionWithTask.question.controlType}, Scale: ${questionWithTask.question.scale}, CriticalTask: ${questionWithTask.question.criticalTask}",
+                                    text = "Task: ${questionWithTask.task?.name ?: "None"}, ControlType: ${questionWithTask.question.controlType}, Scale: ${questionWithTask.question.scale}, CriticalTask: ${questionWithTask.question.criticalTask}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
                             IconButton(onClick = { showEditQuestionDialog = questionWithTask.question }) {
-                                Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit")
+                                Icon(Icons.Filled.Edit, contentDescription = "Edit Question")
                             }
-                            IconButton(onClick = { selectedQuestionToDelete = questionWithTask.question }) {
-                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete")
+                            IconButton(onClick = { showDeleteDialog = questionWithTask.question }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete Question")
                             }
                         }
                     }
@@ -198,7 +197,7 @@ fun SubTasksTab(
                             ) {
                                 when (val state = scalesState) {
                                     is AppState.Loading -> Text("Loading scales...")
-                                    is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { scale ->
+                                    is AppState.Success -> state.data.sortedBy { scale -> scale.scaleName }.forEach { scale ->
                                         DropdownMenuItem(
                                             text = { Text(scale.scaleName) },
                                             onClick = {
@@ -218,7 +217,10 @@ fun SubTasksTab(
                     ) {
                         TextField(
                             readOnly = true,
-                            value = tasksState.data.find { it.id == newTaskId }?.name ?: "",
+                            value = when (val localTasksState = tasksState) {
+                                is AppState.Success -> localTasksState.data.find { it.id == newTaskId }?.name ?: ""
+                                else -> ""
+                            },
                             onValueChange = { },
                             label = { Text("Assign to Task") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTaskAdd) },
@@ -229,9 +231,9 @@ fun SubTasksTab(
                             expanded = expandedTaskAdd,
                             onDismissRequest = { expandedTaskAdd = false }
                         ) {
-                            when (val state = tasksState) {
+                            when (val localTasksState = tasksState) {
                                 is AppState.Loading -> Text("Loading tasks...")
-                                is AppState.Success -> state.data.sortedBy { it.name }.forEach { task ->
+                                is AppState.Success -> localTasksState.data.sortedBy { task -> task.name }.forEach { task ->
                                     DropdownMenuItem(
                                         text = { Text(task.name) },
                                         onClick = {
@@ -240,7 +242,7 @@ fun SubTasksTab(
                                         }
                                     )
                                 }
-                                is AppState.Error -> Text("Error: ${state.message}")
+                                is AppState.Error -> Text("Error: ${localTasksState.message}")
                             }
                         }
                     }
@@ -392,7 +394,7 @@ fun SubTasksTab(
                             ) {
                                 when (val state = scalesState) {
                                     is AppState.Loading -> Text("Loading scales...")
-                                    is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { scale ->
+                                    is AppState.Success -> state.data.sortedBy { scale -> scale.scaleName }.forEach { scale ->
                                         DropdownMenuItem(
                                             text = { Text(scale.scaleName) },
                                             onClick = {
@@ -412,7 +414,10 @@ fun SubTasksTab(
                     ) {
                         TextField(
                             readOnly = true,
-                            value = tasksState.data.find { it.id == editTaskId }?.name ?: "",
+                            value = when (val localTasksState = tasksState) {
+                                is AppState.Success -> localTasksState.data.find { it.id == editTaskId }?.name ?: ""
+                                else -> ""
+                            },
                             onValueChange = { },
                             label = { Text("Assign to Task") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTaskEdit) },
@@ -423,9 +428,9 @@ fun SubTasksTab(
                             expanded = expandedTaskEdit,
                             onDismissRequest = { expandedTaskEdit = false }
                         ) {
-                            when (val state = tasksState) {
+                            when (val localTasksState = tasksState) {
                                 is AppState.Loading -> Text("Loading tasks...")
-                                is AppState.Success -> state.data.sortedBy { it.name }.forEach { task ->
+                                is AppState.Success -> localTasksState.data.sortedBy { task -> task.name }.forEach { task ->
                                     DropdownMenuItem(
                                         text = { Text(task.name) },
                                         onClick = {
@@ -434,7 +439,7 @@ fun SubTasksTab(
                                         }
                                     )
                                 }
-                                is AppState.Error -> Text("Error: ${state.message}")
+                                is AppState.Error -> Text("Error: ${localTasksState.message}")
                             }
                         }
                     }
@@ -527,9 +532,9 @@ fun SubTasksTab(
         )
     }
 
-    selectedQuestionToDelete?.let { question ->
+    if (showDeleteDialog != null) {
         AlertDialog(
-            onDismissRequest = { selectedQuestionToDelete = null },
+            onDismissRequest = { showDeleteDialog = null },
             title = { Text("Confirm Delete") },
             text = { Text("Delete this question?") },
             confirmButton = {
@@ -537,14 +542,14 @@ fun SubTasksTab(
                     onClick = {
                         coroutineScope.launch {
                             try {
-                                adminViewModel.deleteQuestion(question)
-                                selectedQuestionToDelete = null
-                                Toast.makeText(context, "Question deleted successfully", Toast.LENGTH_SHORT).show()
+                                adminViewModel.deleteQuestion(showDeleteDialog!!)
+                                snackbarHostState.showSnackbar("Question deleted successfully")
                             } catch (e: Exception) {
                                 Log.e("SubTasksTab", "Error deleting question: ${e.message}", e)
                                 snackbarHostState.showSnackbar("Error deleting question: ${e.message}")
                             }
                         }
+                        showDeleteDialog = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                     shape = RoundedCornerShape(4.dp)
@@ -554,7 +559,7 @@ fun SubTasksTab(
             },
             dismissButton = {
                 Button(
-                    onClick = { selectedQuestionToDelete = null },
+                    onClick = { showDeleteDialog = null },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                     shape = RoundedCornerShape(4.dp)
                 ) {

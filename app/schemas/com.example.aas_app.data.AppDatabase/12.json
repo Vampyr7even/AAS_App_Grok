@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 12,
-    "identityHash": "f5a1ddf1aacc18ef7a0298a9a6ff0166",
+    "identityHash": "8a894bd84909326e4d00c2e040c259b3",
     "entities": [
       {
         "tableName": "users",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `firstName` TEXT NOT NULL, `lastName` TEXT NOT NULL, `grade` TEXT NOT NULL, `pin` INTEGER, `fullName` TEXT NOT NULL, `assignedProject` TEXT, `role` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `firstName` TEXT NOT NULL, `lastName` TEXT NOT NULL, `full_name` TEXT NOT NULL, `grade` TEXT NOT NULL, `pin` INTEGER, `role` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -27,6 +27,12 @@
             "notNull": true
           },
           {
+            "fieldPath": "fullName",
+            "columnName": "full_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
             "fieldPath": "grade",
             "columnName": "grade",
             "affinity": "TEXT",
@@ -39,22 +45,10 @@
             "notNull": false
           },
           {
-            "fieldPath": "fullName",
-            "columnName": "fullName",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "assignedProject",
-            "columnName": "assignedProject",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
             "fieldPath": "role",
             "columnName": "role",
             "affinity": "TEXT",
-            "notNull": false
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -445,6 +439,231 @@
         ]
       },
       {
+        "tableName": "poi_program_assignments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `poi_id` INTEGER NOT NULL, `program_id` INTEGER NOT NULL, FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "poi_id",
+            "columnName": "poi_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "program_id",
+            "columnName": "program_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_poi_program_assignments_poi_id_program_id",
+            "unique": true,
+            "columnNames": [
+              "poi_id",
+              "program_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_poi_program_assignments_poi_id_program_id` ON `${TABLE_NAME}` (`poi_id`, `program_id`)"
+          },
+          {
+            "name": "index_poi_program_assignments_program_id",
+            "unique": false,
+            "columnNames": [
+              "program_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_poi_program_assignments_program_id` ON `${TABLE_NAME}` (`program_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "pecl_pois",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "poi_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "pecl_programs",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "program_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "task_poi_assignments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `task_id` INTEGER NOT NULL, `poi_id` INTEGER NOT NULL, FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "task_id",
+            "columnName": "task_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "poi_id",
+            "columnName": "poi_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_task_poi_assignments_task_id_poi_id",
+            "unique": true,
+            "columnNames": [
+              "task_id",
+              "poi_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_task_poi_assignments_task_id_poi_id` ON `${TABLE_NAME}` (`task_id`, `poi_id`)"
+          },
+          {
+            "name": "index_task_poi_assignments_poi_id",
+            "unique": false,
+            "columnNames": [
+              "poi_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_task_poi_assignments_poi_id` ON `${TABLE_NAME}` (`poi_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "pecl_tasks",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "task_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "pecl_pois",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "poi_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "question_assignments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `question_id` INTEGER NOT NULL, `task_id` INTEGER NOT NULL, FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "question_id",
+            "columnName": "question_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "task_id",
+            "columnName": "task_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_question_assignments_question_id_task_id",
+            "unique": true,
+            "columnNames": [
+              "question_id",
+              "task_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_question_assignments_question_id_task_id` ON `${TABLE_NAME}` (`question_id`, `task_id`)"
+          },
+          {
+            "name": "index_question_assignments_task_id",
+            "unique": false,
+            "columnNames": [
+              "task_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_question_assignments_task_id` ON `${TABLE_NAME}` (`task_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "pecl_questions",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "question_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "pecl_tasks",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "task_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
         "tableName": "instructor_student_assignments",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `instructor_id` INTEGER NOT NULL, `student_id` INTEGER NOT NULL, `program_id` INTEGER, FOREIGN KEY(`instructor_id`) REFERENCES `users`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`student_id`) REFERENCES `pecl_students`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
@@ -620,8 +839,8 @@
         ]
       },
       {
-        "tableName": "poi_program_assignments",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `poi_id` INTEGER NOT NULL, `program_id` INTEGER NOT NULL, FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`program_id`) REFERENCES `pecl_programs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "demo_templates",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `templateName` TEXT NOT NULL, `selectedItems` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -630,15 +849,15 @@
             "notNull": true
           },
           {
-            "fieldPath": "poi_id",
-            "columnName": "poi_id",
-            "affinity": "INTEGER",
+            "fieldPath": "templateName",
+            "columnName": "templateName",
+            "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "program_id",
-            "columnName": "program_id",
-            "affinity": "INTEGER",
+            "fieldPath": "selectedItems",
+            "columnName": "selectedItems",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -648,55 +867,12 @@
             "id"
           ]
         },
-        "indices": [
-          {
-            "name": "index_poi_program_assignments_poi_id_program_id",
-            "unique": true,
-            "columnNames": [
-              "poi_id",
-              "program_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_poi_program_assignments_poi_id_program_id` ON `${TABLE_NAME}` (`poi_id`, `program_id`)"
-          },
-          {
-            "name": "index_poi_program_assignments_program_id",
-            "unique": false,
-            "columnNames": [
-              "program_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_poi_program_assignments_program_id` ON `${TABLE_NAME}` (`program_id`)"
-          }
-        ],
-        "foreignKeys": [
-          {
-            "table": "pecl_pois",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "poi_id"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "pecl_programs",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "program_id"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          }
-        ]
+        "indices": [],
+        "foreignKeys": []
       },
       {
-        "tableName": "task_poi_assignments",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `task_id` INTEGER NOT NULL, `poi_id` INTEGER NOT NULL, FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`poi_id`) REFERENCES `pecl_pois`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "projects",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectName` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -705,15 +881,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "task_id",
-            "columnName": "task_id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "poi_id",
-            "columnName": "poi_id",
-            "affinity": "INTEGER",
+            "fieldPath": "projectName",
+            "columnName": "projectName",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -723,55 +893,12 @@
             "id"
           ]
         },
-        "indices": [
-          {
-            "name": "index_task_poi_assignments_task_id_poi_id",
-            "unique": true,
-            "columnNames": [
-              "task_id",
-              "poi_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_task_poi_assignments_task_id_poi_id` ON `${TABLE_NAME}` (`task_id`, `poi_id`)"
-          },
-          {
-            "name": "index_task_poi_assignments_poi_id",
-            "unique": false,
-            "columnNames": [
-              "poi_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_task_poi_assignments_poi_id` ON `${TABLE_NAME}` (`poi_id`)"
-          }
-        ],
-        "foreignKeys": [
-          {
-            "table": "pecl_tasks",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "task_id"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "pecl_pois",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "poi_id"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          }
-        ]
+        "indices": [],
+        "foreignKeys": []
       },
       {
-        "tableName": "question_task_assignments",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `question_id` INTEGER NOT NULL, `task_id` INTEGER NOT NULL, FOREIGN KEY(`question_id`) REFERENCES `pecl_questions`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`task_id`) REFERENCES `pecl_tasks`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "tableName": "question_repository",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `field` TEXT NOT NULL, `inputType` TEXT NOT NULL, `options` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -780,15 +907,21 @@
             "notNull": true
           },
           {
-            "fieldPath": "question_id",
-            "columnName": "question_id",
-            "affinity": "INTEGER",
+            "fieldPath": "field",
+            "columnName": "field",
+            "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "task_id",
-            "columnName": "task_id",
-            "affinity": "INTEGER",
+            "fieldPath": "inputType",
+            "columnName": "inputType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "options",
+            "columnName": "options",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -798,57 +931,58 @@
             "id"
           ]
         },
-        "indices": [
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "demographics_results",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `userId` INTEGER NOT NULL, `questionId` INTEGER NOT NULL, `answer` TEXT NOT NULL, `surveyDate` TEXT NOT NULL)",
+        "fields": [
           {
-            "name": "index_question_task_assignments_question_id_task_id",
-            "unique": true,
-            "columnNames": [
-              "question_id",
-              "task_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_question_task_assignments_question_id_task_id` ON `${TABLE_NAME}` (`question_id`, `task_id`)"
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
-            "name": "index_question_task_assignments_task_id",
-            "unique": false,
-            "columnNames": [
-              "task_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_question_task_assignments_task_id` ON `${TABLE_NAME}` (`task_id`)"
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "questionId",
+            "columnName": "questionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "answer",
+            "columnName": "answer",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "surveyDate",
+            "columnName": "surveyDate",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
-        "foreignKeys": [
-          {
-            "table": "pecl_questions",
-            "onDelete": "RESTRICT",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "question_id"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "pecl_tasks",
-            "onDelete": "RESTRICT",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "task_id"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          }
-        ]
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f5a1ddf1aacc18ef7a0298a9a6ff0166')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8a894bd84909326e4d00c2e040c259b3')"
     ]
   }
 }

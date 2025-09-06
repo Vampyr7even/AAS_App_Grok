@@ -2,133 +2,49 @@ package com.example.aas_app.ui.screens
 
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclEvaluationResultEntity
 import com.example.aas_app.data.entity.PeclQuestionEntity
-import com.example.aas_app.data.entity.PeclStudentEntity
-import com.example.aas_app.data.entity.PeclTaskEntity
-import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PeclViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GradingScreen(
     navController: NavController,
+    studentId: Long,
+    taskId: Long,
+    instructorId: Long,
     programId: Long,
     poiId: Long,
-    studentId: Long,
-    taskId: Long
+    coroutineScope: CoroutineScope,
+    snackbarHostState: SnackbarHostState
 ) {
     val viewModel = hiltViewModel<PeclViewModel>()
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading)
-    val studentsState by viewModel.studentsState.observeAsState(AppState.Loading)
-    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading)
-    val evaluationsState by viewModel.evaluationsForStudentAndTaskState.observeAsState(AppState.Loading)
-    val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val questionsState by viewModel.questionsState.observeAsState(AppState.Success(emptyList()))
     val context = LocalContext.current
-
-    var studentName by remember { mutableStateOf("Loading...") }
-    var taskName by remember { mutableStateOf("Loading...") }
-
-    val responses = remember { mutableStateMapOf<Long, String>() } // questionId -> response
-
-    val comments = remember { mutableStateListOf<String>() }
-
-    var taskGradeInput by remember { mutableStateOf("") } // Input for task_grade
+    val grades = remember { mutableStateMapOf<Long, String>() }
+    val comments = remember { mutableStateMapOf<Long, String>() }
 
     LaunchedEffect(Unit) {
-        try {
-            viewModel.loadQuestionsForTask(taskId)
-            viewModel.loadStudents()
-            viewModel.loadAllTasks()
-            viewModel.loadEvaluationsForStudentAndTask(studentId, taskId)
-            // Fetch student name
-            viewModel.getPeclStudentById(studentId) { student: PeclStudentEntity? ->
-                studentName = student?.fullName ?: "Unknown Student"
-            }
-            // Fetch task name
-            viewModel.getTaskById(taskId) { task: PeclTaskEntity? ->
-                taskName = task?.name ?: "Unknown Task"
-            }
-        } catch (e: Exception) {
-            Log.e("GradingScreen", "Error loading initial data: ${e.message}", e)
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar("Error loading data: ${e.message}")
-            }
-        }
-    }
-
-    LaunchedEffect(evaluationsState) {
-        if (evaluationsState is AppState.Success) {
-            val evals = (evaluationsState as AppState.Success<List<PeclEvaluationResultEntity>>).data
-            responses.clear()
-            evals.forEach { eval ->
-                val response = when (eval.score) {
-                    1.0 -> "YES"
-                    0.0 -> "NO"
-                    -1.0 -> "N/A"
-                    else -> eval.score.toString()
-                }
-                responses[eval.question_id] = response
-            }
-            comments.clear()
-            evals.map { it.comment }.filter { it.isNotBlank() }.forEach { comment ->
-                comments.add(comment)
-            }
-            val firstEval = evals.firstOrNull()
-            taskGradeInput = firstEval?.task_grade?.toString() ?: ""
-        } else if (evaluationsState is AppState.Error) {
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar("Error loading evaluations: ${(evaluationsState as AppState.Error).message}")
-            }
-        }
+        viewModel.loadQuestionsForTask(taskId)
     }
 
     Column(
@@ -139,229 +55,212 @@ fun GradingScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Grading $studentName for $taskName",
+            text = "Grade Task",
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        when {
-            questionsState is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            questionsState is AppState.Success && (questionsState as AppState.Success<List<PeclQuestionEntity>>).data.isEmpty() -> {
-                Text("No sub-tasks available for this task.")
-            }
-            questionsState is AppState.Success -> {
-                LazyColumn(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    items((questionsState as AppState.Success<List<PeclQuestionEntity>>).data) { question ->
-                        val scaleState = remember { mutableStateOf<ScaleEntity?>(null) }
-                        LaunchedEffect(question.id) {
-                            try {
-                                val scaleData = viewModel.getScaleByName(question.scale)
-                                scaleState.value = scaleData
-                            } catch (e: Exception) {
-                                Log.e("GradingScreen", "Error loading scale for question ${question.subTask}: ${e.message}", e)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Error loading scale: ${e.message}")
-                                }
-                            }
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = question.subTask,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(bottom = 4.dp)
+        when (val state = questionsState) {
+            is AppState.Loading -> CircularProgressIndicator()
+            is AppState.Success -> {
+                if (state.data.isEmpty()) {
+                    Text("No questions available for this task")
+                } else {
+                    LazyColumn {
+                        items(state.data) { question ->
+                            QuestionGradingItem(
+                                question = question,
+                                grades = grades,
+                                comments = comments,
+                                viewModel = viewModel,
+                                coroutineScope = coroutineScope,
+                                snackbarHostState = snackbarHostState
                             )
-
-                            when (question.controlType) {
-                                "OptionButton" -> {
-                                    scaleState.value?.let { scaleEntity ->
-                                        var options = scaleEntity.options.split(",")
-                                        if ("N/A" !in options) options += "N/A"
-                                        var selectedOption by remember { mutableStateOf(responses[question.id] ?: "") }
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            options.forEach { option ->
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    RadioButton(
-                                                        selected = selectedOption == option,
-                                                        onClick = {
-                                                            selectedOption = option
-                                                            responses[question.id] = option
-                                                        }
-                                                    )
-                                                    Text(text = option)
-                                                }
-                                            }
-                                        }
-                                    } ?: Text(text = "Loading scale...")
-                                }
-                                "ComboBox", "ScoreBox" -> {
-                                    scaleState.value?.let { scaleEntity ->
-                                        var options = scaleEntity.options.split(",")
-                                        if ("N/A" !in options) options += "N/A"
-                                        var expanded by remember { mutableStateOf(false) }
-                                        var selectedOption by remember { mutableStateOf(responses[question.id] ?: options[0]) }
-                                        ExposedDropdownMenuBox(
-                                            expanded = expanded,
-                                            onExpandedChange = { expanded = !expanded }
-                                        ) {
-                                            TextField(
-                                                readOnly = true,
-                                                value = selectedOption,
-                                                onValueChange = { },
-                                                label = { Text(question.subTask) },
-                                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                                                colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                                                modifier = Modifier.menuAnchor()
-                                            )
-                                            ExposedDropdownMenu(
-                                                expanded = expanded,
-                                                onDismissRequest = { expanded = false }
-                                            ) {
-                                                options.forEach { option ->
-                                                    DropdownMenuItem(
-                                                        text = { Text(option) },
-                                                        onClick = {
-                                                            selectedOption = option
-                                                            responses[question.id] = option
-                                                            expanded = false
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    } ?: Text(text = "Loading scale...")
-                                }
-                                "TextBox", "Comment" -> {
-                                    TextField(
-                                        value = responses[question.id] ?: "",
-                                        onValueChange = { responses[question.id] = it },
-                                        label = { Text(question.subTask) },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                                else -> Text(text = "Unsupported control type: ${question.controlType}")
-                            }
                         }
                     }
                 }
             }
-            questionsState is AppState.Error -> Text(
-                text = "Error: ${(questionsState as AppState.Error).message}",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
+            is AppState.Error -> Text("Error: ${state.message}")
         }
 
-        Text(
-            text = "Comments",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-        )
-        LazyColumn {
-            itemsIndexed(comments) { index: Int, commentItem: String ->
-                TextField(
-                    value = commentItem,
-                    onValueChange = { newValue ->
-                        comments[index] = newValue
-                    },
-                    label = { Text("Comment ${index + 1}") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-                )
-            }
-        }
-        if (comments.any { it.isNotBlank() }) {
-            Button(
-                onClick = { comments.add("") },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Comment")
-                Text("Add New Comment")
-            }
-        }
-
-        TextField(
-            value = taskGradeInput,
-            onValueChange = { taskGradeInput = it },
-            label = { Text("Task Grade") },
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = {
-                if (taskGradeInput.toDoubleOrNull() == null && taskGradeInput.isNotBlank()) {
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("Invalid task grade: must be a number")
-                    }
-                    return@Button
-                }
                 coroutineScope.launch {
                     try {
-                        viewModel.deleteEvaluationsForStudentAndTask(studentId, taskId)
-                        if (questionsState is AppState.Success) {
-                            (questionsState as AppState.Success<List<PeclQuestionEntity>>).data.forEach { question ->
-                                val response = responses[question.id] ?: ""
-                                val score = when (response) {
-                                    "YES" -> 1.0
-                                    "NO" -> 0.0
-                                    "N/A" -> -1.0
-                                    else -> response.toDoubleOrNull() ?: 0.0
-                                }
-                                comments.filter { it.isNotBlank() }.forEach { comment ->
-                                    val eval = PeclEvaluationResultEntity(
-                                        student_id = studentId,
-                                        instructor_id = 1L, // Replace with actual
-                                        question_id = question.id,
-                                        score = score,
-                                        comment = comment,
-                                        timestamp = System.currentTimeMillis(),
-                                        task_id = taskId,
-                                        task_grade = taskGradeInput.toDoubleOrNull()
-                                    )
-                                    viewModel.insertEvaluationResult(eval)
-                                }
-                                if (comments.none { it.isNotBlank() }) {
-                                    val eval = PeclEvaluationResultEntity(
-                                        student_id = studentId,
-                                        instructor_id = 1L,
-                                        question_id = question.id,
-                                        score = score,
-                                        comment = "",
-                                        timestamp = System.currentTimeMillis(),
-                                        task_id = taskId,
-                                        task_grade = taskGradeInput.toDoubleOrNull()
-                                    )
-                                    viewModel.insertEvaluationResult(eval)
-                                }
-                            }
-                            snackbarHostState.showSnackbar("Grades and comments saved successfully")
-                        } else {
-                            snackbarHostState.showSnackbar("Cannot save: Questions not loaded")
+                        grades.forEach { (questionId, score) ->
+                            val comment = comments[questionId] ?: ""
+                            val scoreValue = score.toDoubleOrNull() ?: 0.0
+                            viewModel.insertEvaluationResult(
+                                PeclEvaluationResultEntity(
+                                    student_id = studentId,
+                                    instructor_id = instructorId,
+                                    task_id = taskId,
+                                    question_id = questionId,
+                                    score = scoreValue,
+                                    comment = comment,
+                                    timestamp = System.currentTimeMillis()
+                                )
+                            )
                         }
+                        Toast.makeText(context, "Grades saved successfully", Toast.LENGTH_SHORT).show()
+                        navController.popBackStack()
                     } catch (e: Exception) {
-                        Log.e("GradingScreen", "Error saving evaluations: ${e.message}", e)
-                        snackbarHostState.showSnackbar("Error saving: ${e.message}")
+                        Log.e("GradingScreen", "Error saving grades: ${e.message}", e)
+                        snackbarHostState.showSnackbar("Error saving grades: ${e.message}")
                     }
                 }
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
             shape = RoundedCornerShape(4.dp),
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Save")
+            Icon(Icons.Filled.Check, contentDescription = "Save Grades")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Save Grades")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = { navController.popBackStack() },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Cancel")
         }
 
         SnackbarHost(hostState = snackbarHostState)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QuestionGradingItem(
+    question: PeclQuestionEntity,
+    grades: MutableMap<Long, String>,
+    comments: MutableMap<Long, String>,
+    viewModel: PeclViewModel,
+    coroutineScope: CoroutineScope,
+    snackbarHostState: SnackbarHostState
+) {
+    var selectedGrade by remember { mutableStateOf(grades[question.id] ?: "") }
+    var commentText by remember { mutableStateOf(comments[question.id] ?: "") }
+    var scaleOptions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var expanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(question.scale) {
+        if (question.controlType in listOf("ComboBox", "ListBox") && question.scale.isNotBlank()) {
+            try {
+                viewModel.getScaleByName(question.scale) { scale ->
+                    scaleOptions = scale?.options?.split(",")?.map { it.trim() } ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("QuestionGradingItem", "Error loading scale: ${e.message}", e)
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Error loading scale: ${e.message}")
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = question.subTask,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+
+        when (question.controlType) {
+            "ComboBox", "ListBox" -> {
+                if (scaleOptions.isNotEmpty()) {
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        TextField(
+                            value = selectedGrade,
+                            onValueChange = { },
+                            label = { Text("Select Grade") },
+                            readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            scaleOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        selectedGrade = option
+                                        grades[question.id] = option
+                                        expanded = false
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text("No scale options available", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            "TextBox" -> {
+                TextField(
+                    value = selectedGrade,
+                    onValueChange = {
+                        selectedGrade = it
+                        grades[question.id] = it
+                    },
+                    label = { Text("Enter Grade") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            "CheckBox" -> {
+                Checkbox(
+                    checked = selectedGrade == "Checked",
+                    onCheckedChange = {
+                        selectedGrade = if (it) "Checked" else "Unchecked"
+                        grades[question.id] = selectedGrade
+                    }
+                )
+            }
+            "ScoreBox" -> {
+                TextField(
+                    value = selectedGrade,
+                    onValueChange = {
+                        if (it.matches(Regex("\\d*\\.?\\d*"))) {
+                            selectedGrade = it
+                            grades[question.id] = it
+                        }
+                    },
+                    label = { Text("Enter Score") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        TextField(
+            value = commentText,
+            onValueChange = {
+                commentText = it
+                comments[question.id] = it
+            },
+            label = { Text("Comment") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2
+        )
     }
 }

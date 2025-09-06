@@ -25,6 +25,7 @@ import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.QuestionWithTask
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
@@ -86,7 +87,7 @@ fun RepositoryScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(question.subTask)
                                     Text(
-                                        text = "Task: ${questionWithTask.taskName ?: "None"}, ControlType: ${question.controlType}, Scale: ${question.scale}, CriticalTask: ${question.criticalTask}",
+                                        text = "Task: ${questionWithTask.task?.name ?: "None"}, ControlType: ${question.controlType}, Scale: ${question.scale}, CriticalTask: ${question.criticalTask}",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -220,3 +221,9 @@ fun RepositoryScreen(
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text("No")
+                    }
+                }
+            )
+        }
+    }
+}

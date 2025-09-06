@@ -3,206 +3,305 @@ package com.example.aas_app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavType
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.example.aas_app.ui.screens.*
-import com.example.aas_app.ui.screens.pecl.PoisTab
-import com.example.aas_app.ui.screens.pecl.SubTasksTab
-import com.example.aas_app.ui.screens.pecl.TasksTab
+import com.example.aas_app.ui.screens.pecl.*
 import com.example.aas_app.ui.theme.AAS_AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             AAS_AppTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AppNavigation()
-                }
+                MainScreen()
             }
         }
     }
 }
 
 @Composable
-fun AppNavigation() {
+fun MainScreen() {
     val navController = rememberNavController()
+    val currentRoute by navController.currentBackStackEntryAsState()
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    NavHost(navController = navController, startDestination = "home") {
-        composable("home") { HomeScreen(navController = navController) }
-        composable(
-            route = "pecl/{instructorId}",
-            arguments = listOf(navArgument("instructorId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            PeclScreen(
+    Scaffold(
+        topBar = {
+            TopAppBar(
                 navController = navController,
-                instructorId = backStackEntry.arguments?.getLong("instructorId") ?: 0L
-            )
-        }
-        composable(
-            route = "editQuestion/{questionId}/{taskId}",
-            arguments = listOf(
-                navArgument("questionId") { type = NavType.LongType },
-                navArgument("taskId") { type = NavType.LongType }
-            )
-        ) { backStackEntry ->
-            EditQuestionScreen(
-                navController = navController,
-                questionId = backStackEntry.arguments?.getLong("questionId") ?: 0L,
-                taskId = backStackEntry.arguments?.getLong("taskId") ?: 0L
-            )
-        }
-        composable("builder") { BuilderScreen(navController = navController, coroutineScope = coroutineScope, snackbarHostState = snackbarHostState) }
-        composable(
-            route = "editPois/{programId}",
-            arguments = listOf(navArgument("programId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            EditPoisScreen(
-                navController = navController,
-                programId = backStackEntry.arguments?.getLong("programId") ?: 0L,
+                currentRoute = currentRoute?.destination?.route,
                 coroutineScope = coroutineScope,
                 snackbarHostState = snackbarHostState
             )
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("home") { HomeScreen(navController) }
+            composable("demographics") { DemographicsScreen(navController, coroutineScope, snackbarHostState) }
+            composable("surveys") { SurveysScreen(navController) }
+            composable("pecl") { PeclScreen(navController, coroutineScope, snackbarHostState) }
+            composable("examinations") { ExaminationsScreen(navController) }
+            composable("analytics") { AnalyticsScreen(navController) }
+            composable("administration") { AdministrationScreen(navController) }
+            composable("addScale") { AddScaleScreen(navController, coroutineScope, snackbarHostState) }
+            composable("editScale/{scaleId}") { backStackEntry ->
+                EditScaleScreen(
+                    navController,
+                    backStackEntry.arguments?.getString("scaleId")?.toLongOrNull() ?: 0L,
+                    coroutineScope,
+                    snackbarHostState
+                )
+            }
+            composable("editScales") { EditScalesScreen(navController, coroutineScope, snackbarHostState) }
+            composable("editPrograms") { EditProgramsScreen(navController, coroutineScope, snackbarHostState) }
+            composable("editPois/{programId}") { backStackEntry ->
+                EditPoisScreen(
+                    navController,
+                    backStackEntry.arguments?.getString("programId")?.toLongOrNull() ?: 0L,
+                    coroutineScope,
+                    snackbarHostState
+                )
+            }
+            composable("editTasks/{poiId}") { backStackEntry ->
+                EditTasksScreen(
+                    navController,
+                    backStackEntry.arguments?.getString("poiId")?.toLongOrNull() ?: 0L,
+                    coroutineScope,
+                    snackbarHostState
+                )
+            }
+            composable("editQuestions/{taskId}") { backStackEntry ->
+                SubTasksTab(
+                    navController,
+                    backStackEntry.arguments?.getString("taskId")?.toLongOrNull() ?: 0L,
+                    hiltViewModel(),
+                    null,
+                    snackbarHostState,
+                    coroutineScope
+                )
+            }
         }
-        composable(
-            route = "editTask/{taskId}/{poiId}",
-            arguments = listOf(
-                navArgument("taskId") { type = NavType.LongType },
-                navArgument("poiId") { type = NavType.LongType }
+    }
+}
+
+@Composable
+fun TopAppBar(
+    navController: NavController,
+    currentRoute: String?,
+    coroutineScope: CoroutineScope,
+    snackbarHostState: SnackbarHostState
+) {
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            val tabs = listOf(
+                "home" to "Home",
+                "demographics" to "Demographics",
+                "surveys" to "Surveys",
+                "pecl" to "PECL",
+                "examinations" to "Examinations",
+                "analytics" to "Analytics",
+                "administration" to "Administration"
             )
-        ) { backStackEntry ->
-            EditTaskScreen(
-                navController = navController,
-                taskId = backStackEntry.arguments?.getLong("taskId") ?: 0L,
-                poiId = backStackEntry.arguments?.getLong("poiId") ?: 0L
-            )
+
+            tabs.forEach { (route, title) ->
+                val isSelected = currentRoute == route
+                TextButton(
+                    onClick = {
+                        if (!isSelected) {
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (isSelected) Color(0xFFE57373) else Color.Transparent,
+                            shape = RoundedCornerShape(0.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) Color(0xFFE57373) else Color.Gray,
+                            shape = RoundedCornerShape(0.dp)
+                        ),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground
+                    )
+                ) {
+                    Text(title)
+                }
+            }
         }
-        composable(
-            route = "editTasks/{poiId}",
-            arguments = listOf(navArgument("poiId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            EditTasksScreen(
-                navController = navController,
-                poiId = backStackEntry.arguments?.getLong("poiId") ?: 0L,
-                coroutineScope = coroutineScope,
-                snackbarHostState = snackbarHostState
-            )
+
+        if (currentRoute != "home") {
+            IconButton(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(8.dp)
+            ) {
+                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+            }
         }
-        composable(
-            route = "editQuestions/{taskId}",
-            arguments = listOf(navArgument("taskId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            EditQuestionsScreen(
-                navController = navController,
-                taskId = backStackEntry.arguments?.getLong("taskId") ?: 0L,
-                coroutineScope = coroutineScope,
-                snackbarHostState = snackbarHostState
-            )
+    }
+}
+
+@Composable
+fun HomeScreen(navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Welcome to Apex Analytics Suite",
+            style = MaterialTheme.typography.headlineMedium
+        )
+    }
+}
+
+@Composable
+fun DemographicsScreen(navController: NavController, coroutineScope: CoroutineScope, snackbarHostState: SnackbarHostState) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Demographics",
+            style = MaterialTheme.typography.headlineMedium
+        )
+    }
+}
+
+@Composable
+fun SurveysScreen(navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Surveys",
+            style = MaterialTheme.typography.headlineMedium
+        )
+    }
+}
+
+@Composable
+fun PeclScreen(navController: NavController, coroutineScope: CoroutineScope, snackbarHostState: SnackbarHostState) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "PECL",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Button(
+            onClick = { navController.navigate("editPrograms") },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text("Edit Programs")
         }
-        composable(
-            route = "addQuestion/{taskId}",
-            arguments = listOf(navArgument("taskId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            AddQuestionScreen(
-                navController = navController,
-                taskId = backStackEntry.arguments?.getLong("taskId") ?: 0L,
-                coroutineScope = coroutineScope,
-                snackbarHostState = snackbarHostState
-            )
+    }
+}
+
+@Composable
+fun ExaminationsScreen(navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Examinations",
+            style = MaterialTheme.typography.headlineMedium
+        )
+    }
+}
+
+@Composable
+fun AnalyticsScreen(navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Analytics",
+            style = MaterialTheme.typography.headlineMedium
+        )
+    }
+}
+
+@Composable
+fun AdministrationScreen(navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Administration",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Button(
+            onClick = { navController.navigate("editScales") },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text("Edit Scales")
         }
-        composable(
-            route = "editScale/{scaleId}",
-            arguments = listOf(navArgument("scaleId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            EditScaleScreen(
-                navController = navController,
-                scaleId = backStackEntry.arguments?.getLong("scaleId") ?: 0L
-            )
-        }
-        composable("survey") { SurveyScreen(navController = navController) }
-        composable(
-            route = "updateUsers/{role}",
-            arguments = listOf(navArgument("role") { type = NavType.StringType; nullable = true })
-        ) { backStackEntry ->
-            UpdateUsersScreen(
-                navController = navController,
-                role = backStackEntry.arguments?.getString("role")
-            )
-        }
-        composable(
-            route = "peclDashboard/{programId}/{poiId}/{instructorId}",
-            arguments = listOf(
-                navArgument("programId") { type = NavType.LongType },
-                navArgument("poiId") { type = NavType.LongType },
-                navArgument("instructorId") { type = NavType.LongType }
-            )
-        ) { backStackEntry ->
-            PeclDashboardScreen(
-                navController = navController,
-                programId = backStackEntry.arguments?.getLong("programId") ?: 0L,
-                poiId = backStackEntry.arguments?.getLong("poiId") ?: 0L,
-                instructorId = backStackEntry.arguments?.getLong("instructorId") ?: 0L
-            )
-        }
-        composable(
-            route = "poisTab/{programId}",
-            arguments = listOf(navArgument("programId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            PoisTab(
-                navController = navController,
-                programId = backStackEntry.arguments?.getLong("programId") ?: 0L
-            )
-        }
-        composable(
-            route = "tasksTab/{poiId}",
-            arguments = listOf(navArgument("poiId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            TasksTab(
-                navController = navController,
-                poiId = backStackEntry.arguments?.getLong("poiId") ?: 0L
-            )
-        }
-        composable(
-            route = "subTasksTab/{taskId}",
-            arguments = listOf(navArgument("taskId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            SubTasksTab(
-                navController = navController,
-                taskId = backStackEntry.arguments?.getLong("taskId") ?: 0L,
-                adminViewModel = hiltViewModel(),
-                errorMessage = null,
-                snackbarHostState = snackbarHostState,
-                coroutineScope = coroutineScope
-            )
-        }
-        composable("repository") {
-            RepositoryScreen(
-                navController = navController,
-                coroutineScope = coroutineScope,
-                snackbarHostState = snackbarHostState
-            )
-        }
-        composable("demographics") { PlaceholderScreen(navController = navController, "Demographics") }
-        composable("examinations") { PlaceholderScreen(navController = navController, "Examinations") }
-        composable("analytics") { PlaceholderScreen(navController = navController, "Analytics") }
-        composable("admin/programs") { EditProgramsScreen(navController = navController) }
     }
 }

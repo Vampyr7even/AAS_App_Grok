@@ -18,6 +18,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,13 +41,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.aas_app.data.PoiData
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
+import com.example.aas_app.data.Result
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PoisTab(navController: NavController, programId: Long) {
     val viewModel = hiltViewModel<AdminViewModel>()
@@ -66,8 +70,59 @@ fun PoisTab(navController: NavController, programId: Long) {
     LaunchedEffect(Unit) {
         Log.d("PoisTab", "Loading POIs and programs")
         try {
+            // Load existing programs and POIs
             viewModel.loadPrograms()
             viewModel.loadPoisForProgram(programId)
+
+            // Insert PoiData into the database
+            val localProgramsState = programsState
+            val localPoisState = poisState
+            val currentPrograms = when (localProgramsState) {
+                is AppState.Success -> localProgramsState.data
+                else -> emptyList()
+            }
+            PoiData.poiData.forEach { (poiName, programNames) ->
+                coroutineScope.launch {
+                    try {
+                        // Check if the POI already exists
+                        val existingPois = when (localPoisState) {
+                            is AppState.Success -> localPoisState.data
+                            else -> emptyList()
+                        }
+                        if (existingPois.none { it.name == poiName }) {
+                            // Get or insert program IDs
+                            val programIds = mutableListOf<Long>()
+                            programNames.forEach { programName ->
+                                val existingProgram = currentPrograms.find { it.name == programName }
+                                val programId = if (existingProgram != null) {
+                                    existingProgram.id
+                                } else {
+                                    // Insert new program
+                                    val newProgram = PeclProgramEntity(name = programName)
+                                    when (val result = viewModel.insertProgram(newProgram)) {
+                                        is Result.Success -> result.data
+                                        is Result.Error -> {
+                                            Log.e("PoisTab", "Error inserting program $programName: ${result.exception.message}")
+                                            null
+                                        }
+                                    }
+                                }
+                                if (programId != null) programIds.add(programId)
+                            }
+
+                            // Insert the POI with associated program IDs
+                            if (programIds.isNotEmpty()) {
+                                viewModel.insertPoi(PeclPoiEntity(name = poiName), programIds)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("PoisTab", "Error inserting POI from PoiData: ${e.message}", e)
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Error inserting POI: ${e.message}")
+                        }
+                    }
+                }
+            }
         } catch (e: Exception) {
             Log.e("PoisTab", "Error loading POI data: ${e.message}", e)
             coroutineScope.launch {
@@ -161,22 +216,28 @@ fun PoisTab(navController: NavController, programId: Long) {
                         label = { Text("POI Name") }
                     )
                     Text(text = "Select Programs:")
-                    LazyColumn {
-                        items(programsState.data) { program: PeclProgramEntity ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = selectedProgramsForAdd.contains(program.id),
-                                    onCheckedChange = { checked ->
-                                        selectedProgramsForAdd = if (checked) {
-                                            selectedProgramsForAdd + program.id
-                                        } else {
-                                            selectedProgramsForAdd - program.id
-                                        }
+                    when (val state = programsState) {
+                        is AppState.Loading -> Text("Loading programs...")
+                        is AppState.Success -> {
+                            LazyColumn {
+                                items(state.data) { program ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedProgramsForAdd.contains(program.id),
+                                            onCheckedChange = { checked ->
+                                                selectedProgramsForAdd = if (checked) {
+                                                    selectedProgramsForAdd + program.id
+                                                } else {
+                                                    selectedProgramsForAdd - program.id
+                                                }
+                                            }
+                                        )
+                                        Text(text = program.name)
                                     }
-                                )
-                                Text(text = program.name)
+                                }
                             }
                         }
+                        is AppState.Error -> Text("Error loading programs: ${state.message}")
                     }
                 }
             },
@@ -233,22 +294,28 @@ fun PoisTab(navController: NavController, programId: Long) {
                         label = { Text("POI Name") }
                     )
                     Text(text = "Select Programs:")
-                    LazyColumn {
-                        items(programsState.data) { program: PeclProgramEntity ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = selectedProgramsForEdit.contains(program.id),
-                                    onCheckedChange = { checked ->
-                                        selectedProgramsForEdit = if (checked) {
-                                            selectedProgramsForEdit + program.id
-                                        } else {
-                                            selectedProgramsForEdit - program.id
-                                        }
+                    when (val state = programsState) {
+                        is AppState.Loading -> Text("Loading programs...")
+                        is AppState.Success -> {
+                            LazyColumn {
+                                items(state.data) { program ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = selectedProgramsForEdit.contains(program.id),
+                                            onCheckedChange = { checked ->
+                                                selectedProgramsForEdit = if (checked) {
+                                                    selectedProgramsForEdit + program.id
+                                                } else {
+                                                    selectedProgramsForEdit - program.id
+                                                }
+                                            }
+                                        )
+                                        Text(text = program.name)
                                     }
-                                )
-                                Text(text = program.name)
+                                }
                             }
                         }
+                        is AppState.Error -> Text("Error loading programs: ${state.message}")
                     }
                 }
             },

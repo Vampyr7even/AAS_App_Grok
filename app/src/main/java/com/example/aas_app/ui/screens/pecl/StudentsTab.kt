@@ -1,6 +1,7 @@
 package com.example.aas_app.ui.screens.pecl
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,7 +16,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -23,48 +24,54 @@ import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.data.entity.PeclStudentEntity
 import com.example.aas_app.viewmodel.AppState
 import com.example.aas_app.viewmodel.PeclViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentsTab(
     navController: NavController,
-    instructorId: Long,
-    programId: Long = 0L // Default to 0L for no program filter
+    peclViewModel: PeclViewModel = hiltViewModel(),
+    snackbarHostState: SnackbarHostState,
+    coroutineScope: CoroutineScope
 ) {
-    val viewModel = hiltViewModel<PeclViewModel>()
-    val studentsState by viewModel.studentsForInstructorAndProgramState.observeAsState(AppState.Success(emptyList()))
-    val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val studentsState by peclViewModel.studentsState.observeAsState(AppState.Success(emptyList()))
+    val programsState by peclViewModel.programsForInstructorState.observeAsState(AppState.Success(emptyList()))
+    var showAddStudentDialog by remember { mutableStateOf(false) }
+    var newStudentName by remember { mutableStateOf("") }
+    var selectedProgramForAdd by remember { mutableStateOf<Long?>(null) }
+    var showEditStudentDialog by remember { mutableStateOf<PeclStudentEntity?>(null) }
+    var editStudentName by remember { mutableStateOf("") }
+    var selectedProgramForEdit by remember { mutableStateOf<Long?>(null) }
+    var showDeleteDialog by remember { mutableStateOf<PeclStudentEntity?>(null) }
+    var expandedProgramAdd by remember { mutableStateOf(false) }
+    var expandedProgramEdit by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        Log.d("StudentsTab", "Loading students for instructorId=$instructorId, programId=$programId")
         try {
-            if (programId == 0L) {
-                viewModel.loadStudentsForInstructor(instructorId)
-            } else {
-                viewModel.loadStudentsForInstructorAndProgram(instructorId, programId)
-            }
+            peclViewModel.loadStudents()
+            peclViewModel.loadProgramsForInstructor(0L)
         } catch (e: Exception) {
-            Log.e("StudentsTab", "Error loading students: ${e.message}", e)
+            Log.e("StudentsTab", "Error loading data: ${e.message}", e)
             coroutineScope.launch {
-                snackbarHostState.showSnackbar("Error loading students: ${e.message}")
+                snackbarHostState.showSnackbar("Error loading data: ${e.message}")
             }
+        }
+    }
+
+    LaunchedEffect(showEditStudentDialog) {
+        showEditStudentDialog?.let { student ->
+            editStudentName = student.fullName
+            selectedProgramForEdit = student.programId
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(16.dp)
     ) {
-        Text(
-            text = "Students",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -76,121 +83,285 @@ fun StudentsTab(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = {
-                try {
-                    Log.d("StudentsTab", "Navigating to addStudent")
-                    navController.navigate("addStudent")
-                } catch (e: Exception) {
-                    Log.e("StudentsTab", "Navigation error to addStudent: ${e.message}", e)
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("Navigation failed: ${e.message}")
-                    }
-                }
-            }) {
+            IconButton(onClick = { showAddStudentDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add Student")
             }
             Text("Add Student", modifier = Modifier.padding(start = 4.dp))
         }
 
         when (val state = studentsState) {
-            is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is AppState.Loading -> Text("Loading...")
             is AppState.Success -> {
                 if (state.data.isEmpty()) {
-                    Text(text = "No students assigned.")
+                    Text("No students available")
                 } else {
                     LazyColumn {
-                        items(state.data) { student ->
-                            var programName by remember { mutableStateOf("Loading...") }
-                            LaunchedEffect(programId) {
-                                if (programId != 0L) {
-                                    try {
-                                        val program: PeclProgramEntity? = viewModel.getProgramById(programId)
-                                        programName = program?.name ?: "Unknown Program"
-                                    } catch (e: Exception) {
-                                        Log.e("StudentsTab", "Error loading program: ${e.message}", e)
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Error loading program: ${e.message}")
-                                        }
-                                    }
-                                } else {
-                                    programName = "All Programs"
-                                }
-                            }
+                        items(state.data.sortedBy { it.fullName }) { student ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = student.fullName)
                                     Text(
-                                        text = "Program: $programName",
+                                        text = "Program: ${student.programId?.let { id ->
+                                            programsState.let { progState ->
+                                                if (progState is AppState.Success) {
+                                                    progState.data.find { it.id == id }?.name ?: "None"
+                                                } else {
+                                                    "None"
+                                                }
+                                            }
+                                        } ?: "None"}",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
-                                Row {
-                                    IconButton(onClick = {
-                                        try {
-                                            Log.d("StudentsTab", "Navigating to editStudent/${student.id}")
-                                            navController.navigate("editStudent/${student.id}")
-                                        } catch (e: Exception) {
-                                            Log.e("StudentsTab", "Navigation error to editStudent/${student.id}: ${e.message}", e)
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar("Navigation failed: ${e.message}")
-                                            }
-                                        }
-                                    }) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Edit Student")
-                                    }
-                                    IconButton(onClick = {
-                                        coroutineScope.launch {
-                                            try {
-                                                viewModel.deletePeclStudent(student)
-                                                Log.d("StudentsTab", "Deleted student: ${student.fullName}")
-                                                snackbarHostState.showSnackbar("Student deleted successfully")
-                                            } catch (e: Exception) {
-                                                Log.e("StudentsTab", "Error deleting student: ${e.message}", e)
-                                                snackbarHostState.showSnackbar("Error deleting student: ${e.message}")
-                                            }
-                                        }
-                                    }) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete Student")
-                                    }
+                                IconButton(onClick = { showEditStudentDialog = student }) {
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit Student")
+                                }
+                                IconButton(onClick = { showDeleteDialog = student }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete Student")
                                 }
                             }
                         }
                     }
                 }
             }
-            is AppState.Error -> Text(
-                text = "Error: ${state.message}",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
+            is AppState.Error -> Text("Error: ${state.message}")
         }
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = {
-                try {
-                    Log.d("StudentsTab", "Navigating to addStudent")
-                    navController.navigate("addStudent")
-                } catch (e: Exception) {
-                    Log.e("StudentsTab", "Navigation error to addStudent: ${e.message}", e)
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("Navigation failed: ${e.message}")
+    if (showAddStudentDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddStudentDialog = false },
+            title = { Text("Add Student") },
+            text = {
+                Column {
+                    TextField(
+                        value = newStudentName,
+                        onValueChange = { newStudentName = it },
+                        label = { Text("Student Name") }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExposedDropdownMenuBox(
+                        expanded = expandedProgramAdd,
+                        onExpandedChange = { expandedProgramAdd = !expandedProgramAdd }
+                    ) {
+                        TextField(
+                            readOnly = true,
+                            value = programsState.let { state ->
+                                if (state is AppState.Success) {
+                                    state.data.find { it.id == selectedProgramForAdd }?.name ?: "Select Program"
+                                } else {
+                                    "Select Program"
+                                }
+                            },
+                            onValueChange = { },
+                            label = { Text("Program") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProgramAdd) },
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedProgramAdd,
+                            onDismissRequest = { expandedProgramAdd = false }
+                        ) {
+                            programsState.let { state ->
+                                if (state is AppState.Success) {
+                                    state.data.forEach { program ->
+                                        DropdownMenuItem(
+                                            text = { Text(program.name) },
+                                            onClick = {
+                                                selectedProgramForAdd = program.id
+                                                expandedProgramAdd = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-            shape = RoundedCornerShape(4.dp),
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Text("Add Student")
-        }
-
-        SnackbarHost(hostState = snackbarHostState)
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newStudentName.isNotBlank() && selectedProgramForAdd != null) {
+                            coroutineScope.launch {
+                                try {
+                                    peclViewModel.insertPeclStudent(
+                                        PeclStudentEntity(
+                                            id = 0L, // Auto-generated by DB
+                                            fullName = newStudentName,
+                                            programId = selectedProgramForAdd
+                                        )
+                                    )
+                                    showAddStudentDialog = false
+                                    newStudentName = ""
+                                    selectedProgramForAdd = null
+                                    Toast.makeText(context, "Student added", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Log.e("StudentsTab", "Error adding student: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error adding student: ${e.message}")
+                                }
+                            }
+                        } else {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Name and program required")
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showAddStudentDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
+
+    showEditStudentDialog?.let { student ->
+        AlertDialog(
+            onDismissRequest = { showEditStudentDialog = null },
+            title = { Text("Edit Student") },
+            text = {
+                Column {
+                    TextField(
+                        value = editStudentName,
+                        onValueChange = { editStudentName = it },
+                        label = { Text("Student Name") }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExposedDropdownMenuBox(
+                        expanded = expandedProgramEdit,
+                        onExpandedChange = { expandedProgramEdit = !expandedProgramEdit }
+                    ) {
+                        TextField(
+                            readOnly = true,
+                            value = programsState.let { state ->
+                                if (state is AppState.Success) {
+                                    state.data.find { it.id == selectedProgramForEdit }?.name ?: "Select Program"
+                                } else {
+                                    "Select Program"
+                                }
+                            },
+                            onValueChange = { },
+                            label = { Text("Program") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProgramEdit) },
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedProgramEdit,
+                            onDismissRequest = { expandedProgramEdit = false }
+                        ) {
+                            programsState.let { state ->
+                                if (state is AppState.Success) {
+                                    state.data.forEach { program ->
+                                        DropdownMenuItem(
+                                            text = { Text(program.name) },
+                                            onClick = {
+                                                selectedProgramForEdit = program.id
+                                                expandedProgramEdit = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editStudentName.isNotBlank() && selectedProgramForEdit != null) {
+                            coroutineScope.launch {
+                                try {
+                                    peclViewModel.updatePeclStudent(
+                                        student.copy(
+                                            fullName = editStudentName,
+                                            programId = selectedProgramForEdit
+                                        )
+                                    )
+                                    showEditStudentDialog = null
+                                    editStudentName = ""
+                                    selectedProgramForEdit = null
+                                    Toast.makeText(context, "Student updated", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Log.e("StudentsTab", "Error updating student: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error updating student: ${e.message}")
+                                }
+                            }
+                        } else {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Name and program required")
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showEditStudentDialog = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    showDeleteDialog?.let { student ->
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Delete ${student.fullName}?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            try {
+                                peclViewModel.deletePeclStudent(student)
+                                showDeleteDialog = null
+                                Toast.makeText(context, "Student deleted", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Log.e("StudentsTab", "Error deleting student: ${e.message}", e)
+                                snackbarHostState.showSnackbar("Error deleting student: ${e.message}")
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showDeleteDialog = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("No")
+                }
+            }
+        )
+    }
+
+    SnackbarHost(hostState = snackbarHostState)
 }

@@ -1,5 +1,6 @@
 package com.example.aas_app.ui.screens.pecl
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +32,7 @@ import com.example.aas_app.viewmodel.PeclViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InstructorsTab(
     navController: NavController,
@@ -81,7 +83,7 @@ fun InstructorsTab(
             coroutineScope.launch {
                 try {
                     val assignments = demographicsViewModel.getAssignmentsForInstructorSync(instructor.id)
-                    selectedStudentsForEdit = assignments.map { it.student_id }.toSet()
+                    selectedStudentsForEdit = assignments.map { it.student_id }.toSet<Long>()
                     val programIds = demographicsViewModel.getProgramIdsForInstructorSync(instructor.id)
                     selectedProgramForEditInstructor = programIds.firstOrNull()
                 } catch (e: Exception) {
@@ -98,7 +100,7 @@ fun InstructorsTab(
             coroutineScope.launch {
                 try {
                     val assignments = demographicsViewModel.getAssignmentsForInstructorSync(instructor.id)
-                    selectedStudentsForAssign = assignments.map { it.student_id }.toSet()
+                    selectedStudentsForAssign = assignments.map { it.student_id }.toSet<Long>()
                     val programIds = demographicsViewModel.getProgramIdsForInstructorSync(instructor.id)
                     selectedProgramForAssign = programIds.firstOrNull()
                 } catch (e: Exception) {
@@ -140,7 +142,10 @@ fun InstructorsTab(
                         LaunchedEffect(instructor.id) {
                             try {
                                 programIds.value = demographicsViewModel.getProgramIdsForInstructorSync(instructor.id)
-                                programsForInstructor.value = programsState.data.filter { it.id in programIds.value }.sortedBy { it.name }
+                                val localProgramsState = programsState
+                                if (localProgramsState is AppState.Success) {
+                                    programsForInstructor.value = localProgramsState.data.filter { program -> program.id in programIds.value }.sortedBy { program -> program.name }
+                                }
                             } catch (e: Exception) {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Error loading programs: ${e.message}")
@@ -283,16 +288,20 @@ fun InstructorsTab(
                         label = { Text("Instructor Name") }
                     )
                     Text(text = "Select Students:")
-                    when (val state = studentsState) {
+                    when (val localStudentsState = studentsState) {
                         is AppState.Loading -> Text("Loading...")
-                        is AppState.Success -> {
+                        is AppState.Success<List<PeclStudentEntity>> -> {
                             LazyColumn {
-                                items(state.data) { student: PeclStudentEntity ->
+                                items(localStudentsState.data) { student ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedStudentsForAddInstructor.contains(student.id),
                                             onCheckedChange = { checked ->
-                                                selectedStudentsForAddInstructor = if (checked) selectedStudentsForAddInstructor + student.id else selectedStudentsForAddInstructor - student.id
+                                                selectedStudentsForAddInstructor = if (checked) {
+                                                    selectedStudentsForAddInstructor + student.id
+                                                } else {
+                                                    selectedStudentsForAddInstructor - student.id
+                                                }
                                             }
                                         )
                                         Text(student.fullName)
@@ -300,7 +309,7 @@ fun InstructorsTab(
                                 }
                             }
                         }
-                        is AppState.Error -> Text("Error: ${state.message}")
+                        is AppState.Error -> Text("Error: ${localStudentsState.message}")
                     }
                     ExposedDropdownMenuBox(
                         expanded = expandedProgramAddInstructor,
@@ -308,7 +317,10 @@ fun InstructorsTab(
                     ) {
                         TextField(
                             readOnly = true,
-                            value = programsState.data.find { it.id == selectedProgramForAddInstructor }?.name ?: "",
+                            value = when (val localProgramsState = programsState) {
+                                is AppState.Success -> localProgramsState.data.find { program -> program.id == selectedProgramForAddInstructor }?.name ?: ""
+                                else -> ""
+                            },
                             onValueChange = { },
                             label = { Text("Select Program") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProgramAddInstructor) },
@@ -319,14 +331,19 @@ fun InstructorsTab(
                             expanded = expandedProgramAddInstructor,
                             onDismissRequest = { expandedProgramAddInstructor = false }
                         ) {
-                            programsState.data.forEach { program ->
-                                DropdownMenuItem(
-                                    text = { Text(program.name) },
-                                    onClick = {
-                                        selectedProgramForAddInstructor = program.id
-                                        expandedProgramAddInstructor = false
+                            when (val localProgramsState = programsState) {
+                                is AppState.Success -> {
+                                    localProgramsState.data.forEach { program ->
+                                        DropdownMenuItem(
+                                            text = { Text(program.name) },
+                                            onClick = {
+                                                selectedProgramForAddInstructor = program.id
+                                                expandedProgramAddInstructor = false
+                                            }
+                                        )
                                     }
-                                )
+                                }
+                                else -> {}
                             }
                         }
                     }
@@ -338,26 +355,55 @@ fun InstructorsTab(
                         coroutineScope.launch {
                             val fullName = newInstructorName
                             if (fullName.isNotBlank()) {
-                                val newUser = UserEntity(firstName = "", lastName = "", grade = "", pin = null, fullName = fullName, role = "instructor")
-                                val instructorId = demographicsViewModel.insertUserSync(newUser)
-                                selectedStudentsForAddInstructor.forEach { studentId ->
-                                    if (selectedProgramForAddInstructor != null) {
-                                        demographicsViewModel.insertAssignment(InstructorStudentAssignmentEntity(instructor_id = instructorId, student_id = studentId, program_id = selectedProgramForAddInstructor!!))
+                                val nameParts = fullName.split(", ").let { parts ->
+                                    if (parts.size >= 2) parts[1] to parts[0] else "" to fullName
+                                }
+                                val newUser = UserEntity(
+                                    firstName = nameParts.first,
+                                    lastName = nameParts.second,
+                                    fullName = fullName,
+                                    grade = "",
+                                    pin = null,
+                                    role = "instructor"
+                                )
+                                try {
+                                    demographicsViewModel.insertUser(newUser) { instructorId ->
+                                        if (instructorId != -1L) {
+                                            selectedStudentsForAddInstructor.forEach { studentId ->
+                                                selectedProgramForAddInstructor?.let { programId ->
+                                                    demographicsViewModel.insertAssignment(
+                                                        InstructorStudentAssignmentEntity(
+                                                            instructor_id = instructorId,
+                                                            student_id = studentId,
+                                                            program_id = programId
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                            selectedProgramForAddInstructor?.let { programId ->
+                                                demographicsViewModel.insertInstructorProgramAssignment(
+                                                    InstructorProgramAssignmentEntity(
+                                                        instructor_id = instructorId,
+                                                        program_id = programId
+                                                    )
+                                                )
+                                            }
+                                            demographicsViewModel.loadInstructors()
+                                            showAddInstructorDialog = false
+                                            newInstructorName = ""
+                                            selectedStudentsForAddInstructor = emptySet()
+                                            selectedProgramForAddInstructor = null
+                                            Toast.makeText(context, "Instructor added successfully", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            snackbarHostState.showSnackbar("Error adding instructor")
+                                        }
                                     }
+                                } catch (e: Exception) {
+                                    Log.e("InstructorsTab", "Error adding instructor: ${e.message}", e)
+                                    snackbarHostState.showSnackbar("Error adding instructor: ${e.message}")
                                 }
-                                if (selectedProgramForAddInstructor != null) {
-                                    demographicsViewModel.insertInstructorProgramAssignment(InstructorProgramAssignmentEntity(instructor_id = instructorId, program_id = selectedProgramForAddInstructor!!))
-                                }
-                                demographicsViewModel.loadInstructors()
-                                showAddInstructorDialog = false
-                                newInstructorName = ""
-                                selectedStudentsForAddInstructor = emptySet()
-                                selectedProgramForAddInstructor = null
-                                Toast.makeText(context, "Instructor added successfully", Toast.LENGTH_SHORT).show()
                             } else {
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Instructor name is required")
-                                }
+                                snackbarHostState.showSnackbar("Instructor name is required")
                             }
                         }
                     },
@@ -391,16 +437,20 @@ fun InstructorsTab(
                         label = { Text("Instructor Name") }
                     )
                     Text(text = "Select Students:")
-                    when (val state = studentsState) {
+                    when (val localStudentsState = studentsState) {
                         is AppState.Loading -> Text("Loading...")
-                        is AppState.Success -> {
+                        is AppState.Success<List<PeclStudentEntity>> -> {
                             LazyColumn {
-                                items(state.data) { student: PeclStudentEntity ->
+                                items(localStudentsState.data) { student ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedStudentsForEdit.contains(student.id),
                                             onCheckedChange = { checked ->
-                                                selectedStudentsForEdit = if (checked) selectedStudentsForEdit + student.id else selectedStudentsForEdit - student.id
+                                                selectedStudentsForEdit = if (checked) {
+                                                    selectedStudentsForEdit + student.id
+                                                } else {
+                                                    selectedStudentsForEdit - student.id
+                                                }
                                             }
                                         )
                                         Text(student.fullName)
@@ -408,7 +458,7 @@ fun InstructorsTab(
                                 }
                             }
                         }
-                        is AppState.Error -> Text("Error: ${state.message}")
+                        is AppState.Error -> Text("Error: ${localStudentsState.message}")
                     }
                     ExposedDropdownMenuBox(
                         expanded = expandedProgramEditInstructor,
@@ -416,7 +466,10 @@ fun InstructorsTab(
                     ) {
                         TextField(
                             readOnly = true,
-                            value = programsState.data.find { it.id == selectedProgramForEditInstructor }?.name ?: "",
+                            value = when (val localProgramsState = programsState) {
+                                is AppState.Success -> localProgramsState.data.find { program -> program.id == selectedProgramForEditInstructor }?.name ?: ""
+                                else -> ""
+                            },
                             onValueChange = { },
                             label = { Text("Select Program") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProgramEditInstructor) },
@@ -427,14 +480,19 @@ fun InstructorsTab(
                             expanded = expandedProgramEditInstructor,
                             onDismissRequest = { expandedProgramEditInstructor = false }
                         ) {
-                            programsState.data.forEach { program ->
-                                DropdownMenuItem(
-                                    text = { Text(program.name) },
-                                    onClick = {
-                                        selectedProgramForEditInstructor = program.id
-                                        expandedProgramEditInstructor = false
+                            when (val localProgramsState = programsState) {
+                                is AppState.Success -> {
+                                    localProgramsState.data.forEach { program ->
+                                        DropdownMenuItem(
+                                            text = { Text(program.name) },
+                                            onClick = {
+                                                selectedProgramForEditInstructor = program.id
+                                                expandedProgramEditInstructor = false
+                                            }
+                                        )
                                     }
-                                )
+                                }
+                                else -> {}
                             }
                         }
                     }
@@ -486,16 +544,20 @@ fun InstructorsTab(
             text = {
                 Column {
                     Text(text = "Select Students:")
-                    when (val state = studentsState) {
+                    when (val localStudentsState = studentsState) {
                         is AppState.Loading -> Text("Loading...")
-                        is AppState.Success -> {
+                        is AppState.Success<List<PeclStudentEntity>> -> {
                             LazyColumn {
-                                items(state.data) { student: PeclStudentEntity ->
+                                items(localStudentsState.data) { student ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(
                                             checked = selectedStudentsForAssign.contains(student.id),
                                             onCheckedChange = { checked ->
-                                                selectedStudentsForAssign = if (checked) selectedStudentsForAssign + student.id else selectedStudentsForAssign - student.id
+                                                selectedStudentsForAssign = if (checked) {
+                                                    selectedStudentsForAssign + student.id
+                                                } else {
+                                                    selectedStudentsForAssign - student.id
+                                                }
                                             }
                                         )
                                         Text(student.fullName)
@@ -503,7 +565,7 @@ fun InstructorsTab(
                                 }
                             }
                         }
-                        is AppState.Error -> Text("Error: ${state.message}")
+                        is AppState.Error -> Text("Error: ${localStudentsState.message}")
                     }
                 }
             },

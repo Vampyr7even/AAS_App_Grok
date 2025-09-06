@@ -164,18 +164,19 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         }
     }
 
-    fun getEvaluationsForStudent(studentId: Long) = repository.getEvaluationResultsForStudent(studentId)
+    fun getEvaluationsForStudent(studentId: Long): Flow<List<PeclEvaluationResultEntity>> {
+        return repository.getEvaluationResultsForStudent(studentId)
+    }
 
-    fun getProgramById(programId: Long): PeclProgramEntity? {
-        var program: PeclProgramEntity? = null
+    fun getProgramById(programId: Long, onResult: (PeclProgramEntity?) -> Unit) {
         viewModelScope.launch {
             try {
-                program = repository.getProgramById(programId)
+                onResult(repository.getProgramById(programId))
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error getting program by ID: ${e.message}", e)
+                onResult(null)
             }
         }
-        return program
     }
 
     fun getInstructorById(instructorId: Long, onResult: (UserEntity?) -> Unit) {
@@ -214,16 +215,15 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         }
     }
 
-    fun getScaleByName(name: String): ScaleEntity? {
-        var scale: ScaleEntity? = null
+    fun getScaleByName(name: String, onResult: (ScaleEntity?) -> Unit) {
         viewModelScope.launch {
             try {
-                scale = repository.getScaleByName(name)
+                onResult(repository.getScaleByName(name))
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error getting scale by name: ${e.message}", e)
+                onResult(null)
             }
         }
-        return scale
     }
 
     fun loadQuestionsForTask(taskId: Long) {
@@ -273,12 +273,8 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
         viewModelScope.launch {
             try {
                 when (val appResult = repository.insertEvaluationResult(result)) {
-                    is AppResult.Success -> {
-                        loadEvaluationResultsForStudent(result.student_id)
-                    }
-                    is AppResult.Error -> {
-                        _evaluationResultsState.postValue(AppState.Error(appResult.message))
-                    }
+                    is AppResult.Success -> loadEvaluationResultsForStudent(result.student_id)
+                    is AppResult.Error -> _evaluationResultsState.postValue(AppState.Error(appResult.exception.message ?: "Error inserting evaluation result"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error inserting evaluation result: ${e.message}", e)
@@ -290,13 +286,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun deleteEvaluationsForStudentAndTask(studentId: Long, taskId: Long) {
         viewModelScope.launch {
             try {
-                when (val result = repository.deleteEvaluationsForStudentAndTask(studentId, taskId)) {
-                    is AppResult.Success -> {
-                        loadEvaluationsForStudentAndTask(studentId, taskId)
-                    }
-                    is AppResult.Error -> {
-                        _evaluationsForStudentAndTaskState.postValue(AppState.Error(result.message))
-                    }
+                when (val appResult = repository.deleteEvaluationsForStudentAndTask(studentId, taskId)) {
+                    is AppResult.Success -> loadEvaluationsForStudentAndTask(studentId, taskId)
+                    is AppResult.Error -> _evaluationsForStudentAndTaskState.postValue(AppState.Error(appResult.exception.message ?: "Error deleting evaluations"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error deleting evaluations: ${e.message}", e)
@@ -308,9 +300,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun insertPeclStudent(student: PeclStudentEntity) {
         viewModelScope.launch {
             try {
-                when (val result = repository.insertPeclStudent(student)) {
+                when (val appResult = repository.insertPeclStudent(student)) {
                     is AppResult.Success -> loadStudents()
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _studentsState.postValue(AppState.Error(appResult.exception.message ?: "Error inserting student"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error inserting student: ${e.message}", e)
@@ -322,9 +314,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun updatePeclStudent(student: PeclStudentEntity) {
         viewModelScope.launch {
             try {
-                when (val result = repository.updatePeclStudent(student)) {
+                when (val appResult = repository.updatePeclStudent(student)) {
                     is AppResult.Success -> loadStudents()
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _studentsState.postValue(AppState.Error(appResult.exception.message ?: "Error updating student"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error updating student: ${e.message}", e)
@@ -336,9 +328,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun deletePeclStudent(student: PeclStudentEntity) {
         viewModelScope.launch {
             try {
-                when (val result = repository.deletePeclStudent(student)) {
+                when (val appResult = repository.deletePeclStudent(student)) {
                     is AppResult.Success -> loadStudents()
-                    is AppResult.Error -> _studentsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _studentsState.postValue(AppState.Error(appResult.exception.message ?: "Error deleting student"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error deleting student: ${e.message}", e)
@@ -380,9 +372,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
         viewModelScope.launch {
             try {
-                when (val result = repository.insertQuestion(question, taskId)) {
+                when (val appResult = repository.insertQuestion(question, taskId)) {
                     is AppResult.Success -> loadAllQuestions()
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _questionsState.postValue(AppState.Error(appResult.exception.message ?: "Error inserting question"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error inserting question: ${e.message}", e)
@@ -394,9 +386,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun updateQuestion(question: PeclQuestionEntity, taskId: Long) {
         viewModelScope.launch {
             try {
-                when (val result = repository.updateQuestion(question, taskId)) {
+                when (val appResult = repository.updateQuestion(question, taskId)) {
                     is AppResult.Success -> loadAllQuestions()
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _questionsState.postValue(AppState.Error(appResult.exception.message ?: "Error updating question"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error updating question: ${e.message}", e)
@@ -408,9 +400,9 @@ class PeclViewModel @Inject constructor(private val repository: AppRepository) :
     fun deleteQuestion(question: PeclQuestionEntity) {
         viewModelScope.launch {
             try {
-                when (val result = repository.deleteQuestion(question)) {
+                when (val appResult = repository.deleteQuestion(question)) {
                     is AppResult.Success -> loadAllQuestions()
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
+                    is AppResult.Error -> _questionsState.postValue(AppState.Error(appResult.exception.message ?: "Error deleting question"))
                 }
             } catch (e: Exception) {
                 Log.e("PeclViewModel", "Error deleting question: ${e.message}", e)

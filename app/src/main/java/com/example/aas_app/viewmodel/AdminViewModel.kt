@@ -9,6 +9,7 @@ import com.example.aas_app.data.AppRepository
 import com.example.aas_app.data.AppResult
 import com.example.aas_app.data.entity.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -89,12 +90,8 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         _questionsState.value = AppState.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getQuestionsForTask(taskId).first()
-                val questionsWithTasks = data.map { question ->
-                    val task = repository.getTaskById(taskId)
-                    QuestionWithTask(question, task?.name)
-                }
-                _questionsState.postValue(AppState.Success(questionsWithTasks.sortedBy { it.question.subTask }))
+                val data = repository.getAllQuestionsWithTasks().first()
+                _questionsState.postValue(AppState.Success(data))
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error loading questions for task: ${e.message}", e)
                 _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions"))
@@ -115,18 +112,19 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
         }
     }
 
-    fun insertProgram(program: PeclProgramEntity) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.insertProgram(program)) {
-                    is AppResult.Success -> loadPrograms()
-                    is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
-                    else -> {}
+    suspend fun insertProgram(program: PeclProgramEntity): AppResult<Long> {
+        return try {
+            val result = repository.insertProgram(program)
+            when (result) {
+                is AppResult.Success -> {
+                    loadPrograms()
+                    AppResult.Success(result.data)
                 }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error inserting program: ${e.message}", e)
-                _programsState.postValue(AppState.Error(e.message ?: "Error inserting program"))
+                is AppResult.Error -> AppResult.Error(result.exception)
             }
+        } catch (e: Exception) {
+            Log.e("AdminViewModel", "Error inserting program: ${e.message}", e)
+            AppResult.Error(e)
         }
     }
 
@@ -135,8 +133,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.updateProgram(program)) {
                     is AppResult.Success -> loadPrograms()
-                    is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _programsState.postValue(AppState.Error(result.exception.message ?: "Error updating program"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error updating program: ${e.message}", e)
@@ -150,8 +147,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.deleteProgram(program)) {
                     is AppResult.Success -> loadPrograms()
-                    is AppResult.Error -> _programsState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _programsState.postValue(AppState.Error(result.exception.message ?: "Error deleting program"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error deleting program: ${e.message}", e)
@@ -165,8 +161,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.insertPoi(poi, programIds)) {
                     is AppResult.Success -> loadPoisForProgram(programIds.firstOrNull() ?: 0L)
-                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.exception.message ?: "Error inserting POI"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error inserting POI: ${e.message}", e)
@@ -180,8 +175,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.updatePoi(poi, programIds)) {
                     is AppResult.Success -> loadPoisForProgram(programIds.firstOrNull() ?: 0L)
-                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.exception.message ?: "Error updating POI"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error updating POI: ${e.message}", e)
@@ -195,8 +189,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.deletePoi(poi)) {
                     is AppResult.Success -> loadPoisForProgram(0L)
-                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.exception.message ?: "Error deleting POI"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error deleting POI: ${e.message}", e)
@@ -210,8 +203,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.insertTask(task, poiIds)) {
                     is AppResult.Success -> loadTasksForPoi(poiIds.firstOrNull() ?: 0L)
-                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.exception.message ?: "Error inserting task"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error inserting task: ${e.message}", e)
@@ -225,8 +217,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.updateTask(task, poiIds)) {
                     is AppResult.Success -> loadTasksForPoi(poiIds?.firstOrNull() ?: 0L)
-                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.exception.message ?: "Error updating task"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error updating task: ${e.message}", e)
@@ -240,8 +231,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.deleteTask(task)) {
                     is AppResult.Success -> loadTasksForPoi(0L)
-                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.exception.message ?: "Error deleting task"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error deleting task: ${e.message}", e)
@@ -255,8 +245,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.insertQuestion(question, taskId)) {
                     is AppResult.Success -> loadQuestionsForTask(taskId)
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.exception.message ?: "Error inserting question"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error inserting question: ${e.message}", e)
@@ -270,8 +259,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.updateQuestion(question, taskId)) {
                     is AppResult.Success -> loadQuestionsForTask(taskId)
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.exception.message ?: "Error updating question"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error updating question: ${e.message}", e)
@@ -285,8 +273,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.deleteQuestion(question)) {
                     is AppResult.Success -> loadQuestionsForTask(0L)
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.exception.message ?: "Error deleting question"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error deleting question: ${e.message}", e)
@@ -300,8 +287,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.insertScale(scale)) {
                     is AppResult.Success -> loadScales()
-                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.exception.message ?: "Error inserting scale"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error inserting scale: ${e.message}", e)
@@ -315,8 +301,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.updateScale(scale)) {
                     is AppResult.Success -> loadScales()
-                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.exception.message ?: "Error updating scale"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error updating scale: ${e.message}", e)
@@ -330,8 +315,7 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
             try {
                 when (val result = repository.deleteScale(scale)) {
                     is AppResult.Success -> loadScales()
-                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.message))
-                    else -> {}
+                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.exception.message ?: "Error deleting scale"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error deleting scale: ${e.message}", e)

@@ -25,10 +25,10 @@ import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.viewmodel.AdminViewModel
 import com.example.aas_app.viewmodel.AppState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditTasksScreen(
     navController: NavController,
@@ -58,8 +58,8 @@ fun EditTasksScreen(
             editTaskName = task.name
             coroutineScope.launch {
                 try {
-                    val poiIds = viewModel.getPoisForTask(task.id).first().map { poi -> poi.id }.toSet()
-                    selectedPoisForEdit = poiIds
+                    val poisForTask = viewModel.getPoisForTask(task.id).first()
+                    selectedPoisForEdit = poisForTask.map { it.id }.toSet<Long>()
                 } catch (e: Exception) {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar("Error loading POIs for task: ${e.message}")
@@ -131,10 +131,10 @@ fun EditTasksScreen(
                                     )
                                 }
                                 IconButton(onClick = { showEditTaskDialog = task }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit Task")
                                 }
                                 IconButton(onClick = { showDeleteDialog = task }) {
-                                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete Task")
                                 }
                             }
                         }
@@ -161,7 +161,7 @@ fun EditTasksScreen(
                         )
                         Text(text = "Select POIs:")
                         LazyColumn {
-                            items(poisSimple) { poi: PeclPoiEntity ->
+                            items(poisSimple) { poi ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Checkbox(
                                         checked = selectedPoisForAdd.contains(poi.id),
@@ -233,7 +233,7 @@ fun EditTasksScreen(
                         )
                         Text(text = "Select POIs:")
                         LazyColumn {
-                            items(poisSimple) { poi: PeclPoiEntity ->
+                            items(poisSimple) { poi ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Checkbox(
                                         checked = selectedPoisForEdit.contains(poi.id),
@@ -302,7 +302,7 @@ fun EditTasksScreen(
                         onClick = {
                             coroutineScope.launch {
                                 try {
-                                    showDeleteDialog?.let { viewModel.deleteTask(it) }
+                                    viewModel.deleteTask(showDeleteDialog!!)
                                     snackbarHostState.showSnackbar("Task deleted successfully")
                                 } catch (e: Exception) {
                                     Log.e("EditTasksScreen", "Error deleting task: ${e.message}", e)

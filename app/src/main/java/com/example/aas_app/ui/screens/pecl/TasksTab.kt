@@ -166,7 +166,7 @@ fun TasksTab(navController: NavController, poiId: Long) {
                     )
                     Text(text = "Select POIs:")
                     LazyColumn {
-                        items(poisSimple) { poi: PeclPoiEntity ->
+                        items(poisSimple) { poi ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(
                                     checked = selectedPoisForAdd.contains(poi.id),
@@ -240,7 +240,7 @@ fun TasksTab(navController: NavController, poiId: Long) {
                     )
                     Text(text = "Select POIs:")
                     LazyColumn {
-                        items(poisSimple) { poi: PeclPoiEntity ->
+                        items(poisSimple) { poi ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(
                                     checked = selectedPoisForEdit.contains(poi.id),
