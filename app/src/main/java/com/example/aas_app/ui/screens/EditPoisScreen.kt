@@ -24,7 +24,7 @@ import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
-import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.State
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -37,8 +37,8 @@ fun EditPoisScreen(
     snackbarHostState: SnackbarHostState
 ) {
     val viewModel = hiltViewModel<AdminViewModel>()
-    val poisState by viewModel.poisState.observeAsState(AppState.Success(emptyList()))
-    val programsState by viewModel.programsState.observeAsState(AppState.Success(emptyList()))
+    val poisState by viewModel.poisState.observeAsState(State.Success(emptyList()))
+    val programsState by viewModel.programsState.observeAsState(State.Success(emptyList()))
     var showAddPoiDialog by remember { mutableStateOf(false) }
     var newPoiName by remember { mutableStateOf("") }
     var selectedProgramsForAdd by remember { mutableStateOf(setOf<Long>()) }
@@ -58,8 +58,8 @@ fun EditPoisScreen(
             editPoiName = poi.name
             coroutineScope.launch {
                 try {
-                    val programsForPoi = viewModel.getProgramsForPoi(poi.id).first()
-                    selectedProgramsForEdit = programsForPoi.map { it.id }.toSet<Long>()
+                    val programsForPoi: List<PeclProgramEntity> = viewModel.getProgramsForPoi(poi.id).first()
+                    selectedProgramsForEdit = programsForPoi.map { it.id }.toSet()
                 } catch (e: Exception) {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar("Error loading programs for POI: ${e.message}")
@@ -100,8 +100,8 @@ fun EditPoisScreen(
         }
 
         when (val state = poisState) {
-            is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            is AppState.Success -> {
+            is State.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is State.Success -> {
                 if (state.data.isEmpty()) {
                     Text("No POIs have been entered in the database. Add POIs to begin.")
                 } else {
@@ -141,7 +141,7 @@ fun EditPoisScreen(
                     }
                 }
             }
-            is AppState.Error -> Text(
+            is State.Error -> Text(
                 text = "Error: ${state.message}",
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -161,8 +161,8 @@ fun EditPoisScreen(
                         )
                         Text(text = "Select Programs:")
                         when (val state = programsState) {
-                            is AppState.Loading -> Text("Loading programs...")
-                            is AppState.Success -> {
+                            is State.Loading -> Text("Loading programs...")
+                            is State.Success -> {
                                 LazyColumn {
                                     items(state.data) { program ->
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -181,7 +181,7 @@ fun EditPoisScreen(
                                     }
                                 }
                             }
-                            is AppState.Error -> Text("Error loading programs: ${state.message}")
+                            is State.Error -> Text("Error loading programs: ${state.message}")
                         }
                     }
                 },
@@ -239,8 +239,8 @@ fun EditPoisScreen(
                         )
                         Text(text = "Select Programs:")
                         when (val state = programsState) {
-                            is AppState.Loading -> Text("Loading programs...")
-                            is AppState.Success -> {
+                            is State.Loading -> Text("Loading programs...")
+                            is State.Success -> {
                                 LazyColumn {
                                     items(state.data) { program ->
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -259,7 +259,7 @@ fun EditPoisScreen(
                                     }
                                 }
                             }
-                            is AppState.Error -> Text("Error loading programs: ${state.message}")
+                            is State.Error -> Text("Error loading programs: ${state.message}")
                         }
                     }
                 },

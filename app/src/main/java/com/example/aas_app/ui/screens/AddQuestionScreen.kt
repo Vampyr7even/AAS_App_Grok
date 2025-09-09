@@ -1,6 +1,7 @@
 package com.example.aas_app.ui.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,8 +22,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.data.entity.PeclTaskEntity
+import com.example.aas_app.data.entity.QuestionWithTask
 import com.example.aas_app.viewmodel.AdminViewModel
-import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.State
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -35,8 +37,9 @@ fun AddQuestionScreen(
     snackbarHostState: SnackbarHostState
 ) {
     val viewModel = hiltViewModel<AdminViewModel>()
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Loading)
-    val tasksState by viewModel.tasksState.observeAsState(AppState.Loading)
+    val questionsState by viewModel.questionsState.observeAsState(State.Success(emptyList()))
+    val tasksState by viewModel.tasksState.observeAsState(State.Success(emptyList()))
+    val taskState by viewModel.taskState.observeAsState(State.Success(null))
     var subTask by remember { mutableStateOf("") }
     var controlType by remember { mutableStateOf("") }
     var scale by remember { mutableStateOf("") }
@@ -47,9 +50,24 @@ fun AddQuestionScreen(
     var showDeleteDialog by remember { mutableStateOf<PeclQuestionEntity?>(null) }
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(taskId) {
         viewModel.loadQuestionsForTask(taskId)
         viewModel.loadTasksForPoi(0L)
+        viewModel.getTaskById(taskId)
+    }
+
+    LaunchedEffect(taskState) {
+        when (val state = taskState) {
+            is State.Success -> {
+                selectedTask = state.data
+            }
+            is State.Error -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Error loading task: ${state.message}")
+                }
+            }
+            is State.Loading -> {}
+        }
     }
 
     Column(
@@ -70,143 +88,123 @@ fun AddQuestionScreen(
         TextField(
             value = controlType,
             onValueChange = { controlType = it },
-            label = { Text("Control Type (e.g., ScoreBox, ComboBox, TextBox)") },
+            label = { Text("Control Type") },
             modifier = Modifier.fillMaxWidth()
         )
 
         TextField(
             value = scale,
             onValueChange = { scale = it },
-            label = { Text("Scale (e.g., Scale_PECL, Scale_Yes_No)") },
+            label = { Text("Scale") },
             modifier = Modifier.fillMaxWidth()
         )
 
         TextField(
             value = criticalTask,
             onValueChange = { criticalTask = it },
-            label = { Text("Critical Task (YES/NO)") },
+            label = { Text("Critical Task") },
             modifier = Modifier.fillMaxWidth()
         )
 
-        ExposedDropdownMenuBox(
-            expanded = expandedTask,
-            onExpandedChange = { expandedTask = !expandedTask }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            TextField(
-                readOnly = true,
-                value = selectedTask?.name ?: "",
-                onValueChange = { },
-                label = { Text("Select Task") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTask) },
-                colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = expandedTask,
-                onDismissRequest = { expandedTask = false }
-            ) {
-                when (val state = tasksState) {
-                    is AppState.Loading -> DropdownMenuItem(text = { Text("Loading...") }, onClick = {})
-                    is AppState.Success -> state.data.forEach { task ->
-                        DropdownMenuItem(
-                            text = { Text(task.name) },
-                            onClick = {
-                                selectedTask = task
-                                expandedTask = false
+            Button(
+                onClick = {
+                    if (subTask.isNotBlank() && controlType.isNotBlank() && scale.isNotBlank()) {
+                        coroutineScope.launch {
+                            try {
+                                val question = PeclQuestionEntity(
+                                    subTask = subTask,
+                                    controlType = controlType,
+                                    scale = scale,
+                                    criticalTask = criticalTask
+                                )
+                                if (editingQuestion != null) {
+                                    viewModel.updateQuestion(question.copy(id = editingQuestion!!.id), taskId)
+                                    Toast.makeText(context, "Question updated successfully", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    viewModel.insertQuestion(question, taskId)
+                                    Toast.makeText(context, "Question added successfully", Toast.LENGTH_SHORT).show()
+                                }
+                                subTask = ""
+                                controlType = ""
+                                scale = ""
+                                criticalTask = ""
+                                editingQuestion = null
+                            } catch (e: Exception) {
+                                Log.e("AddQuestionScreen", "Error saving question: ${e.message}", e)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error saving question: ${e.message}")
+                                }
                             }
-                        )
+                        }
+                    } else {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("All fields except Critical Task must be filled")
+                        }
                     }
-                    is AppState.Error -> DropdownMenuItem(text = { Text("Error: ${state.message}") }, onClick = {})
-                }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(if (editingQuestion != null) "Update" else "Save")
+            }
+            Button(
+                onClick = {
+                    subTask = ""
+                    controlType = ""
+                    scale = ""
+                    criticalTask = ""
+                    editingQuestion = null
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text("Clear")
             }
         }
 
-        Button(
-            onClick = {
-                if (subTask.isNotBlank() && controlType.isNotBlank() && scale.isNotBlank() && criticalTask.isNotBlank() && selectedTask != null) {
-                    val question = PeclQuestionEntity(
-                        id = editingQuestion?.id ?: 0L,
-                        subTask = subTask,
-                        controlType = controlType,
-                        scale = scale,
-                        criticalTask = criticalTask
-                    )
-                    coroutineScope.launch {
-                        try {
-                            if (editingQuestion == null) {
-                                viewModel.insertQuestion(question, selectedTask!!.id)
-                                snackbarHostState.showSnackbar("Question added successfully")
-                            } else {
-                                viewModel.updateQuestion(question, selectedTask!!.id)
-                                snackbarHostState.showSnackbar("Question updated successfully")
-                            }
-                            subTask = ""
-                            controlType = ""
-                            scale = ""
-                            criticalTask = ""
-                            selectedTask = null
-                            editingQuestion = null
-                        } catch (e: Exception) {
-                            Log.e("AddQuestionScreen", "Error adding/updating question: ${e.message}", e)
-                            snackbarHostState.showSnackbar("Error: ${e.message}")
-                        }
-                    }
-                } else {
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("All fields are required")
-                    }
-                }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-            shape = RoundedCornerShape(4.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (editingQuestion == null) "Add Sub-Task" else "Update Sub-Task")
-        }
-
         when (val state = questionsState) {
-            is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            is AppState.Success -> {
-                LazyColumn {
-                    items(state.data) { questionWithTask ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = questionWithTask.question.subTask,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Row {
+            is State.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is State.Success -> {
+                if (state.data.isEmpty()) {
+                    Text("No questions available")
+                } else {
+                    LazyColumn {
+                        items(state.data) { questionWithTask ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = questionWithTask.question.subTask)
+                                    Text(
+                                        text = "Task: ${questionWithTask.task?.name ?: "None"}, ControlType: ${questionWithTask.question.controlType}, Scale: ${questionWithTask.question.scale}, CriticalTask: ${questionWithTask.question.criticalTask}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                                 IconButton(onClick = {
+                                    editingQuestion = questionWithTask.question
                                     subTask = questionWithTask.question.subTask
                                     controlType = questionWithTask.question.controlType
                                     scale = questionWithTask.question.scale
                                     criticalTask = questionWithTask.question.criticalTask
-                                    editingQuestion = questionWithTask.question
-                                    coroutineScope.launch {
-                                        val task = viewModel.getTaskById(taskId)
-                                        selectedTask = task
-                                    }
                                 }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit Sub-Task")
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
                                 }
-                                IconButton(onClick = {
-                                    showDeleteDialog = questionWithTask.question
-                                }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete Sub-Task")
+                                IconButton(onClick = { showDeleteDialog = questionWithTask.question }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
                                 }
                             }
                         }
                     }
                 }
             }
-            is AppState.Error -> Text(
+            is State.Error -> Text(
                 text = "Error: ${state.message}",
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -216,26 +214,28 @@ fun AddQuestionScreen(
         if (showDeleteDialog != null) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = null },
-                title = { Text("Delete Sub-Task") },
-                text = { Text("Are you sure you want to delete ${showDeleteDialog?.subTask}?") },
+                title = { Text("Confirm Delete") },
+                text = { Text("Are you sure you want to delete this question?") },
                 confirmButton = {
                     Button(
                         onClick = {
                             coroutineScope.launch {
                                 try {
                                     showDeleteDialog?.let { viewModel.deleteQuestion(it) }
-                                    snackbarHostState.showSnackbar("Question deleted successfully")
+                                    showDeleteDialog = null
+                                    Toast.makeText(context, "Question deleted successfully", Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
                                     Log.e("AddQuestionScreen", "Error deleting question: ${e.message}", e)
-                                    snackbarHostState.showSnackbar("Error deleting question: ${e.message}")
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Error deleting question: ${e.message}")
+                                    }
                                 }
                             }
-                            showDeleteDialog = null
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
                         shape = RoundedCornerShape(4.dp)
                     ) {
-                        Text("Delete")
+                        Text("Yes")
                     }
                 },
                 dismissButton = {
@@ -244,7 +244,7 @@ fun AddQuestionScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                         shape = RoundedCornerShape(4.dp)
                     ) {
-                        Text("Cancel")
+                        Text("No")
                     }
                 }
             )

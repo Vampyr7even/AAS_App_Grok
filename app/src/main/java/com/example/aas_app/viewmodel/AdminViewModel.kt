@@ -15,269 +15,43 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class AdminViewModel @Inject constructor(private val repository: AppRepository) : ViewModel() {
+class AdminViewModel @Inject constructor(
+    private val repository: AppRepository
+) : ViewModel() {
 
-    private val _programsState = MutableLiveData<AppState<List<PeclProgramEntity>>>()
-    val programsState: LiveData<AppState<List<PeclProgramEntity>>> = _programsState
+    private val _scalesState = MutableLiveData<State<List<ScaleEntity>>>(State.Success(emptyList()))
+    val scalesState: LiveData<State<List<ScaleEntity>>> = _scalesState
 
-    private val _poisState = MutableLiveData<AppState<List<PeclPoiEntity>>>()
-    val poisState: LiveData<AppState<List<PeclPoiEntity>>> = _poisState
+    private val _scaleState = MutableLiveData<State<ScaleEntity?>>(State.Success(null))
+    val scaleState: LiveData<State<ScaleEntity?>> = _scaleState
 
-    private val _tasksState = MutableLiveData<AppState<List<PeclTaskEntity>>>()
-    val tasksState: LiveData<AppState<List<PeclTaskEntity>>> = _tasksState
+    private val _programsState = MutableLiveData<State<List<PeclProgramEntity>>>(State.Success(emptyList()))
+    val programsState: LiveData<State<List<PeclProgramEntity>>> = _programsState
 
-    private val _questionsState = MutableLiveData<AppState<List<QuestionWithTask>>>()
-    val questionsState: LiveData<AppState<List<QuestionWithTask>>> = _questionsState
+    private val _poisState = MutableLiveData<State<List<PeclPoiEntity>>>(State.Success(emptyList()))
+    val poisState: LiveData<State<List<PeclPoiEntity>>> = _poisState
 
-    private val _scalesState = MutableLiveData<AppState<List<ScaleEntity>>>()
-    val scalesState: LiveData<AppState<List<ScaleEntity>>> = _scalesState
+    private val _tasksState = MutableLiveData<State<List<PeclTaskEntity>>>(State.Success(emptyList()))
+    val tasksState: LiveData<State<List<PeclTaskEntity>>> = _tasksState
 
-    private val _poisSimple = MutableLiveData<List<PeclPoiEntity>>()
+    private val _taskState = MutableLiveData<State<PeclTaskEntity?>>(State.Success(null))
+    val taskState: LiveData<State<PeclTaskEntity?>> = _taskState
+
+    private val _questionsState = MutableLiveData<State<List<QuestionWithTask>>>(State.Success(emptyList()))
+    val questionsState: LiveData<State<List<QuestionWithTask>>> = _questionsState
+
+    private val _poisSimple = MutableLiveData<List<PeclPoiEntity>>(emptyList())
     val poisSimple: LiveData<List<PeclPoiEntity>> = _poisSimple
 
-    fun loadPrograms() {
-        _programsState.value = AppState.Loading
+    fun getScaleById(scaleId: Long) {
+        _scaleState.value = State.Loading
         viewModelScope.launch {
             try {
-                val data = repository.getAllPrograms().first()
-                _programsState.postValue(AppState.Success(data))
+                val scale = repository.getScaleById(scaleId).first()
+                _scaleState.postValue(State.Success(scale))
             } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error loading programs: ${e.message}", e)
-                _programsState.postValue(AppState.Error(e.message ?: "Error loading programs"))
-            }
-        }
-    }
-
-    fun loadAllPois() {
-        _poisSimple.value = emptyList()
-        viewModelScope.launch {
-            try {
-                val data = repository.getAllPois().first()
-                _poisSimple.postValue(data)
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error loading all POIs: ${e.message}", e)
-            }
-        }
-    }
-
-    fun loadPoisForProgram(programId: Long) {
-        _poisState.value = AppState.Loading
-        viewModelScope.launch {
-            try {
-                val data = repository.getPoisForProgram(programId).first()
-                _poisState.postValue(AppState.Success(data))
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error loading POIs for program: ${e.message}", e)
-                _poisState.postValue(AppState.Error(e.message ?: "Error loading POIs"))
-            }
-        }
-    }
-
-    fun loadTasksForPoi(poiId: Long) {
-        _tasksState.value = AppState.Loading
-        viewModelScope.launch {
-            try {
-                val data = repository.getTasksForPoi(poiId).first()
-                _tasksState.postValue(AppState.Success(data))
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error loading tasks for POI: ${e.message}", e)
-                _tasksState.postValue(AppState.Error(e.message ?: "Error loading tasks"))
-            }
-        }
-    }
-
-    fun loadQuestionsForTask(taskId: Long) {
-        _questionsState.value = AppState.Loading
-        viewModelScope.launch {
-            try {
-                val data = repository.getAllQuestionsWithTasks().first()
-                _questionsState.postValue(AppState.Success(data))
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error loading questions for task: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error loading questions"))
-            }
-        }
-    }
-
-    fun loadScales() {
-        _scalesState.value = AppState.Loading
-        viewModelScope.launch {
-            try {
-                val data = repository.getAllScales().first()
-                _scalesState.postValue(AppState.Success(data))
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error loading scales: ${e.message}", e)
-                _scalesState.postValue(AppState.Error(e.message ?: "Error loading scales"))
-            }
-        }
-    }
-
-    suspend fun insertProgram(program: PeclProgramEntity): AppResult<Long> {
-        return try {
-            val result = repository.insertProgram(program)
-            when (result) {
-                is AppResult.Success -> {
-                    loadPrograms()
-                    AppResult.Success(result.data)
-                }
-                is AppResult.Error -> AppResult.Error(result.exception)
-            }
-        } catch (e: Exception) {
-            Log.e("AdminViewModel", "Error inserting program: ${e.message}", e)
-            AppResult.Error(e)
-        }
-    }
-
-    fun updateProgram(program: PeclProgramEntity) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.updateProgram(program)) {
-                    is AppResult.Success -> loadPrograms()
-                    is AppResult.Error -> _programsState.postValue(AppState.Error(result.exception.message ?: "Error updating program"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error updating program: ${e.message}", e)
-                _programsState.postValue(AppState.Error(e.message ?: "Error updating program"))
-            }
-        }
-    }
-
-    fun deleteProgram(program: PeclProgramEntity) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.deleteProgram(program)) {
-                    is AppResult.Success -> loadPrograms()
-                    is AppResult.Error -> _programsState.postValue(AppState.Error(result.exception.message ?: "Error deleting program"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error deleting program: ${e.message}", e)
-                _programsState.postValue(AppState.Error(e.message ?: "Error deleting program"))
-            }
-        }
-    }
-
-    fun insertPoi(poi: PeclPoiEntity, programIds: List<Long>) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.insertPoi(poi, programIds)) {
-                    is AppResult.Success -> loadPoisForProgram(programIds.firstOrNull() ?: 0L)
-                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.exception.message ?: "Error inserting POI"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error inserting POI: ${e.message}", e)
-                _poisState.postValue(AppState.Error(e.message ?: "Error inserting POI"))
-            }
-        }
-    }
-
-    fun updatePoi(poi: PeclPoiEntity, programIds: List<Long>) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.updatePoi(poi, programIds)) {
-                    is AppResult.Success -> loadPoisForProgram(programIds.firstOrNull() ?: 0L)
-                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.exception.message ?: "Error updating POI"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error updating POI: ${e.message}", e)
-                _poisState.postValue(AppState.Error(e.message ?: "Error updating POI"))
-            }
-        }
-    }
-
-    fun deletePoi(poi: PeclPoiEntity) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.deletePoi(poi)) {
-                    is AppResult.Success -> loadPoisForProgram(0L)
-                    is AppResult.Error -> _poisState.postValue(AppState.Error(result.exception.message ?: "Error deleting POI"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error deleting POI: ${e.message}", e)
-                _poisState.postValue(AppState.Error(e.message ?: "Error deleting POI"))
-            }
-        }
-    }
-
-    fun insertTask(task: PeclTaskEntity, poiIds: List<Long>) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.insertTask(task, poiIds)) {
-                    is AppResult.Success -> loadTasksForPoi(poiIds.firstOrNull() ?: 0L)
-                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.exception.message ?: "Error inserting task"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error inserting task: ${e.message}", e)
-                _tasksState.postValue(AppState.Error(e.message ?: "Error inserting task"))
-            }
-        }
-    }
-
-    fun updateTask(task: PeclTaskEntity, poiIds: List<Long>?) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.updateTask(task, poiIds)) {
-                    is AppResult.Success -> loadTasksForPoi(poiIds?.firstOrNull() ?: 0L)
-                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.exception.message ?: "Error updating task"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error updating task: ${e.message}", e)
-                _tasksState.postValue(AppState.Error(e.message ?: "Error updating task"))
-            }
-        }
-    }
-
-    fun deleteTask(task: PeclTaskEntity) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.deleteTask(task)) {
-                    is AppResult.Success -> loadTasksForPoi(0L)
-                    is AppResult.Error -> _tasksState.postValue(AppState.Error(result.exception.message ?: "Error deleting task"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error deleting task: ${e.message}", e)
-                _tasksState.postValue(AppState.Error(e.message ?: "Error deleting task"))
-            }
-        }
-    }
-
-    fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.insertQuestion(question, taskId)) {
-                    is AppResult.Success -> loadQuestionsForTask(taskId)
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.exception.message ?: "Error inserting question"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error inserting question: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error inserting question"))
-            }
-        }
-    }
-
-    fun updateQuestion(question: PeclQuestionEntity, taskId: Long) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.updateQuestion(question, taskId)) {
-                    is AppResult.Success -> loadQuestionsForTask(taskId)
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.exception.message ?: "Error updating question"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error updating question: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error updating question"))
-            }
-        }
-    }
-
-    fun deleteQuestion(question: PeclQuestionEntity) {
-        viewModelScope.launch {
-            try {
-                when (val result = repository.deleteQuestion(question)) {
-                    is AppResult.Success -> loadQuestionsForTask(0L)
-                    is AppResult.Error -> _questionsState.postValue(AppState.Error(result.exception.message ?: "Error deleting question"))
-                }
-            } catch (e: Exception) {
-                Log.e("AdminViewModel", "Error deleting question: ${e.message}", e)
-                _questionsState.postValue(AppState.Error(e.message ?: "Error deleting question"))
+                Log.e("AdminViewModel", "Error loading scale by ID: ${e.message}", e)
+                _scaleState.postValue(State.Error(e.message ?: "Error loading scale"))
             }
         }
     }
@@ -285,13 +59,27 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun insertScale(scale: ScaleEntity) {
         viewModelScope.launch {
             try {
-                when (val result = repository.insertScale(scale)) {
+                when (val appResult = repository.insertScale(scale)) {
                     is AppResult.Success -> loadScales()
-                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.exception.message ?: "Error inserting scale"))
+                    is AppResult.Error -> _scalesState.postValue(State.Error(appResult.exception.message ?: "Error inserting scale"))
+                    else -> _scalesState.postValue(State.Error("Unexpected result"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error inserting scale: ${e.message}", e)
-                _scalesState.postValue(AppState.Error(e.message ?: "Error inserting scale"))
+                _scalesState.postValue(State.Error(e.message ?: "Error inserting scale"))
+            }
+        }
+    }
+
+    fun loadScales() {
+        _scalesState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getAllScales().first()
+                _scalesState.postValue(State.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading scales: ${e.message}", e)
+                _scalesState.postValue(State.Error(e.message ?: "Error loading scales"))
             }
         }
     }
@@ -299,13 +87,14 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun updateScale(scale: ScaleEntity) {
         viewModelScope.launch {
             try {
-                when (val result = repository.updateScale(scale)) {
+                when (val appResult = repository.updateScale(scale)) {
                     is AppResult.Success -> loadScales()
-                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.exception.message ?: "Error updating scale"))
+                    is AppResult.Error -> _scalesState.postValue(State.Error(appResult.exception.message ?: "Error updating scale"))
+                    else -> _scalesState.postValue(State.Error("Unexpected result"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error updating scale: ${e.message}", e)
-                _scalesState.postValue(AppState.Error(e.message ?: "Error updating scale"))
+                _scalesState.postValue(State.Error(e.message ?: "Error updating scale"))
             }
         }
     }
@@ -313,49 +102,170 @@ class AdminViewModel @Inject constructor(private val repository: AppRepository) 
     fun deleteScale(scale: ScaleEntity) {
         viewModelScope.launch {
             try {
-                when (val result = repository.deleteScale(scale)) {
+                when (val appResult = repository.deleteScale(scale)) {
                     is AppResult.Success -> loadScales()
-                    is AppResult.Error -> _scalesState.postValue(AppState.Error(result.exception.message ?: "Error deleting scale"))
+                    is AppResult.Error -> _scalesState.postValue(State.Error(appResult.exception.message ?: "Error deleting scale"))
+                    else -> _scalesState.postValue(State.Error("Unexpected result"))
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Error deleting scale: ${e.message}", e)
-                _scalesState.postValue(AppState.Error(e.message ?: "Error deleting scale"))
+                _scalesState.postValue(State.Error(e.message ?: "Error deleting scale"))
             }
         }
     }
 
-    fun getProgramsForPoi(poiId: Long): Flow<List<PeclProgramEntity>> {
-        return repository.getProgramsForPoi(poiId)
-    }
-
-    fun getPoisForTask(taskId: Long): Flow<List<PeclPoiEntity>> {
-        return repository.getPoisForTask(taskId)
-    }
-
-    suspend fun getQuestionById(id: Long): PeclQuestionEntity? {
-        return try {
-            repository.getQuestionById(id)
-        } catch (e: Exception) {
-            Log.e("AdminViewModel", "Error getting question by ID: ${e.message}", e)
-            null
+    fun insertProgram(program: PeclProgramEntity) {
+        viewModelScope.launch {
+            try {
+                when (val appResult = repository.insertProgram(program)) {
+                    is AppResult.Success -> loadPrograms()
+                    is AppResult.Error -> _programsState.postValue(State.Error(appResult.exception.message ?: "Error inserting program"))
+                    else -> _programsState.postValue(State.Error("Unexpected result"))
+                }
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error inserting program: ${e.message}", e)
+                _programsState.postValue(State.Error(e.message ?: "Error inserting program"))
+            }
         }
     }
 
-    suspend fun getScaleById(id: Long): ScaleEntity? {
-        return try {
-            repository.getScaleById(id)
-        } catch (e: Exception) {
-            Log.e("AdminViewModel", "Error getting scale by ID: ${e.message}", e)
-            null
+    fun loadPrograms() {
+        _programsState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getAllPrograms().first()
+                _programsState.postValue(State.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading programs: ${e.message}", e)
+                _programsState.postValue(State.Error(e.message ?: "Error loading programs"))
+            }
         }
     }
 
-    suspend fun getTaskById(id: Long): PeclTaskEntity? {
-        return try {
-            repository.getTaskById(id)
-        } catch (e: Exception) {
-            Log.e("AdminViewModel", "Error getting task by ID: ${e.message}", e)
-            null
+    fun updateProgram(program: PeclProgramEntity) {
+        viewModelScope.launch {
+            try {
+                when (val appResult = repository.updateProgram(program)) {
+                    is AppResult.Success -> loadPrograms()
+                    is AppResult.Error -> _programsState.postValue(State.Error(appResult.exception.message ?: "Error updating program"))
+                    else -> _programsState.postValue(State.Error("Unexpected result"))
+                }
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error updating program: ${e.message}", e)
+                _programsState.postValue(State.Error(e.message ?: "Error updating program"))
+            }
+        }
+    }
+
+    fun deleteProgram(program: PeclProgramEntity) {
+        viewModelScope.launch {
+            try {
+                when (val appResult = repository.deleteProgram(program)) {
+                    is AppResult.Success -> loadPrograms()
+                    is AppResult.Error -> _programsState.postValue(State.Error(appResult.exception.message ?: "Error deleting program"))
+                    else -> _programsState.postValue(State.Error("Unexpected result"))
+                }
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error deleting program: ${e.message}", e)
+                _programsState.postValue(State.Error(e.message ?: "Error deleting program"))
+            }
+        }
+    }
+
+    fun loadTasksForPoi(poiId: Long) {
+        _tasksState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getTasksForPoi(poiId).first()
+                _tasksState.postValue(State.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading tasks for POI: ${e.message}", e)
+                _tasksState.postValue(State.Error(e.message ?: "Error loading tasks"))
+            }
+        }
+    }
+
+    fun getTaskById(taskId: Long) {
+        _taskState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val task = repository.getTaskById(taskId)
+                _taskState.postValue(State.Success(task))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading task by ID: ${e.message}", e)
+                _taskState.postValue(State.Error(e.message ?: "Error loading task"))
+            }
+        }
+    }
+
+    fun loadQuestionsForTask(taskId: Long) {
+        _questionsState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getQuestionsForTask(taskId).first()
+                _questionsState.postValue(State.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading questions for task: ${e.message}", e)
+                _questionsState.postValue(State.Error(e.message ?: "Error loading questions"))
+            }
+        }
+    }
+
+    fun insertQuestion(question: PeclQuestionEntity, taskId: Long) {
+        viewModelScope.launch {
+            try {
+                when (val appResult = repository.insertQuestion(question, taskId)) {
+                    is AppResult.Success -> loadQuestionsForTask(taskId)
+                    is AppResult.Error -> _questionsState.postValue(State.Error(appResult.exception.message ?: "Error inserting question"))
+                    else -> _questionsState.postValue(State.Error("Unexpected result"))
+                }
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error inserting question: ${e.message}", e)
+                _questionsState.postValue(State.Error(e.message ?: "Error inserting question"))
+            }
+        }
+    }
+
+    fun updateQuestion(question: PeclQuestionEntity, taskId: Long) {
+        viewModelScope.launch {
+            try {
+                when (val appResult = repository.updateQuestion(question, taskId)) {
+                    is AppResult.Success -> loadQuestionsForTask(taskId)
+                    is AppResult.Error -> _questionsState.postValue(State.Error(appResult.exception.message ?: "Error updating question"))
+                    else -> _questionsState.postValue(State.Error("Unexpected result"))
+                }
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error updating question: ${e.message}", e)
+                _questionsState.postValue(State.Error(e.message ?: "Error updating question"))
+            }
+        }
+    }
+
+    fun deleteQuestion(question: PeclQuestionEntity) {
+        viewModelScope.launch {
+            try {
+                when (val appResult = repository.deleteQuestion(question)) {
+                    is AppResult.Success -> loadAllQuestions()
+                    is AppResult.Error -> _questionsState.postValue(State.Error(appResult.exception.message ?: "Error deleting question"))
+                    else -> _questionsState.postValue(State.Error("Unexpected result"))
+                }
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error deleting question: ${e.message}", e)
+                _questionsState.postValue(State.Error(e.message ?: "Error deleting question"))
+            }
+        }
+    }
+
+    fun loadAllQuestions() {
+        _questionsState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val data = repository.getAllQuestionsWithTasks().first()
+                _questionsState.postValue(State.Success(data))
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading all questions: ${e.message}", e)
+                _questionsState.postValue(State.Error(e.message ?: "Error loading questions"))
+            }
         }
     }
 }

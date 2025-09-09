@@ -22,11 +22,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
-import com.example.aas_app.data.entity.PeclTaskEntity
 import com.example.aas_app.data.entity.QuestionWithTask
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
-import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.State
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -39,8 +38,8 @@ fun EditQuestionsScreen(
     snackbarHostState: SnackbarHostState
 ) {
     val viewModel = hiltViewModel<AdminViewModel>()
-    val questionsState by viewModel.questionsState.observeAsState(AppState.Success(emptyList()))
-    val scalesState by viewModel.scalesState.observeAsState(AppState.Success(emptyList()))
+    val questionsState by viewModel.questionsState.observeAsState(State.Success(emptyList()))
+    val scalesState by viewModel.scalesState.observeAsState(State.Success(emptyList()))
     var showDeleteDialog by remember { mutableStateOf<PeclQuestionEntity?>(null) }
     var editQuestion by remember { mutableStateOf<PeclQuestionEntity?>(null) }
     var editSubTask by remember { mutableStateOf("") }
@@ -99,8 +98,8 @@ fun EditQuestionsScreen(
         }
 
         when (val state = questionsState) {
-            is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            is AppState.Success -> {
+            is State.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is State.Success -> {
                 if (state.data.isEmpty()) {
                     Text("No questions available")
                 } else {
@@ -132,7 +131,7 @@ fun EditQuestionsScreen(
                     }
                 }
             }
-            is AppState.Error -> Text(
+            is State.Error -> Text(
                 text = "Error: ${state.message}",
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -142,12 +141,14 @@ fun EditQuestionsScreen(
         TextField(
             value = newSubTask,
             onValueChange = { newSubTask = it },
-            label = { Text("New Sub Task") }
+            label = { Text("New Sub Task") },
+            modifier = Modifier.fillMaxWidth()
         )
         TextField(
             value = newControlType,
             onValueChange = { newControlType = it },
-            label = { Text("Control Type") }
+            label = { Text("Control Type") },
+            modifier = Modifier.fillMaxWidth()
         )
         ExposedDropdownMenuBox(
             expanded = expanded,
@@ -160,31 +161,44 @@ fun EditQuestionsScreen(
                 label = { Text("Scale") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                modifier = Modifier.menuAnchor()
+                modifier = Modifier.menuAnchor().fillMaxWidth()
             )
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
                 when (val state = scalesState) {
-                    is AppState.Loading -> Text("Loading scales...")
-                    is AppState.Success -> state.data.sortedBy { it.scaleName }.forEach { peclScale ->
+                    is State.Loading -> {
                         DropdownMenuItem(
-                            text = { Text(peclScale.scaleName) },
-                            onClick = {
-                                newScale = peclScale.scaleName
-                                expanded = false
-                            }
+                            text = { Text("Loading scales...") },
+                            onClick = {}
                         )
                     }
-                    is AppState.Error -> Text("Error: ${state.message}")
+                    is State.Success -> {
+                        state.data.sortedBy { it.scaleName }.forEach { scale ->
+                            DropdownMenuItem(
+                                text = { Text(scale.scaleName) },
+                                onClick = {
+                                    newScale = scale.scaleName
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                    is State.Error -> {
+                        DropdownMenuItem(
+                            text = { Text("Error: ${state.message}") },
+                            onClick = {}
+                        )
+                    }
                 }
             }
         }
         TextField(
             value = newCriticalTask,
             onValueChange = { newCriticalTask = it },
-            label = { Text("Critical Task") }
+            label = { Text("Critical Task") },
+            modifier = Modifier.fillMaxWidth()
         )
         Button(
             onClick = {
@@ -217,7 +231,8 @@ fun EditQuestionsScreen(
                 }
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-            shape = RoundedCornerShape(4.dp)
+            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text("Add Question")
         }
@@ -231,22 +246,26 @@ fun EditQuestionsScreen(
                         TextField(
                             value = editSubTask,
                             onValueChange = { editSubTask = it },
-                            label = { Text("Sub Task") }
+                            label = { Text("Sub Task") },
+                            modifier = Modifier.fillMaxWidth()
                         )
                         TextField(
                             value = editControlType,
                             onValueChange = { editControlType = it },
-                            label = { Text("Control Type") }
+                            label = { Text("Control Type") },
+                            modifier = Modifier.fillMaxWidth()
                         )
                         TextField(
                             value = editScale,
                             onValueChange = { editScale = it },
-                            label = { Text("Scale") }
+                            label = { Text("Scale") },
+                            modifier = Modifier.fillMaxWidth()
                         )
                         TextField(
                             value = editCriticalTask,
                             onValueChange = { editCriticalTask = it },
-                            label = { Text("Critical Task") }
+                            label = { Text("Critical Task") },
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 },

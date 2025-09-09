@@ -24,11 +24,12 @@ import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclPoiEntity
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
-import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.State
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuilderScreen(
     navController: NavController,
@@ -36,8 +37,8 @@ fun BuilderScreen(
     snackbarHostState: SnackbarHostState
 ) {
     val viewModel: AdminViewModel = hiltViewModel()
-    val poisState by viewModel.poisState.observeAsState(AppState.Success(emptyList()))
-    val programsState by viewModel.programsState.observeAsState(AppState.Success(emptyList()))
+    val poisState by viewModel.poisState.observeAsState(State.Success(emptyList()))
+    val programsState by viewModel.programsState.observeAsState(State.Success(emptyList()))
     var showAddPoiDialog by remember { mutableStateOf(false) }
     var newPoiName by remember { mutableStateOf("") }
     var selectedProgramsForAdd by remember { mutableStateOf(setOf<Long>()) }
@@ -45,13 +46,13 @@ fun BuilderScreen(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        viewModel.loadPoisForProgram(0L)
         viewModel.loadPrograms()
+        viewModel.loadPoisForProgram(0L) // Load all POIs initially
     }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -78,8 +79,8 @@ fun BuilderScreen(
         }
 
         when (val state = poisState) {
-            is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            is AppState.Success -> {
+            is State.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is State.Success -> {
                 if (state.data.isEmpty()) {
                     Text("No POIs have been entered in the database. Add POIs to begin.")
                 } else {
@@ -119,7 +120,7 @@ fun BuilderScreen(
                     }
                 }
             }
-            is AppState.Error -> Text(
+            is State.Error -> Text(
                 text = "Error: ${state.message}",
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -135,12 +136,13 @@ fun BuilderScreen(
                         TextField(
                             value = newPoiName,
                             onValueChange = { newPoiName = it },
-                            label = { Text("POI Name") }
+                            label = { Text("POI Name") },
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        Text(text = "Select Programs:")
+                        Text(text = "Select Programs:", modifier = Modifier.padding(top = 8.dp))
                         when (val state = programsState) {
-                            is AppState.Loading -> Text("Loading programs...")
-                            is AppState.Success -> {
+                            is State.Loading -> Text("Loading programs...")
+                            is State.Success -> {
                                 LazyColumn {
                                     items(state.data) { program ->
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -159,7 +161,7 @@ fun BuilderScreen(
                                     }
                                 }
                             }
-                            is AppState.Error -> Text("Error loading programs: ${state.message}")
+                            is State.Error -> Text("Error loading programs: ${state.message}")
                         }
                     }
                 },

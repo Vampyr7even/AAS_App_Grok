@@ -4,48 +4,29 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
-import androidx.room.Update
 import androidx.room.Transaction
-import androidx.room.RewriteQueriesToDropUnusedColumns
-import com.example.aas_app.data.entity.QuestionAssignmentEntity
-import com.example.aas_app.data.entity.PeclQuestionEntity
-import com.example.aas_app.data.entity.QuestionWithTask
+import androidx.room.Update
+import com.example.aas_app.data.entity.PeclTaskEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface QuestionDao {
+interface PeclTaskDao {
     @Insert
-    suspend fun insertQuestion(question: PeclQuestionEntity): Long
+    suspend fun insertTask(task: PeclTaskEntity): Long
 
     @Update
-    suspend fun updateQuestion(question: PeclQuestionEntity)
+    suspend fun updateTask(task: PeclTaskEntity)
 
     @Delete
-    suspend fun deleteQuestion(question: PeclQuestionEntity)
+    suspend fun deleteTask(task: PeclTaskEntity)
 
-    @Query("SELECT * FROM pecl_questions")
-    fun getAllQuestions(): Flow<List<PeclQuestionEntity>>
+    @Query("SELECT * FROM pecl_tasks WHERE id = :id")
+    suspend fun getTaskById(id: Long): PeclTaskEntity?
 
-    @Query("SELECT q.* FROM pecl_questions q INNER JOIN question_assignments qta ON q.id = qta.question_id WHERE qta.task_id = :taskId")
-    fun getQuestionsForTask(taskId: Long): Flow<List<PeclQuestionEntity>>
-
-    @Query("SELECT q.* FROM pecl_questions q INNER JOIN question_assignments qta ON q.id = qta.question_id INNER JOIN task_poi_assignments tpa ON qta.task_id = tpa.task_id WHERE tpa.poi_id = :poiId")
-    fun getQuestionsForPoi(poiId: Long): Flow<List<PeclQuestionEntity>>
-
-    @Insert
-    suspend fun insertQuestionAssignment(assignment: QuestionAssignmentEntity)
-
-    @Query("DELETE FROM question_assignments WHERE question_id = :questionId")
-    suspend fun deleteQuestionTaskAssignmentsForQuestion(questionId: Long)
-
-    @Query("SELECT * FROM pecl_questions WHERE id = :questionId")
-    suspend fun getQuestionById(questionId: Long): PeclQuestionEntity?
-
-    @Query("SELECT task_id FROM question_assignments WHERE question_id = :questionId LIMIT 1")
-    suspend fun getTaskIdForQuestion(questionId: Long): Long?
+    @Query("SELECT * FROM pecl_tasks")
+    fun getAllTasks(): Flow<List<PeclTaskEntity>>
 
     @Transaction
-    @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT q.* FROM pecl_questions q LEFT JOIN question_assignments qta ON q.id = qta.question_id LEFT JOIN pecl_tasks t ON qta.task_id = t.id")
-    fun getAllQuestionsWithTasks(): Flow<List<QuestionWithTask>>
+    @Query("SELECT * FROM pecl_tasks WHERE id IN (SELECT task_id FROM task_poi_assignments WHERE poi_id = :poiId)")
+    fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>>
 }

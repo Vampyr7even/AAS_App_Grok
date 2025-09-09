@@ -14,29 +14,41 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclQuestionEntity
 import com.example.aas_app.viewmodel.AdminViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditQuestionScreen(navController: NavController, questionId: Long, taskId: Long) {
+fun EditQuestionScreen(
+    navController: NavController,
+    questionId: Long,
+    taskId: Long,
+    coroutineScope: CoroutineScope,
+    snackbarHostState: SnackbarHostState
+) {
     val viewModel = hiltViewModel<AdminViewModel>()
     var subTask by remember { mutableStateOf("") }
     var controlType by remember { mutableStateOf("") }
     var scale by remember { mutableStateOf("") }
     var criticalTask by remember { mutableStateOf("") }
-    val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(questionId) {
-        val question = viewModel.getQuestionById(questionId)
-        question?.let {
-            subTask = it.subTask
-            controlType = it.controlType
-            scale = it.scale
-            criticalTask = it.criticalTask
-        } ?: run {
+        try {
+            val question = viewModel.getQuestionById(questionId)
+            question?.let {
+                subTask = it.subTask
+                controlType = it.controlType
+                scale = it.scale
+                criticalTask = it.criticalTask
+            } ?: run {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Error loading question")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("EditQuestionScreen", "Error loading question: ${e.message}", e)
             coroutineScope.launch {
-                snackbarHostState.showSnackbar("Error loading question")
+                snackbarHostState.showSnackbar("Error loading question: ${e.message}")
             }
         }
     }
@@ -112,8 +124,7 @@ fun EditQuestionScreen(navController: NavController, questionId: Long, taskId: L
             shape = RoundedCornerShape(4.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Update Question")
+            Text("Save")
         }
-        SnackbarHost(hostState = snackbarHostState)
     }
 }

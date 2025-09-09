@@ -25,7 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.PeclProgramEntity
 import com.example.aas_app.viewmodel.AdminViewModel
-import com.example.aas_app.viewmodel.AppState
+import com.example.aas_app.viewmodel.State
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -36,7 +36,7 @@ fun EditProgramsScreen(
     snackbarHostState: SnackbarHostState
 ) {
     val viewModel = hiltViewModel<AdminViewModel>()
-    val programsState by viewModel.programsState.observeAsState(AppState.Success(emptyList()))
+    val programsState by viewModel.programsState.observeAsState(State.Success(emptyList()))
     var showAddProgramDialog by remember { mutableStateOf(false) }
     var newProgramName by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf<PeclProgramEntity?>(null) }
@@ -77,8 +77,8 @@ fun EditProgramsScreen(
         }
 
         when (val state = programsState) {
-            is AppState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            is AppState.Success -> {
+            is State.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is State.Success -> {
                 if (state.data.isEmpty()) {
                     Text("No programs have been entered in the database. Add Programs to begin.")
                 } else {
@@ -96,6 +96,7 @@ fun EditProgramsScreen(
                                     TextField(
                                         value = editName,
                                         onValueChange = { editName = it },
+                                        label = { Text("Program Name") },
                                         modifier = Modifier.weight(1f)
                                     )
                                     IconButton(onClick = {
@@ -135,7 +136,7 @@ fun EditProgramsScreen(
                     }
                 }
             }
-            is AppState.Error -> Text(
+            is State.Error -> Text(
                 text = "Error: ${state.message}",
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()

@@ -1,22 +1,32 @@
 package com.example.aas_app.data.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
-import com.example.aas_app.data.entity.TaskPoiAssignmentEntity
+import androidx.room.Transaction
+import androidx.room.Update
+import com.example.aas_app.data.entity.PeclTaskEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface TaskPoiAssignmentDao {
+interface PeclTaskDao {
     @Insert
-    suspend fun insertAssignment(assignment: TaskPoiAssignmentEntity)
+    suspend fun insertTask(task: PeclTaskEntity): Long
 
-    @Query("DELETE FROM task_poi_assignments WHERE task_id = :taskId")
-    suspend fun deleteAssignmentsForTask(taskId: Long)
+    @Update
+    suspend fun updateTask(task: PeclTaskEntity)
 
-    @Query("SELECT poi_id FROM task_poi_assignments WHERE task_id = :taskId")
-    suspend fun getPoiIdsForTask(taskId: Long): List<Long>
+    @Delete
+    suspend fun deleteTask(task: PeclTaskEntity)
 
-    @Query("SELECT name FROM pecl_pois WHERE id IN (SELECT poi_id FROM task_poi_assignments WHERE task_id = :taskId)")
-    fun getPoisForTask(taskId: Long): Flow<List<String>>
+    @Query("SELECT * FROM pecl_tasks WHERE id = :id")
+    suspend fun getTaskById(id: Long): PeclTaskEntity?
+
+    @Query("SELECT * FROM pecl_tasks")
+    fun getAllTasks(): Flow<List<PeclTaskEntity>>
+
+    @Transaction
+    @Query("SELECT * FROM pecl_tasks WHERE id IN (SELECT task_id FROM task_poi_assignments WHERE poi_id = :poiId)")
+    fun getTasksForPoi(poiId: Long): Flow<List<PeclTaskEntity>>
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.aas_app.data.entity.ScaleEntity
 import com.example.aas_app.viewmodel.AdminViewModel
+import com.example.aas_app.viewmodel.State
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -26,6 +28,7 @@ fun AddScaleScreen(
     snackbarHostState: SnackbarHostState
 ) {
     val viewModel = hiltViewModel<AdminViewModel>()
+    val scalesState by viewModel.scalesState.observeAsState(State.Success(emptyList()))
     var scaleName by remember { mutableStateOf("") }
     var scaleOptions by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -66,7 +69,8 @@ fun AddScaleScreen(
                 if (scaleName.isNotBlank() && scaleOptions.isNotBlank()) {
                     coroutineScope.launch {
                         try {
-                            viewModel.insertScale(ScaleEntity(scaleName = scaleName, options = scaleOptions))
+                            val scale = ScaleEntity(scaleName = scaleName, options = scaleOptions)
+                            viewModel.insertScale(scale)
                             Toast.makeText(context, "Scale added successfully", Toast.LENGTH_SHORT).show()
                             navController.popBackStack()
                         } catch (e: Exception) {
@@ -85,6 +89,17 @@ fun AddScaleScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Add Scale")
+        }
+
+        when (val state = scalesState) {
+            is State.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            is State.Success -> {
+                // Optionally display scales if needed
+            }
+            is State.Error -> Text(
+                text = "Error: ${state.message}",
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
         }
 
         SnackbarHost(hostState = snackbarHostState)
